@@ -285,3 +285,20 @@ def worker_status() -> dict[str, object]:
         ),
         "age_sec": round(age_sec, 3) if age_sec is not None else None,
     }
+
+
+def delivery_health_errors() -> list[str]:
+    """Do not mistake a live polling loop for successful delivery."""
+    errors = []
+    now = timezone.now()
+    if TelegramAlert.objects.filter(status=TelegramAlert.Status.FAILED).exists():
+        errors.append("Telegram alerts have terminal delivery failures; inspect and retry them.")
+    if TelegramAlert.objects.filter(
+        status=TelegramAlert.Status.PENDING, available_at__lt=now - timedelta(minutes=5)
+    ).exists():
+        errors.append("Telegram alerts are overdue by more than five minutes.")
+    if TelegramAlert.objects.filter(
+        status=TelegramAlert.Status.PROCESSING, locked_at__lt=now - timedelta(minutes=5)
+    ).exists():
+        errors.append("Telegram alert processing is stalled.")
+    return errors

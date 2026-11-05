@@ -23,6 +23,7 @@
 # See docs/operations/deployments.md.
 #
 set -euo pipefail
+umask 077
 exec 2>&1
 
 if [ "$#" -ne 2 ]; then
@@ -31,6 +32,10 @@ if [ "$#" -ne 2 ]; then
 fi
 
 SHA="$1"; FULL="$2"
+if [[ ! "$FULL" =~ ^[0-9a-f]{40}$ || "$SHA" != "${FULL:0:7}" ]]; then
+  echo "FATAL: expected a full commit and its seven-character prefix" >&2
+  exit 64
+fi
 ROOT=/opt/school-display
 APP=$ROOT/app
 BACKUPS=$ROOT/backups
@@ -61,10 +66,12 @@ sudo tar -czf /home/deploy/releases/pre-$SHA-$TS.tar.gz \
      -C "$APP" . 2>/dev/null
 echo "tree snapshot: pre-$SHA-$TS.tar.gz"
 D=$(sudo bash -c "ls -1t $BACKUPS/*.dump | head -1")
-sudo cp "$D" /tmp/chk.dump && sudo chmod 644 /tmp/chk.dump
-sudo docker compose -f "$CF" cp /tmp/chk.dump postgres:/tmp/chk.dump >/dev/null 2>&1
-echo "dump restorable objects: $(sudo docker compose -f "$CF" exec -T postgres pg_restore --list /tmp/chk.dump 2>/dev/null | grep -c '^[0-9;]')"
-sudo rm -f /tmp/chk.dump
+# Stream the protected dump directly: never create a world-readable copy on
+# the host or leave a second copy in the database container after a failure.
+RESTORABLE_OBJECTS=$(sudo cat "$D" | sudo docker compose -f "$CF" exec -T postgres \
+  pg_restore --list | awk '/^[0-9]+;/ {n++} END {print n+0}')
+test "$RESTORABLE_OBJECTS" -gt 0
+echo "dump restorable objects: $RESTORABLE_OBJECTS"
 
 echo "=== [3/6] swapping tree ==="
 sudo rsync -a --delete \
@@ -92,11 +99,12 @@ echo "=== [5/6] migrate ==="
 sudo docker compose -f "$CF" run --rm -T web python manage.py migrate --noinput 2>&1 | grep -E "Applying|No migrations" | tail -5
 
 echo "=== [6/6] recreating services ==="
-sudo docker compose -f "$CF" up -d 2>&1 | tail -4
+sudo docker compose -f "$CF" up -d --wait --wait-timeout 180 2>&1 | tail -8
 # rsync replaces the bind-mounted Caddyfile inode. A running Caddy container
 # keeps the old inode even after a reload, so recreate only this lightweight
 # internal static proxy to mount and activate the reviewed release config.
-sudo docker compose -f "$CF" up -d --force-recreate caddy 2>&1 | tail -4
+sudo docker compose -f "$CF" up -d --force-recreate --wait --wait-timeout 180 caddy 2>&1 | tail -4
+sudo docker compose -f "$CF" exec -T web python manage.py check --deploy
 sudo bash -c "printf %s $FULL > $APP/.release-commit"
 echo "stamped: $(sudo cat "$APP/.release-commit")"
 echo "=== DEPLOY COMPLETE $(date -u +%H:%M:%SZ) ==="

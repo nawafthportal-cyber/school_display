@@ -53,12 +53,10 @@ class Command(BaseCommand):
         )
 
         while True:
-            state = "disabled" if not alerts_enabled() else "running"
+            state = "disabled" if not alerts_enabled() else "starting"
             errors = configuration_errors()
             if alerts_enabled() and errors:
                 state = "misconfigured"
-            touch_worker_heartbeat(worker_id=worker_id, state=state)
-
             try:
                 if alerts_enabled():
                     today = timezone.localdate()
@@ -77,12 +75,14 @@ class Command(BaseCommand):
                         )
                     else:
                         result = process_pending_alerts(limit=batch_size)
+                        state = "degraded" if result.retried or result.failed else "running"
                         if result.sent or result.retried or result.failed:
                             self.stdout.write(
                                 "telegram_alert_delivery "
                                 f"sent={result.sent} retried={result.retried} failed={result.failed}"
                             )
             except Exception:
+                state = "error"
                 logger.exception("telegram_alert_worker_scan_failed")
 
             touch_worker_heartbeat(worker_id=worker_id, state=state)

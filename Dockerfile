@@ -26,6 +26,6 @@ USER django
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD curl --fail --silent --header "Host: school-display.com" http://127.0.0.1:8000/ >/dev/null || exit 1
+    CMD curl --fail --silent --max-time 4 --header "Host: school-display.com" --header "X-Forwarded-Proto: https" http://127.0.0.1:8000/health/ >/dev/null || exit 1
 
 CMD ["gunicorn", "config.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers=2", "--timeout=120", "--keep-alive=5", "--error-logfile=-"]

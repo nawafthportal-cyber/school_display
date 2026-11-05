@@ -1,24 +1,28 @@
 # Content Security Policy rollout
 
-The application sends a restrictive CSP in `Report-Only` mode by default. This records violations without breaking legacy pages that still contain inline scripts and event handlers.
+The application enforces CSP by default. Inline JavaScript uses a fresh response
+nonce and template event handlers use delegated listeners in `csp-actions.js`.
+The production environment must also set `CONTENT_SECURITY_POLICY_ENABLED=True`
+and `CONTENT_SECURITY_POLICY_REPORT_ONLY=False`; an old environment override
+otherwise keeps reporting without enforcement.
 
 ## Current policy
 
-- JavaScript is limited to same-origin static files.
+- JavaScript allows same-origin files, response nonces, Cloudflare Insights and jsDelivr.
 - Objects are disabled and frame ancestors are same-origin only.
-- Forms can submit only to the same origin.
+- Forms and frames also allow the Moyasar payment gateway for 3-D Secure.
 - Camera, microphone, geolocation, payment and motion sensors are disabled through `Permissions-Policy`.
 - Google Fonts, Font Awesome CSS, Cloudinary/HTTPS images and the privacy-enhanced YouTube player remain allowed where the current UI uses them.
 
 Reports are sent to `/csp-report/`. The endpoint limits report volume, strips query strings from logged URLs and never stores the original request body.
 
-## Enabling enforcement
+## Verification and rollback
 
-1. Keep `CONTENT_SECURITY_POLICY_REPORT_ONLY=True` in production.
-2. Review `csp_violation` logs for at least seven normal school days, including dashboard administration and TV display use.
-3. Move remaining inline `<script>` blocks and HTML `on*` handlers into versioned files under `static/js/`.
-4. Verify there are no required `script-src` violations for the supported flows.
-5. Set `CONTENT_SECURITY_POLICY_REPORT_ONLY=False` and deploy to a limited school group first.
-6. Revert to report-only immediately if a required interaction is blocked.
+1. Run `core.test_csp` and the dashboard/TV browser regression tests before rollout.
+2. Check browser policy violations on public pages, login, dashboards and TV pairing.
+3. Confirm public HTML responses contain `Content-Security-Policy`, not just the report-only header.
+4. Review `csp_violation` logs after deployment. If a required interaction is blocked,
+   set `CONTENT_SECURITY_POLICY_REPORT_ONLY=True` and recreate the affected service
+   while correcting the policy or resource. Do not disable all CSP reporting.
 
 Do not add `'unsafe-eval'` to solve a third-party library problem. Prefer a local CSP-compatible build or a small native JavaScript replacement.

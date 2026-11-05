@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: production-school-display
@@ -42,6 +43,14 @@ jobs:
           git fetch origin main
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+
+      - name: Require successful CI for this exact main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          conclusion=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SOURCE_SHA&event=push&per_page=20" \
+            --jq '[.workflow_runs[] | select(.head_branch == "main")][0].conclusion // "missing"')
+          test "$conclusion" = success || { echo "CI is not successful for $SOURCE_SHA ($conclusion)"; exit 1; }
 
       - name: Configure SSH
         env:

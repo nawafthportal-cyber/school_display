@@ -25,6 +25,7 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
 from core import occasions
+from core.health import readiness_status
 from core.email_verification import EmailVerificationError, mark_verified, verify_token
 from core.models import DisplayPairingSession, DisplayScreen, SubscriptionPlan
 from dashboard.access import get_active_school_or_redirect
@@ -66,8 +67,12 @@ THEME_MAP = {
 }
 
 
+@require_GET
+@never_cache
 def health(request):
-    return HttpResponse("School Display is running.")
+    checks = readiness_status()
+    ready = all(checks.values())
+    return JsonResponse({"status": "ok" if ready else "unavailable", "checks": checks}, status=200 if ready else 503)
 
 
 def _pairing_rate_limited(key: str, *, limit: int, window_seconds: int) -> bool:

@@ -8,6 +8,10 @@
 
 Restic encrypts repository contents before upload. The repository password and storage credentials must only exist in `.env.production` or a dedicated secret file on the server.
 
+Release validation streams the protected dump into `pg_restore --list` over stdin.
+It must never copy a dump to a predictable or world-readable path under `/tmp`.
+Deployment archives and logs are created with `umask 077`.
+
 ## Configure off-site storage
 
 Set at minimum:
