@@ -3500,6 +3500,8 @@ def _build_final_snapshot(
 
     # ✅ الثيم: تحويل default/boys/girls -> indigo/emerald/rose
     s["theme"] = _normalize_theme_value(getattr(settings_obj, "theme", None) or s.get("theme"))
+    from core.display_themes import effective_custom_theme, theme_payload
+    s["custom_theme"] = theme_payload(effective_custom_theme(settings_obj))
 
     # ✅ Featured panel toggle (excellence|duty)
     s.setdefault("featured_panel", getattr(settings_obj, "featured_panel", "excellence") or "excellence")

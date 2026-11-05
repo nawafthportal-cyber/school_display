@@ -30,6 +30,7 @@
     تُولَّد بأمر: python manage.py build_legacy_css
   {% endcomment %}
   <link rel="stylesheet" href="{% static 'css/display-legacy.css' %}?v=2026-10-10-responsive1">
+  <link rel="stylesheet" href="{% static 'css/custom-display-theme.css' %}?v=2026-11-06-1">
 
   {% comment %}
     الجزء الوحيد الذي يبقى داخل الصفحة: ألوان المناسبات وأنماطها، لأنها تُولَّد
@@ -561,11 +562,13 @@
     {% endcomment %}
     <script type="application/json" id="occasionThemeMeta">{{ occasion_theme_meta_json|safe }}</script>
 
+    {{ custom_display_theme|json_script:"customDisplayTheme" }}
+    <script defer src="{% static 'js/display-theme.js' %}?v=2026-11-06-1"></script>
     <script defer src="{% static 'js/display-controls.js' %}?v=2026-09-09-bell1"></script>
     {% if display_use_minified_js %}
-    <script defer src="{% static 'js/display.min.js' %}?v=2026-10-10-responsive1"></script>
+    <script defer src="{% static 'js/display.min.js' %}?v=2026-11-06-theme1"></script>
     {% else %}
-    <script defer src="{% static 'js/display.js' %}?v=2026-10-10-responsive1"></script>
+    <script defer src="{% static 'js/display.js' %}?v=2026-11-06-theme1"></script>
     {% endif %}
     <script defer src="{% static 'js/display-sw-register.js' %}?v=2026-09-09-bell1"></script>
 </body>

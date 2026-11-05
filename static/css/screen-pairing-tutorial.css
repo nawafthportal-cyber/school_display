@@ -1,0 +1,29 @@
+.screen-tutorial{margin-bottom:1rem;border:1px solid #cddfdf;border-radius:18px;background:#fff;overflow:hidden}
+.screen-tutorial summary{display:flex;align-items:center;gap:1rem;padding:1rem;cursor:pointer;list-style:none}
+.screen-tutorial summary::-webkit-details-marker{display:none}
+.screen-tutorial summary:focus-visible,.screen-tutorial button:focus-visible{outline:3px solid #0e7490;outline-offset:3px}
+.screen-tutorial__thumbnail{position:relative;flex:0 0 160px;overflow:hidden;border-radius:12px;background:#10323e;aspect-ratio:16/9}
+.screen-tutorial__thumbnail img{width:100%;height:100%;object-fit:cover;display:block}
+.screen-tutorial__play{position:absolute;inset:0;display:grid;place-items:center;background:#071f2940}
+.screen-tutorial__play svg{width:42px;height:42px;padding:11px;border-radius:50%;background:#fff;color:#145a6a;box-shadow:0 3px 15px #0003}
+.screen-tutorial__copy{min-width:0;flex:1}
+.screen-tutorial__copy strong{display:block;font-size:1.05rem;color:#164e58;font-weight:900}
+.screen-tutorial__copy small{display:block;margin-top:.35rem;color:#526b72;font-size:.78rem;line-height:1.8}
+.screen-tutorial__cta{flex-shrink:0;border-radius:10px;padding:.65rem .9rem;background:#eaf5f3;color:#175e65;font-size:.78rem;font-weight:800}
+.screen-tutorial__hide{display:none}
+.screen-tutorial[open] .screen-tutorial__show{display:none}
+.screen-tutorial[open] .screen-tutorial__hide{display:inline}
+.screen-tutorial__content{padding:0 1rem 1rem;border-top:1px solid #e4eeee}
+.screen-tutorial__player{max-width:1000px;margin:1rem auto 0;background:#071f29;border-radius:12px;overflow:hidden}
+.screen-tutorial video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#071f29}
+.screen-tutorial__chapters{display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem;margin:.85rem 0}
+.screen-tutorial__chapters button{min-height:44px;padding:.55rem .8rem;border:1px solid #c6dbdc;border-radius:10px;background:#f5faf9;color:#205c64;font-size:.76rem;font-weight:800;cursor:pointer}
+.screen-tutorial__chapters button:hover{background:#e6f3f0}
+.screen-tutorial__note{margin:.5rem 0 0;color:#526b72;font-size:.76rem;line-height:1.9;text-align:center}
+.screen-tutorial__note a{color:#116878;text-decoration:underline;text-underline-offset:3px}
+.screen-tutorial__status{margin:.5rem 0;color:#9f3030;font-size:.8rem;text-align:center}
+.screen-tutorial__transcript{max-width:1000px;margin:.85rem auto 0;border:1px solid #e1ebeb;border-radius:10px;color:#36565e;font-size:.8rem;line-height:1.9}
+.screen-tutorial__transcript summary{padding:.65rem .85rem;font-weight:800}
+.screen-tutorial__transcript ol{padding-inline:2rem 1rem;margin:0 0 1rem;list-style:decimal}
+.screen-tutorial__transcript li+li{margin-top:.45rem}
+@media(max-width:640px){.screen-tutorial summary{gap:.7rem;padding:.85rem;flex-wrap:wrap}.screen-tutorial__thumbnail{flex-basis:104px}.screen-tutorial__copy{flex-basis:calc(100% - 120px)}.screen-tutorial__copy strong{font-size:.9rem}.screen-tutorial__copy small{font-size:.7rem}.screen-tutorial__cta{margin-inline-start:auto;padding:.45rem .7rem}.screen-tutorial__content{padding:0 .7rem .8rem}.screen-tutorial__chapters{justify-content:stretch}.screen-tutorial__chapters button{flex:1 1 140px}}

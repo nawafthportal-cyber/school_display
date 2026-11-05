@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<meta charset="utf-8">
+<link rel="stylesheet" href="/static/css/fonts.css">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#071f29;color:#fff;font-family:'IBM Plex Sans Arabic',sans-serif;width:1920px;height:1080px;overflow:hidden}
+body:before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 15% 10%,#164752,transparent 60%);pointer-events:none}
+header{position:absolute;top:30px;right:82px;left:82px;display:flex;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:38px;line-height:1.5}#chapter{color:#6de4d0;font-size:21px;margin-bottom:2px}.brand{border:1px solid #33505a;padding:13px 25px;border-radius:16px;font-size:22px;color:#c1d4d8}.brand small{display:block;font-size:15px;color:#92afb9;margin-top:4px}
+.window{position:absolute;top:153px;border:2px solid #49616a;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 20px 60px #0005;direction:ltr}
+.bar{height:40px;background:#e9f0f2;display:flex;align-items:center;padding:0 18px;gap:12px;color:#244653;font-size:16px}.dots{color:#71929d;font-size:20px}.address{background:white;border-radius:7px;padding:3px 15px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.device{font-family:'IBM Plex Sans Arabic';font-size:17px;font-weight:600;flex-shrink:0}
+iframe{display:block;border:0;width:100%;height:100%;background:white}#desktop{left:90px;width:1740px;height:802px}#desktop iframe{height:758px}#phone{display:none;left:80px;width:430px;height:802px}#phone iframe{height:758px}#tv{display:none;left:550px;top:177px;width:1284px;height:764px}#tv iframe{height:720px}
+#phone-wait{position:absolute;inset:40px 0 0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:25px;background:#163c48;color:#d6e9e9;direction:rtl;text-align:center;padding:30px;font-size:28px}#phone-wait[hidden]{display:none}#phone-wait svg{width:100px;color:#6de4d0}#phone-wait small{font-size:21px;line-height:1.8;color:#adcbd2}
+footer{position:absolute;bottom:17px;left:80px;right:80px;min-height:94px;padding:13px 26px;background:#10323e;border:1px solid #32505a;border-radius:16px;text-align:center;display:flex;align-items:center;justify-content:center;flex-direction:column}#caption{font-size:28px;line-height:1.5;font-weight:600}#hint{font-size:21px;color:#b5d7dc;line-height:1.45;margin-top:3px}
+#annotations{position:absolute;inset:0;pointer-events:none;z-index:5}.focus{fill:#ffc85b12;stroke:#ffc85b;stroke-width:4;rx:10}.arrow{fill:none;stroke:#ffc85b;stroke-width:6;filter:drop-shadow(0 2px 3px #0008)}.dot{fill:#ffcf65;stroke:#fff;stroke-width:3}
+#intro{position:absolute;inset:170px 90px 145px;padding:55px;border:1px solid #3c5c65;background:#10323e;border-radius:30px;z-index:4;text-align:center}#intro h2{font-size:50px;margin:0 0 16px}#intro p{font-size:28px;color:#b9d3d9;margin:0}.cards{display:flex;gap:26px;margin-top:60px}.card{flex:1;text-align:center;background:#193f4b;border:1px solid #41606a;border-radius:22px;padding:35px 22px;min-height:260px}.card b{font-size:32px;display:block;color:#6de4d0;margin-bottom:18px}.card span{font-size:26px;line-height:1.8}.number{margin:0 auto 18px;width:54px;height:54px;border-radius:50%;background:#285965;color:#fff;font-size:32px}
+</style>
+<header><div><div id="chapter">قبل البداية</div><h1 id="title">ربط أول شاشة مدرسية</h1></div><div class="brand">لوحة العرض الذكية<small>شرح تطبيقي · بيانات تجريبية</small></div></header>
+<div id="desktop" class="window"><div class="bar"><span class="dots">● ● ●</span><span class="address" id="desktop-address">school-display.com/dashboard/screens/</span><span class="device">لوحة التحكم</span></div><iframe name="desktop-frame"></iframe></div>
+<div id="phone" class="window"><div class="bar"><span class="address" id="phone-address">school-display.com</span><span class="device">الجوال</span></div><iframe name="phone-frame"></iframe><div id="phone-wait"><svg viewBox="0 0 100 80" fill="none" stroke="currentColor" stroke-width="4"><rect x="5" y="15" width="90" height="60" rx="12"/><path d="M30 15 38 5h24l8 10"/><circle cx="50" cy="45" r="17"/></svg><b>افتح كاميرا الجوال</b><small>وجّه الكاميرا نحو QR<br>الظاهر على التلفاز.</small></div></div>
+<div id="tv" class="window"><div class="bar"><span class="dots">● ● ●</span><span class="address" id="tv-address">school-display.com/tv</span><span class="device">التلفاز</span></div><iframe name="tv-frame"></iframe></div>
+<div id="intro"><h2>ما الذي تحتاجه لتشغيل الشاشة؟</h2><p>جهّز هذه المتطلبات، ثم اختر طريقة الربط المناسبة لك.</p><div class="cards"><div class="card"><div class="number">١</div><b>جهاز عرض ومتصفح</b><span>تلفاز بمتصفح مناسب، أو شاشة<br>متصلة بحاسب أو جهاز تشغيل.</span></div><div class="card"><div class="number">٢</div><b>اتصال بالإنترنت</b><span>على جهاز العرض، وعلى الجوال<br>أو الحاسب المستخدم للإدارة.</span></div><div class="card"><div class="number">٣</div><b>حساب المدرسة</b><span>دخول مسؤول المدرسة، واشتراك<br>أو تجربة سارية تسمح بشاشة.</span></div></div></div>
+<svg id="annotations" width="1920" height="1080"><defs><marker id="head" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto"><path d="M0 0L10 5L0 10" fill="none" stroke="#ffc85b" stroke-width="2"/></marker></defs><g id="marks"></g></svg>
+<footer><div id="caption"></div><div id="hint"></div></footer>
+<script>
+window.studio={
+ scene(chapter,title,caption,hint=''){document.querySelector('#chapter').textContent=chapter;document.querySelector('#title').textContent=title;document.querySelector('#caption').textContent=caption;document.querySelector('#hint').textContent=hint;this.clear()},
+ mode(mode){document.querySelector('#intro').style.display=mode==='intro'?'block':'none';document.querySelector('#desktop').style.display=mode==='desktop'?'block':'none';for(const id of ['phone','tv'])document.getElementById(id).style.display=mode==='split'?'block':'none'},
+ clear(){document.querySelector('#marks').innerHTML=''},
+ mark(r){const x=Math.max(8,r.x-7),y=Math.max(145,r.y-7),w=r.width+14,h=r.height+14;const cx=x+w/2,cy=y+h/2;let sx=cx<960?cx+160:cx-160;let sy=cy>600?cy-120:cy+140;sx=Math.min(1800,Math.max(120,sx));sy=Math.min(910,Math.max(170,sy));document.querySelector('#marks').innerHTML=`<rect class="focus" x="${x}" y="${y}" width="${w}" height="${h}"/><path class="arrow" d="M${sx} ${sy}Q${sx} ${cy} ${cx} ${cy}" marker-end="url(#head)"/><circle class="dot" cx="${cx}" cy="${cy}" r="7"/>`},
+ address(id,value){document.getElementById(id+'-address').textContent='school-display.com'+value}
+};
+</script>
+</html>

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import auth_views, support_views, two_factor_views, views, views_pairing, views_screens
+from . import auth_views, support_views, two_factor_views, views, views_pairing, views_screens, views_themes
 from mailcenter import dashboard_views as mail_views
  
 app_name = "dashboard"
@@ -41,6 +41,10 @@ urlpatterns = [
     # Settings
     # ==================
     path("settings/", views.school_settings, name="settings"),
+    path("themes/", views_themes.theme_list, name="theme_list"),
+    path("themes/new/", views_themes.theme_edit, name="theme_create"),
+    path("themes/<int:pk>/edit/", views_themes.theme_edit, name="theme_edit"),
+    path("themes/<int:pk>/<str:action>/", views_themes.theme_action, name="theme_action"),
 
     # ==================
     # Lessons

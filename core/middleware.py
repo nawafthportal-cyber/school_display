@@ -150,6 +150,7 @@ class DirectStaticAssetMiddleware:
             static_name,
             method=method,
             is_versioned=bool(getattr(request, "GET", None) and request.GET.get("v")),
+            range_header=request.headers.get("Range") if not request.headers.get("If-Range") else None,
         )
         if response is not None:
             return response

@@ -17,6 +17,7 @@ from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.utils import timezone
 
 from schedule.models import (
+    DisplayTheme,
     SchoolSettings,
     DutyAssignment,
     DaySchedule,
@@ -93,6 +94,7 @@ class SchoolSettingsForm(forms.ModelForm):
         "logo",
         "featured_panel",
         "theme",
+        "custom_theme",
         "display_accent_color",
         "standby_scroll_speed",
         "periods_scroll_speed",
@@ -172,6 +174,7 @@ class SchoolSettingsForm(forms.ModelForm):
         fields = [
             "featured_panel",
             "theme",
+            "custom_theme",
             "standby_scroll_speed",
             "periods_scroll_speed",
             "bell_sound",
@@ -228,6 +231,9 @@ class SchoolSettingsForm(forms.ModelForm):
         self.request_user = kwargs.pop("user", None)
         self.form_mode = kwargs.pop("mode", "all")
         super().__init__(*args, **kwargs)
+
+        self.fields["custom_theme"].queryset = DisplayTheme.objects.filter(school_id=self.instance.school_id)
+        self.fields["custom_theme"].empty_label = "استخدام الألوان الجاهزة"
 
         if self.request_user and getattr(self.request_user, "is_authenticated", False):
             self.fields["email"].initial = (getattr(self.request_user, "email", "") or "").strip()
@@ -326,6 +332,10 @@ class SchoolSettingsForm(forms.ModelForm):
             # The settings screen exposes preset theme buttons, not a custom
             # color picker. Keep the stored accent aligned with that palette.
             cleaned["display_accent_color"] = self.THEME_ACCENTS.get(theme, "#6366F1")
+            custom = cleaned.get("custom_theme")
+            if custom:
+                cleaned["theme"] = custom.base_theme
+                cleaned["display_accent_color"] = custom.accent_color
         return cleaned
 
     def clean_logo(self):
@@ -415,6 +425,7 @@ class ScreenDisplayCustomizationForm(forms.ModelForm):
     INHERIT_GROUP_FIELDS = {
         INHERIT_APPEARANCE: (
             "theme_override",
+            "custom_theme_override_id",
             "display_accent_color_override",
             "featured_panel_override",
         ),
@@ -458,6 +469,7 @@ class ScreenDisplayCustomizationForm(forms.ModelForm):
         required=False,
     )
     display_accent_color = forms.CharField(required=False, widget=forms.HiddenInput())
+    custom_theme = forms.ModelChoiceField(label="الثيم الخاص", queryset=DisplayTheme.objects.none(), required=False, empty_label="استخدام الألوان الجاهزة")
     standby_scroll_speed = forms.FloatField(
         label="سرعة تمرير الانتظار",
         required=False,
@@ -491,6 +503,7 @@ class ScreenDisplayCustomizationForm(forms.ModelForm):
             "logo",
             "featured_panel",
             "theme",
+            "custom_theme",
             "display_accent_color",
             "standby_scroll_speed",
             "periods_scroll_speed",
@@ -530,6 +543,10 @@ class ScreenDisplayCustomizationForm(forms.ModelForm):
         self.school_settings = school_settings
         super().__init__(*args, **kwargs)
         screen = self.instance
+        self.fields["custom_theme"].queryset = DisplayTheme.objects.filter(school_id=school_settings.school_id)
+        self.initial["custom_theme"] = screen.custom_theme_override_id or (
+            school_settings.custom_theme_id if not screen.theme_override else None
+        )
 
         # القيم المعروضة دائمًا هي القيمة السارية فعليًا على الشاشة: تخصيصها
         # الخاص إن وُجد، وإلا الإعداد العام. هكذا يرى المدير النتيجة النهائية
@@ -587,6 +604,10 @@ class ScreenDisplayCustomizationForm(forms.ModelForm):
 
         theme = (cleaned.get("theme") or "indigo").strip().lower()
         cleaned["display_accent_color"] = self.THEME_ACCENTS.get(theme, "#6366F1")
+        custom = cleaned.get("custom_theme")
+        if custom and self.INHERIT_APPEARANCE not in inherited:
+            cleaned["theme"] = custom.base_theme
+            cleaned["display_accent_color"] = custom.accent_color
         return cleaned
 
     def clean_logo(self):
@@ -602,10 +623,12 @@ class ScreenDisplayCustomizationForm(forms.ModelForm):
 
         if self.INHERIT_APPEARANCE in inherited:
             screen.theme_override = ""
+            screen.custom_theme_override = None
             screen.display_accent_color_override = ""
             screen.featured_panel_override = ""
         else:
             screen.theme_override = self.cleaned_data["theme"]
+            screen.custom_theme_override = self.cleaned_data.get("custom_theme")
             screen.display_accent_color_override = self.cleaned_data["display_accent_color"]
             screen.featured_panel_override = self.cleaned_data["featured_panel"]
 

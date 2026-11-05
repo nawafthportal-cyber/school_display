@@ -69,6 +69,45 @@ BELL_SOUND_STATIC_PATHS = {
 # School Settings
 # ============================================================
 
+class DisplayTheme(models.Model):
+    from core.display_themes import BACKGROUND_CHOICES, BASE_THEMES, FONT_CHOICES
+
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="display_themes")
+    name = models.CharField("اسم الثيم", max_length=70)
+    base_theme = models.CharField("نقطة البداية", max_length=20, choices=[(key, key) for key in BASE_THEMES], default="indigo")
+    background_color = models.CharField("لون الخلفية", max_length=7, default="#07111F", validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "اختر لونًا صالحًا.")])
+    card_color = models.CharField("لون البطاقات", max_length=7, default="#142033", validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "اختر لونًا صالحًا.")])
+    text_color = models.CharField("لون النصوص", max_length=7, default="#E2E8F0", validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "اختر لونًا صالحًا.")])
+    heading_color = models.CharField("لون العناوين", max_length=7, default="#FFFFFF", validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "اختر لونًا صالحًا.")])
+    accent_color = models.CharField("اللون الرئيسي", max_length=7, default="#38BDF8", validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "اختر لونًا صالحًا.")])
+    font = models.CharField("الخط", max_length=10, choices=FONT_CHOICES, default="ibm")
+    font_scale = models.PositiveSmallIntegerField("حجم النصوص (%)", default=100, validators=[MinValueValidator(90), MaxValueValidator(115)])
+    card_radius = models.PositiveSmallIntegerField("استدارة البطاقات", default=24, validators=[MinValueValidator(0), MaxValueValidator(32)])
+    background_style = models.CharField("نمط الخلفية", max_length=12, choices=BACKGROUND_CHOICES, default="gradient")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("name", "pk")
+        constraints = [models.UniqueConstraint(fields=("school", "name"), name="display_theme_school_name_unique")]
+        verbose_name = "ثيم خاص"
+        verbose_name_plural = "الثيمات الخاصة"
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        from core.display_themes import HEX_COLOR, contrast_ratio
+        super().clean()
+        errors = {}
+        for foreground, minimum in (("text_color", 4.5), ("heading_color", 3), ("accent_color", 3)):
+            for background in ("background_color", "card_color"):
+                front, back = getattr(self, foreground), getattr(self, background)
+                if HEX_COLOR.fullmatch(front or "") and HEX_COLOR.fullmatch(back or "") and contrast_ratio(front, back) < minimum:
+                    errors[foreground] = "اختر لونًا أوضح على الخلفية والبطاقات لضمان سهولة القراءة."
+        if errors:
+            raise ValidationError(errors)
+
+
 class SchoolSettings(models.Model):
     # Legacy stored values (kept for backward compatibility)
     THEME_DEFAULT = "default"
@@ -144,6 +183,12 @@ class SchoolSettings(models.Model):
         choices=THEME_CHOICES,
         default=THEME_DEFAULT,
     )
+    custom_theme = models.ForeignKey(DisplayTheme, on_delete=models.SET_NULL, null=True, blank=True, related_name="school_defaults", verbose_name="الثيم الخاص")
+
+    def clean(self):
+        super().clean()
+        if self.custom_theme_id and self.custom_theme.school_id != self.school_id:
+            raise ValidationError({"custom_theme": "اختر ثيمًا تابعًا لهذه المدرسة."})
 
     timezone_name = models.CharField("المنطقة الزمنية", max_length=64, default="Asia/Riyadh")
 

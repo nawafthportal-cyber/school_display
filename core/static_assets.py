@@ -70,6 +70,7 @@ def build_static_response(
     method: str = "GET",
     cache_control: str | None = None,
     is_versioned: bool = False,
+    range_header: str | None = None,
 ) -> HttpResponse | None:
     loaded = read_static_asset(path)
     if not loaded:
@@ -78,9 +79,30 @@ def build_static_response(
     normalized, content = loaded
     content_type, content_encoding = mimetypes.guess_type(normalized)
 
-    body = b"" if str(method).upper() == "HEAD" else content
-    response = HttpResponse(body, content_type=content_type or "application/octet-stream")
-    response["Content-Length"] = str(len(content))
+    is_head = str(method).upper() == "HEAD"
+    is_video = PurePosixPath(normalized).suffix.lower() in {".mp4", ".webm"}
+    status, content_range = 200, None
+    body = content
+    if is_video and not is_head and range_header:
+        # Browser media controls need byte ranges to seek without restarting.
+        # Ignore malformed or multipart ranges; serve a full representation.
+        match = re.fullmatch(r"bytes=([0-9]{0,20})-([0-9]{0,20})", range_header.strip())
+        if match and (match[1] or match[2]):
+            size = len(content)
+            start = int(match[1]) if match[1] else max(0, size - int(match[2]))
+            end = min(int(match[2]), size - 1) if match[1] and match[2] else size - 1
+            if start >= size or end < start or (not match[1] and int(match[2]) == 0):
+                status, body, content_range = 416, b"", f"bytes */{size}"
+            else:
+                status, body, content_range = 206, content[start:end + 1], f"bytes {start}-{end}/{size}"
+    response = HttpResponse(b"" if is_head else body, status=status, content_type=content_type or "application/octet-stream")
+    response["Content-Length"] = str(len(content) if is_head else len(body))
+    if is_video:
+        response["Accept-Ranges"] = "bytes"
+        # Keep the outer GZipMiddleware from transforming byte offsets.
+        response["Content-Encoding"] = "identity"
+    if content_range:
+        response["Content-Range"] = content_range
     response["Cache-Control"] = cache_control or static_cache_control(
         normalized,
         is_versioned=is_versioned,

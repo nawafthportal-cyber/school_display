@@ -24,10 +24,15 @@ class DayScheduleSerializer(serializers.ModelSerializer):
 
 class SchoolSettingsSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
+    custom_theme = serializers.SerializerMethodField()
 
     class Meta:
         model = SchoolSettings
-        fields = ("name", "logo_url", "theme", "timezone_name", "refresh_interval_sec", "standby_scroll_speed")
+        fields = ("name", "logo_url", "theme", "custom_theme", "timezone_name", "refresh_interval_sec", "standby_scroll_speed")
+
+    def get_custom_theme(self, obj):
+        from core.display_themes import effective_custom_theme, theme_payload
+        return theme_payload(effective_custom_theme(obj))
 
     def get_logo_url(self, obj):
         if obj.school and obj.school.logo:
