@@ -1,10 +1,24 @@
 from django.contrib import admin
+from django.utils import timezone
 
 from .models import TelegramAlert
 
 
 @admin.register(TelegramAlert)
 class TelegramAlertAdmin(admin.ModelAdmin):
+    actions = ("retry_failed",)
+
+    @admin.action(description="إعادة محاولة التنبيهات الفاشلة المحددة", permissions=["change"])
+    def retry_failed(self, request, queryset):
+        count = queryset.filter(status=TelegramAlert.Status.FAILED).update(
+            status=TelegramAlert.Status.PENDING,
+            attempts=0,
+            available_at=timezone.now(),
+            locked_at=None,
+            last_error="",
+        )
+        self.message_user(request, f"أُعيدت جدولة {count} تنبيهات فاشلة.")
+
     list_display = (
         "event_type",
         "status",

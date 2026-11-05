@@ -619,9 +619,8 @@ if RUNNING_TESTS:
     logger.info("test_runtime cache=locmem channels=in-memory")
 elif REDIS_CONFIGURED:
     logger.info(
-        "redis_config cache=%s channels=%s",
-        REDIS_CACHE_URL,
-        REDIS_CHANNELS_URL,
+        "redis_config configured=True split=%s",
+        REDIS_CACHE_URL != REDIS_CHANNELS_URL,
     )
 else:
     logger.warning("Redis URLs are not configured; using local in-memory cache/channel layer for development.")

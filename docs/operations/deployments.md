@@ -18,6 +18,8 @@ than adding a Git remote under `/opt/school-display/app`.
 ## Deploy a release
 
 Only ever deploy a commit that is merged into `main` and green in CI.
+The deployment workflow checks the latest push CI result for the exact requested
+commit and refuses a failed, pending or missing result.
 
 ```bash
 # 1. build the release tarball from the merged commit
@@ -51,6 +53,20 @@ nothing.
 | 4 | Build **every** service image |
 | 5 | `migrate --noinput` |
 | 6 | `up -d`, recreate the internal Caddy so its bind-mounted config is current, then stamp `.release-commit` with the full SHA |
+
+Service recreation waits up to 180 seconds for configured health checks. The
+release stamp is written only after services are healthy and `check --deploy`
+has completed. `/health/` returns uncached JSON with database, cache read/write,
+and independent Channels Redis readiness; a failed dependency returns HTTP 503
+without disclosing connection strings. The Docker web check calls this endpoint
+with the internal host and HTTPS proxy headers, so a redirect cannot pass it.
+
+Telegram health requires a recent successful processing scan, no terminal
+delivery failures and no pending/processing alerts overdue by five minutes.
+When a failure is terminal, inspect the sanitized error in TelegramAlert admin
+and use the selected failed-alert retry action after correcting the cause;
+successful alerts are never requeued by that action. Intentionally disabled
+Telegram alerts are reported explicitly as disabled.
 
 The service keeps serving during steps 1-4. Only step 6 recreates containers.
 

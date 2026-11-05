@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from telegram_alerts.services import (
     alerts_enabled,
     configuration_errors,
+    delivery_health_errors,
     worker_status,
 )
 
@@ -26,6 +27,13 @@ class Command(BaseCommand):
             raise CommandError(
                 f"Telegram alert worker is not alive (age_sec={status.get('age_sec')})."
             )
+
+        if status.get("state") != "running":
+            raise CommandError("Telegram alert worker has not completed a successful delivery scan.")
+
+        queue_errors = delivery_health_errors()
+        if queue_errors:
+            raise CommandError("; ".join(queue_errors))
 
         self.stdout.write(
             self.style.SUCCESS(
