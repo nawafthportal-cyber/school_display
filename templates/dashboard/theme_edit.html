@@ -1,0 +1,43 @@
+{% extends "dashboard/_base.html" %}
+{% load static %}
+{% block title %}{% if is_edit %}تعديل الثيم{% else %}إنشاء ثيم خاص{% endif %}{% endblock %}
+{% block page_title %}{% if is_edit %}تعديل: {{ theme.name }}{% else %}ثيم يحمل هوية مدرستك{% endif %}{% endblock %}
+{% block page_description %}خصص الألوان والخطوط والبطاقات وشاهد النتيجة أثناء التعديل{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/theme-editor.css' %}"><link rel="stylesheet" href="{% static 'css/custom-display-theme.css' %}">{% endblock %}
+{% block content %}
+<div class="theme-workspace">
+  <div class="theme-toolbar"><a href="{% url 'dashboard:theme_list' %}">← مكتبة الثيمات</a><span>خاص بمدرسة {{ school.name }}</span></div>
+  <div class="theme-editor">
+    <form method="post" id="themeEditorForm" class="theme-editor-form" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="theme-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <section class="theme-control-section"><span class="theme-step">01</span><h2>ابدأ بهوية واضحة</h2>
+        <div class="theme-field"><label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>{{ form.name }}{{ form.name.errors }}</div>
+        <div class="theme-field"><label for="{{ form.base_theme.id_for_label }}">{{ form.base_theme.label }}</label>{{ form.base_theme }}<small>اختيار نقطة بداية جديدة يعيد ضبط الألوان في المحرر.</small>{{ form.base_theme.errors }}</div>
+      </section>
+      <section class="theme-control-section"><span class="theme-step">02</span><h2>ألوانك، بطريقتك</h2><p>اختر ألوانًا متباينة لتظل الشاشة واضحة من بعيد.</p>
+        <div class="theme-color-grid">
+        {% for field in form %}{% if field.name == 'background_color' or field.name == 'card_color' or field.name == 'text_color' or field.name == 'heading_color' or field.name == 'accent_color' %}
+          <div class="theme-color-field"><label for="{{ field.id_for_label }}">{{ field }}<span>{{ field.label }}<small data-color-value="{{ field.name }}"></small></span></label>{{ field.errors }}</div>
+        {% endif %}{% endfor %}
+        </div>
+        <div class="theme-field"><label for="{{ form.background_style.id_for_label }}">{{ form.background_style.label }}</label>{{ form.background_style }}{{ form.background_style.errors }}</div>
+      </section>
+      <section class="theme-control-section"><span class="theme-step">03</span><h2>التفاصيل تصنع الفرق</h2>
+        <div class="theme-field"><label for="{{ form.font.id_for_label }}">{{ form.font.label }}</label>{{ form.font }}{{ form.font.errors }}</div>
+        <div class="theme-two-fields"><div class="theme-field"><label for="{{ form.font_scale.id_for_label }}">{{ form.font_scale.label }}</label>{{ form.font_scale }}{{ form.font_scale.errors }}</div><div class="theme-field"><label for="{{ form.card_radius.id_for_label }}">{{ form.card_radius.label }}</label>{{ form.card_radius }}{{ form.card_radius.errors }}</div></div>
+      </section>
+      <div class="theme-save-bar"><button class="theme-button theme-button-primary" type="submit" id="saveThemeButton">حفظ الثيم</button><a class="theme-button" href="{% url 'dashboard:theme_list' %}">إلغاء</a></div>
+    </form>
+    <div class="theme-preview-column"><div class="theme-preview-sticky">
+      <div class="theme-preview-heading"><div><span>معاينة مباشرة</span><h2>هكذا تبدو هويتك على الشاشة</h2></div><span class="theme-live-dot">مباشر</span></div>
+      {% include "dashboard/_theme_preview.html" with preview_id="themeLivePreview" %}
+      <p class="theme-preview-caption">معاينة للهوية البصرية ببيانات توضيحية. المحتوى الفعلي يتبع إعدادات شاشتك.</p>
+      <div id="themeContrastStatus" class="theme-contrast" role="status" aria-live="polite"></div>
+      <div class="theme-note"><strong>احفظ أولًا، ثم اختر الشاشات</strong><p>بعد الحفظ يمكنك تطبيق الثيم على الإعداد العام أو شاشة محددة. تظل قوالب المناسبات والتنبيهات الطارئة بألوانها المميزة.</p></div>
+    </div></div>
+  </div>
+</div>
+{{ theme_data|json_script:"themeEditorData" }}
+{% endblock %}
+{% block extra_js %}<script defer src="{% static 'js/display-theme.js' %}"></script><script defer src="{% static 'js/theme-editor.js' %}"></script>{% endblock %}

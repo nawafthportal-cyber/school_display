@@ -588,6 +588,7 @@ def _seed_screen_appearance_overrides(screen, school) -> None:
         "girls": "rose",
     }.get(theme, theme)
     screen.theme_override = theme
+    screen.custom_theme_override = settings_obj.custom_theme
     screen.display_accent_color_override = (
         getattr(settings_obj, "display_accent_color", "")
         or SchoolSettingsForm.THEME_ACCENTS.get(theme, "#6366F1")
@@ -730,7 +731,7 @@ def screen_edit(request, pk: int):
                 setattr(
                     screen,
                     override_name,
-                    None if override_name.endswith("_speed_override") else "",
+                    None if override_name.endswith(("_speed_override", "_id")) else "",
                 )
         screen.occasion_theme = "auto"
         screen.show_announcements = True

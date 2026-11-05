@@ -25,6 +25,7 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
 from core import occasions
+from core.display_themes import effective_custom_theme, theme_payload
 from core.health import readiness_status
 from core.email_verification import EmailVerificationError, mark_verified, verify_token
 from core.models import DisplayPairingSession, DisplayScreen, SubscriptionPlan
@@ -437,6 +438,7 @@ def _build_display_context(request, key: str | None) -> dict | None:
         "theme_key": raw_theme,
         "preview_mode": preview_mode,
         "screen_theme_override": screen_theme_override,
+        "custom_display_theme": theme_payload(effective_custom_theme(settings_obj, screen)) if not preview_lock else None,
         "screen_occasion_theme": getattr(screen, "occasion_theme", "auto") or "auto",
         "screen_featured_panel": (
             getattr(screen, "featured_panel_override", "") or ""

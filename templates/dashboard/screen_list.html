@@ -7,10 +7,14 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/screen-live-preview.css' %}?v=2026-08-21-live1">
+  <link rel="stylesheet" href="{% static 'css/screen-pairing-tutorial.css' %}?v=20261106-1">
 {% endblock %}
 
 {% block content %}
+<a href="{% url 'dashboard:theme_list' %}" class="mb-4 inline-flex rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-800">الثيمات الخاصة — أنشئ هوية لمدرستك</a>
 <div class="max-w-7xl mx-auto pb-8 md:pb-12">
+
+  {% include "dashboard/_screen_pairing_tutorial.html" %}
 
   <section class="screen-command-panel mb-4">
     <div class="min-w-0">
@@ -22,6 +26,7 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 14.5v-8ZM9 20l3-3 3 3M8.5 9.5l2 2L15.5 7"/></svg>
         <span>ربط تلفاز</span>
       </a>
+      <a href="#first-screen-tutorial" class="screen-secondary-action" data-pairing-video-open>شرح الربط بالفيديو</a>
       <a href="{% url 'dashboard:screens_customize_all' %}" class="screen-secondary-action">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a9 9 0 1 0 0 18h1.4a1.6 1.6 0 0 0 .2-3.2h-.7a1.9 1.9 0 0 1-1.9-1.9v-.2a1.9 1.9 0 0 1 1.9-1.9H16A5 5 0 0 0 21 9c0-3.3-4-6-9-6Z"/></svg>
         <span>تخصيص جميع الشاشات</span>
@@ -448,6 +453,7 @@
           {% if can_purchase_screen_addon %}زيادة باقة الشاشات{% else %}اختيار باقة مدفوعة{% endif %}
         </a>
       {% endif %}
+      <a href="#first-screen-tutorial" class="pairing-guide-secondary" data-pairing-video-open>شاهد شرح الربط بالفيديو</a>
       <button type="button" class="pairing-guide-secondary" data-pairing-guide-close>لاحقًا</button>
     </div>
   </div>
@@ -1608,4 +1614,5 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% block extra_js %}
   <script defer src="{% static 'js/screen-live-preview.js' %}?v=2026-08-21-live1"></script>
+  <script defer src="{% static 'js/screen-pairing-tutorial.js' %}?v=20261106-1"></script>
 {% endblock %}

@@ -1,0 +1,32 @@
+/* The same tokens style the editor preview and the live TV. Occasion and
+   emergency overlays keep their own semantic colours. */
+[data-custom-display-theme] { color: var(--custom-text); font-family: var(--custom-font); background-color: var(--bg-deep); }
+[data-custom-display-theme] .theme-canvas,
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot { background: var(--bg-deep); }
+[data-custom-display-theme][data-custom-background="gradient"] .theme-canvas,
+body.display-board[data-custom-display-theme][data-custom-background="gradient"]:not([data-occasion-theme]) #fitRoot { background: radial-gradient(ellipse at top right, var(--glass-surface), var(--bg-deep) 70%); }
+[data-custom-display-theme][data-custom-background="dots"] .theme-canvas,
+body.display-board[data-custom-display-theme][data-custom-background="dots"]:not([data-occasion-theme]) #fitRoot { background-color: var(--bg-deep); background-image: radial-gradient(var(--glass-surface) 1.5px, transparent 1.5px); background-size: 18px 18px; }
+[data-custom-display-theme] .theme-preview-card,
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) .glass-panel { background: var(--glass-surface) !important; border-radius: var(--custom-radius) !important; color: var(--custom-text); }
+[data-custom-display-theme] .theme-preview-title,
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot h1,
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot h2,
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot h3 { color: var(--custom-heading) !important; font-family: var(--custom-font) !important; }
+[data-custom-display-theme] .theme-preview-accent { color: var(--accent-main); }
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot .text-white:not([class*="bg-"]):not(h1):not(h2):not(h3),
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot .text-slate-100:not([class*="bg-"]):not(h1):not(h2):not(h3),
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot .text-slate-200:not([class*="bg-"]):not(h1):not(h2):not(h3),
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot .text-slate-300:not([class*="bg-"]):not(h1):not(h2):not(h3),
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot .text-slate-400:not([class*="bg-"]):not(h1):not(h2):not(h3) { color: var(--custom-text) !important; }
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot h1[class],
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot h2[class],
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot h3[class] { color: var(--custom-heading) !important; }
+body.display-board[data-custom-display-theme] #fitRoot #alertContainer .text-white { color: #fff !important; }
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot #schoolName { color: var(--custom-heading) !important; -webkit-text-fill-color: var(--custom-heading) !important; font-size: calc(30px * var(--custom-scale)) !important; }
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot #heroTitle { color: var(--custom-heading) !important; -webkit-text-fill-color: var(--custom-heading) !important; background: none !important; text-shadow: none !important; font-size: calc(48px * var(--custom-scale)) !important; }
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot #clock { color: var(--custom-text) !important; -webkit-text-fill-color: var(--custom-text) !important; text-shadow: none !important; font-size: calc(48px * var(--custom-scale)) !important; }
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot #countdown { color: var(--custom-text) !important; -webkit-text-fill-color: var(--custom-text) !important; }
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot { font-family: var(--custom-font) !important; }
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot .text-xl { font-size: calc(20px * var(--custom-scale)); }
+body.display-board[data-custom-display-theme]:not([data-occasion-theme]) #fitRoot .text-lg { font-size: calc(18px * var(--custom-scale)); }

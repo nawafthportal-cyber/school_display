@@ -3342,18 +3342,23 @@
     const theme = safeText(screenSetting("screenTheme", "") || settings.theme || "");
     const schoolType = safeText(settings.school_type || "");
     const accent = safeText(screenSetting("screenAccentColor", "") || settings.display_accent_color || "");
+    const initialCustomTheme = window.SchoolDisplayThemes ? window.SchoolDisplayThemes.read("customDisplayTheme") : null;
+    const customTheme = screenSetting("screenTheme", "")
+      ? initialCustomTheme
+      : (Object.prototype.hasOwnProperty.call(settings, "custom_theme") ? settings.custom_theme : initialCustomTheme);
 
     const previewLock = (document.body && document.body.dataset && document.body.dataset.previewLock === '1');
 
-    const sig = name + "||" + logo + "||" + theme + "||" + schoolType + "||" + accent;
+    const sig = name + "||" + logo + "||" + theme + "||" + schoolType + "||" + accent + "||" + JSON.stringify(customTheme);
     if (sig === last.brandSig) return;
     const previousThemeSig = lastAppliedThemeSig;
     last.brandSig = sig;
 
     if (!previewLock) {
       if (theme) applyTheme(theme);
-      applyAccentColor(accent);
-      const nextThemeSig = theme + "||" + accent;
+      if (window.SchoolDisplayThemes) window.SchoolDisplayThemes.apply(document.body, customTheme);
+      if (!customTheme) applyAccentColor(accent);
+      const nextThemeSig = theme + "||" + accent + "||" + JSON.stringify(customTheme);
       if (nextThemeSig !== previousThemeSig) {
         lastAppliedThemeSig = nextThemeSig;
         forceThemeRepaint();
@@ -8913,6 +8918,10 @@
     try {
       const initAccent = (body.dataset.accentColor || "").trim();
       if (initAccent) applyAccentColor(initAccent);
+      if (window.SchoolDisplayThemes) {
+        const initialCustomTheme = window.SchoolDisplayThemes.read("customDisplayTheme");
+        if (initialCustomTheme) window.SchoolDisplayThemes.apply(document.body, initialCustomTheme);
+      }
     } catch (e) {}
 
     ensureDebugOverlay();

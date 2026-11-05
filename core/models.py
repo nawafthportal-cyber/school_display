@@ -280,6 +280,12 @@ class DisplayScreen(models.Model):
         default="",
         help_text="اتركه على ثيم المدرسة لتتبع الإعداد العام تلقائيًا.",
     )
+    custom_theme_override = models.ForeignKey("schedule.DisplayTheme", on_delete=models.SET_NULL, null=True, blank=True, related_name="screens", verbose_name="الثيم الخاص بالشاشة")
+
+    def clean(self):
+        super().clean()
+        if self.custom_theme_override_id and self.custom_theme_override.school_id != self.school_id:
+            raise ValidationError({"custom_theme_override": "اختر ثيمًا تابعًا لهذه المدرسة."})
     occasion_theme = models.CharField(
         "قالب المناسبة",
         max_length=30,

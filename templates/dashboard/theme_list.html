@@ -1,0 +1,28 @@
+{% extends "dashboard/_base.html" %}
+{% load static %}
+{% block title %}الثيمات الخاصة{% endblock %}
+{% block page_title %}مكتبة الثيمات الخاصة{% endblock %}
+{% block page_description %}هويات بصرية من تصميمك، محفوظة لمدرستك{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/theme-editor.css' %}"><link rel="stylesheet" href="{% static 'css/custom-display-theme.css' %}">{% endblock %}
+{% block content %}
+<div class="theme-workspace">
+  <div class="theme-library-intro"><div><span class="theme-eyebrow">هوية واحدة، حضور مختلف</span><h2>مدرستك بألوانك</h2><p>أنشئ ثيمًا، شاهد معاينته، ثم اختر أين يظهر.</p></div><a href="{% url 'dashboard:theme_create' %}" class="theme-button theme-button-primary">+ إنشاء ثيم خاص</a></div>
+  <div class="theme-toolbar"><a href="{% url 'dashboard:screens_customize_all' %}">← تخصيص جميع الشاشات</a><span>{{ themes|length }} ثيم محفوظ</span></div>
+  {% if themes %}<div class="theme-library-grid">
+  {% for theme in themes %}<article class="theme-library-card">
+    {% include "dashboard/_theme_preview.html" with theme_id=theme.pk %}
+    <div class="theme-library-card-body"><div class="theme-card-title"><h2>{{ theme.name }}</h2><a href="{% url 'dashboard:theme_edit' theme.pk %}">تعديل الثيم</a></div>
+      <form method="post" action="{% url 'dashboard:theme_action' theme.pk 'apply' %}" class="theme-apply-form">{% csrf_token %}
+        <label for="themeTarget{{ theme.pk }}">تطبيق على</label><select name="target" id="themeTarget{{ theme.pk }}"><option value="school">الإعداد العام · مع إبقاء الشاشات المخصصة</option><option value="all">جميع الشاشات · استبدال اختيارات الثيم الحالية</option>{% for screen in screens %}<option value="{{ screen.pk }}">شاشة: {{ screen.name }}</option>{% endfor %}</select>
+        <button class="theme-button theme-button-primary" type="submit">تطبيق الثيم</button>
+      </form>
+      <div class="theme-card-actions"><form method="post" action="{% url 'dashboard:theme_action' theme.pk 'duplicate' %}">{% csrf_token %}<button type="submit">نسخ الثيم</button></form>
+        <details class="theme-delete"><summary>حذف</summary><form method="post" action="{% url 'dashboard:theme_action' theme.pk 'delete' %}">{% csrf_token %}<p>سيُحذف الثيم وتعود الشاشات المرتبطة به إلى الألوان الجاهزة. هل تريد حذفه؟</p><button type="submit">تأكيد حذف الثيم</button></form></details>
+      </div>
+    </div>
+  </article>{% endfor %}
+  </div>{% else %}<div class="theme-empty"><span aria-hidden="true">◈</span><h2>أول ثيم يبدأ بفكرتك</h2><p>اختر نقطة بداية، وأضف ألوان مدرستك وتفاصيلها.<br>ستجد جميع ثيماتك هنا لتستخدمها مرة بعد أخرى.</p><a class="theme-button theme-button-primary" href="{% url 'dashboard:theme_create' %}">إنشاء أول ثيم</a></div>{% endif %}
+</div>
+{{ theme_data|json_script:"themeLibraryData" }}
+{% endblock %}
+{% block extra_js %}<script defer src="{% static 'js/display-theme.js' %}"></script><script defer src="{% static 'js/theme-editor.js' %}"></script>{% endblock %}
