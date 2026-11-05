@@ -422,13 +422,42 @@ def _collect_states(now) -> dict[int, _SchoolState]:
     return schools
 
 
+def _platform_scope(schools: dict[int, _SchoolState], now) -> dict[int, _SchoolState]:
+    """Compare screens expected to run now and observed during this school day."""
+    eligible = {}
+    for school_id, bucket in schools.items():
+        school_settings = bucket.school_settings
+        window = cached_active_window_for_today(school_settings)
+        closed = closure_title_on(school_settings, timezone.localdate(now)) is not None
+        states = []
+        for state in bucket.states:
+            if not state.ever_connected or _window_suppression(
+                school_settings, state.screen, window, now, school_closed=closed
+            ):
+                continue
+            if (
+                school_settings.screen_offline_school_hours_only
+                and not state.screen.monitor_always_on
+                and window is not None
+                and state.last_seen < window[0]
+            ):
+                continue
+            states.append(state)
+        if states:
+            eligible[school_id] = _SchoolState(
+                school=bucket.school, school_settings=school_settings, states=states
+            )
+    return eligible
+
+
 def _detect_platform_outage(schools: dict[int, _SchoolState]) -> bool:
     monitored = sum(bucket.monitored_count for bucket in schools.values())
     offline = sum(len(bucket.offline_states) for bucket in schools.values())
     affected_schools = sum(1 for bucket in schools.values() if bucket.offline_states)
     if monitored < PLATFORM_OUTAGE_MIN_SCREENS or affected_schools < PLATFORM_OUTAGE_MIN_SCHOOLS:
         return False
-    return offline / monitored >= PLATFORM_OUTAGE_RATIO
+    offline_states = [state for bucket in schools.values() for state in bucket.offline_states]
+    return offline / monitored >= PLATFORM_OUTAGE_RATIO and _simultaneous(offline_states)
 
 
 def scan_screens(*, now=None) -> dict:
@@ -439,14 +468,19 @@ def scan_screens(*, now=None) -> dict:
     if not schools:
         return {"opened": 0, "resolved": 0, "alerted": 0, "suppressed": 0, "recovered": 0, "platform_outage": False}
 
-    platform_outage = _detect_platform_outage(schools)
+    platform_schools = _platform_scope(schools, now)
+    platform_outage = _detect_platform_outage(platform_schools)
+    platform_screen_ids = set()
     if platform_outage:
-        monitored = sum(bucket.monitored_count for bucket in schools.values())
-        offline = sum(len(bucket.offline_states) for bucket in schools.values())
+        platform_screen_ids = {
+            state.screen.pk for bucket in platform_schools.values() for state in bucket.states
+        }
+        monitored = sum(bucket.monitored_count for bucket in platform_schools.values())
+        offline = sum(len(bucket.offline_states) for bucket in platform_schools.values())
         _send_platform_alert(
             offline_count=offline,
             monitored_count=monitored,
-            school_count=sum(1 for bucket in schools.values() if bucket.offline_states),
+            school_count=sum(1 for bucket in platform_schools.values() if bucket.offline_states),
             now=now,
         )
 
@@ -480,6 +514,7 @@ def scan_screens(*, now=None) -> dict:
 
         for state in bucket.states:
             screen = state.screen
+            screen_platform_outage = screen.pk in platform_screen_ids
             if not state.is_offline and screen.pk not in screens_with_open_outage:
                 continue
 
@@ -509,7 +544,7 @@ def scan_screens(*, now=None) -> dict:
                     school_offline_count=len(offline_states),
                     school_monitored_count=bucket.monitored_count,
                     school_simultaneous=simultaneous,
-                    platform_outage=platform_outage,
+                    platform_outage=screen_platform_outage,
                     school_closed=school_closed,
                 )
                 signal = signals.get(screen.pk) or {}
@@ -544,7 +579,7 @@ def scan_screens(*, now=None) -> dict:
                     continue
 
                 reason = ""
-                if platform_outage:
+                if screen_platform_outage:
                     reason = SUPPRESSED_PLATFORM
                 elif (now - outage.detected_at).total_seconds() < CONFIRMATION_SECONDS:
                     reason = SUPPRESSED_AWAITING_CONFIRMATION

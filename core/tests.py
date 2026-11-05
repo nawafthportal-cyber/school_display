@@ -823,6 +823,89 @@ class ScreenPlatformOutageTests(TestCase):
             self.assertEqual(outage.cause, CAUSE_PLATFORM)
 
 
+    def test_after_hours_silence_does_not_send_a_platform_alert(self):
+        now = timezone.now()
+        SchoolSettings.objects.update(screen_offline_school_hours_only=True)
+        with patch(
+            "core.screen_monitoring.cached_active_window_for_today",
+            return_value=(now - timedelta(hours=8), now - timedelta(hours=1)),
+        ):
+            scan_screens(now=now)
+            result = scan_screens(now=now + timedelta(seconds=CONFIRMATION_SECONDS + 1))
+        self.assertFalse(result["platform_outage"])
+        self.assertFalse(TelegramAlert.objects.filter(event_type="screen_platform_outage").exists())
+        self.assertFalse(ScreenOutage.objects.exclude(suppressed_reason=SUPPRESSED_AFTER_HOURS).exists())
+
+    def test_missing_school_day_does_not_send_a_platform_alert(self):
+        SchoolSettings.objects.update(screen_offline_school_hours_only=True)
+        with patch("core.screen_monitoring.cached_active_window_for_today", return_value=None):
+            result = scan_screens()
+        self.assertFalse(result["platform_outage"])
+        self.assertFalse(TelegramAlert.objects.filter(event_type="screen_platform_outage").exists())
+
+    def test_holidays_are_excluded_even_with_all_day_school_monitoring(self):
+        with patch("core.screen_monitoring.closure_title_on", return_value="holiday"):
+            result = scan_screens()
+        self.assertFalse(result["platform_outage"])
+        self.assertFalse(TelegramAlert.objects.filter(event_type="screen_platform_outage").exists())
+
+    def test_explicit_always_on_screens_are_still_monitored_on_holidays(self):
+        DisplayScreen.objects.update(monitor_always_on=True)
+        with patch("core.screen_monitoring.closure_title_on", return_value="holiday"):
+            result = scan_screens()
+        self.assertTrue(result["platform_outage"])
+        self.assertEqual(TelegramAlert.objects.filter(event_type="screen_platform_outage").count(), 1)
+
+    def test_screens_never_connected_do_not_imply_a_platform_outage(self):
+        now = timezone.now()
+        DisplayScreen.objects.update(last_seen=None, created_at=now - timedelta(hours=2))
+        result = scan_screens(now=now)
+        self.assertFalse(result["platform_outage"])
+        self.assertFalse(TelegramAlert.objects.filter(event_type="screen_platform_outage").exists())
+
+    def test_previous_school_session_does_not_imply_a_new_platform_outage(self):
+        now = timezone.now()
+        SchoolSettings.objects.update(screen_offline_school_hours_only=True)
+        with patch(
+            "core.screen_monitoring.cached_active_window_for_today",
+            return_value=(now - timedelta(minutes=15), now + timedelta(hours=4)),
+        ):
+            result = scan_screens(now=now)
+        self.assertFalse(result["platform_outage"])
+        self.assertFalse(TelegramAlert.objects.filter(event_type="screen_platform_outage").exists())
+
+    def test_independent_disconnects_do_not_imply_one_platform_outage(self):
+        now = timezone.now()
+        for index, screen in enumerate(self.screens):
+            DisplayScreen.objects.filter(pk=screen.pk).update(
+                last_seen=now - timedelta(minutes=10 + 3 * index)
+            )
+        result = scan_screens(now=now)
+        self.assertFalse(result["platform_outage"])
+        self.assertFalse(TelegramAlert.objects.filter(event_type="screen_platform_outage").exists())
+
+    def test_platform_counts_and_suppression_exclude_closed_schools(self):
+        now = timezone.now()
+        SchoolSettings.objects.update(screen_offline_school_hours_only=True)
+        closed_school_id = self.screens[0].school_id
+
+        def window(school_settings):
+            end = now - timedelta(minutes=1) if school_settings.school_id == closed_school_id else now + timedelta(hours=2)
+            return now - timedelta(hours=3), end
+
+        with patch("core.screen_monitoring.cached_active_window_for_today", side_effect=window):
+            scan_screens(now=now)
+            result = scan_screens(now=now + timedelta(seconds=CONFIRMATION_SECONDS + 1))
+        self.assertTrue(result["platform_outage"])
+        alert = TelegramAlert.objects.get(event_type="screen_platform_outage")
+        self.assertIn("<b>12</b> من 12", alert.message)
+        self.assertIn("<b>3</b>", alert.message)
+        self.assertFalse(
+            ScreenOutage.objects.filter(screen__school_id=closed_school_id)
+            .exclude(suppressed_reason=SUPPRESSED_AFTER_HOURS).exists()
+        )
+
+
 class DisplayGoodbyeBeaconTests(TestCase):
     """The beacon is what separates "switched off" from "internet died"."""
 
