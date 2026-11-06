@@ -69,7 +69,7 @@ class SubscriptionRecipientBrowserTests(SubscriptionRecipientFixtures, StaticLiv
                 self.page.get_by_role("button", name="تحديد الظاهر", exact=True).click()
                 self.page.locator("#id_subject").fill("مسودة")
                 self.page.locator("form[method=post]").evaluate("form => { form.noValidate = true; }")
-                self.page.get_by_role("button", name="إرسال", exact=True).click()
+                self.page.locator('form[method=post] button[type=submit]').click()
                 self.page.wait_for_load_state("networkidle")
                 self.assertEqual(status.input_value(), "inactive")
                 self.assertEqual(self.page.locator('#schoolChoices input:checked').count(), 8)
