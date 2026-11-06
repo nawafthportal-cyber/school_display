@@ -207,7 +207,7 @@ class AdminRemediationTests(TestCase):
             self.assertEqual(owner_response.status_code, 200)
             self.assertEqual(owner_response["Content-Type"], "image/png")
             self.assertIn("no-store", owner_response["Cache-Control"])
-            owner_response.close()
+            self.assertEqual(b"".join(owner_response.streaming_content), image.getvalue())
             self.client.logout()
             self.assertEqual(self.client.get(url).status_code, 302)
             stranger = get_user_model().objects.create_user(username="stranger")
@@ -217,7 +217,7 @@ class AdminRemediationTests(TestCase):
             profile.schools.add(self.school)
             authorized_response = self.client.get(url)
             self.assertEqual(authorized_response.status_code, 200)
-            authorized_response.close()
+            self.assertEqual(b"".join(authorized_response.streaming_content), image.getvalue())
 
     @override_settings(USE_CLOUD_STORAGE=True, CLOUDINARY_STORAGE={})
     def test_cloud_upload_is_authenticated_and_field_url_never_contains_signature(self):
