@@ -93,6 +93,16 @@ RUNNING_TESTS = bool(
     or any(arg in {"test", "pytest"} for arg in sys.argv)
 )
 
+# School timetable extraction. The key is server-side only; uploads are sent
+# inline to Responses and are never published as media files.
+DOCUMENT_IMPORT_ENABLED = env_bool("DOCUMENT_IMPORT_ENABLED", "False")
+OPENAI_API_KEY = env_secret("OPENAI_API_KEY", "OPENAI_API_KEY_FILE")
+DOCUMENT_IMPORT_MODEL = os.getenv("DOCUMENT_IMPORT_MODEL", "gpt-6.1-terra").strip() or "gpt-6.1-terra"
+DOCUMENT_IMPORT_HOURLY_LIMIT = env_int_clamped("DOCUMENT_IMPORT_HOURLY_LIMIT", 10, 1, 100)
+DOCUMENT_IMPORT_DAILY_LIMIT = env_int_clamped("DOCUMENT_IMPORT_DAILY_LIMIT", 40, 1, 500)
+# The review form contains one bounded JSON field for up to 5,000 lessons.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+
 # Optional: enable noisy middleware debug prints (default off)
 MIDDLEWARE_DEBUG = env_bool("MIDDLEWARE_DEBUG", "False")
 

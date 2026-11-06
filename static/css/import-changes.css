@@ -1,0 +1,13 @@
+.import-changes { min-width: 0; max-width: 100%; font-size: .8rem; line-height: 1.9; }
+.import-changes p { margin: 0; overflow-wrap: anywhere; }
+.import-changes .ic-help { color: #64748b; font-size: .76rem; }
+.import-changes .ic-replacement { background: #fff1f2; color: #9f1239; padding: .8rem; border-radius: .65rem; }
+.import-changes .ic-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.import-changes .ic-scroll { overflow: auto; width: 100%; min-width: 0; max-height: 60vh; border: 1px solid #e2e8f0; border-radius: .65rem; }
+.import-changes table { width: 100%; min-width: 700px; border-collapse: collapse; }
+.import-changes th, .import-changes td { text-align: start; vertical-align: top; padding: .65rem; border-bottom: 1px solid #e2e8f0; }
+.import-changes th { position: sticky; top: 0; background: #f1f5f9; }
+.import-changes td { white-space: pre-line; overflow-wrap: anywhere; }
+.import-changes tr[data-kind=deleted] { background: #fff1f2; }
+.import-changes .ic-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; }
+@media(max-width: 600px) { .import-changes .ic-tools { grid-template-columns: minmax(0, 1fr); } }

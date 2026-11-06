@@ -3,6 +3,7 @@ from django.urls import path
 from . import auth_views, support_views, two_factor_views, views, views_pairing, views_screens, views_themes
 from mailcenter import dashboard_views as mail_views
 from .receipt_views import subscription_receipt
+from .views_document_import import school_document_import
  
 app_name = "dashboard"
 
@@ -142,6 +143,7 @@ urlpatterns = [
     # ==================
     path("school-data/", views.school_data, name="school_data"),
     path("school-data/import/", views.school_data_import, name="school_data_import"),
+    path("school-data/import/document/", school_document_import, name="school_document_import"),
     path("school-data/import/template/", views.school_data_import_template, name="school_data_import_template"),
 
     path("school-data/classes/add/", views.add_class, name="add_class"),
@@ -218,6 +220,7 @@ urlpatterns = [
     # Platform mail center
     path("admin-panel/mail/", mail_views.system_mail_list, name="system_mail_list"),
     path("admin-panel/mail/compose/", mail_views.system_mail_compose, name="system_mail_compose"),
+    path("admin-panel/mail/whatsapp/", mail_views.system_school_whatsapp, name="system_school_whatsapp"),
     path("admin-panel/mail/<int:pk>/", mail_views.system_mail_detail, name="system_mail_detail"),
     path("admin-panel/mail/<int:pk>/sync/", mail_views.system_mail_sync, name="system_mail_sync"),
     path("admin-panel/mail/queue/<int:pk>/retry/", mail_views.system_mail_queue_retry, name="system_mail_queue_retry"),

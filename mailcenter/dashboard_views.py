@@ -11,15 +11,16 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from dashboard.decorators import system_permission_required
 from subscriptions.models import SubscriptionEmailNotification
 
-from .forms import ComposeMailForm
+from .forms import ComposeMailForm, WhatsAppContactForm
 from .models import MailMessage
 from .services import sender_address, sync_message_content
 from .reconciliation import delivery_review_queryset
+from .whatsapp import whatsapp_school_contacts
 
 
 @system_permission_required("mail.view")
@@ -111,6 +112,16 @@ def system_mail_detail(request, pk: int):
         message.read_by = request.user
         message.save(update_fields=("is_read", "read_at", "read_by", "updated_at"))
     return render(request, "admin/mail_center_detail.html", {"mail_message": message})
+
+
+@system_permission_required("mail.manage")
+@require_GET
+def system_school_whatsapp(request):
+    cards = whatsapp_school_contacts()
+    return render(request, "admin/school_whatsapp.html", {
+        "form": WhatsAppContactForm(),
+        "school_cards": cards,
+    })
 
 
 @system_permission_required("mail.manage")

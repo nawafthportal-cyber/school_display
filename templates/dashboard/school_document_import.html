@@ -1,0 +1,147 @@
+{% extends "dashboard/_base.html" %}
+{% load static %}
+{% block title %}استيراد ذكي من Excel أو صورة أو PDF{% endblock %}
+{% block page_title %}من ملفك إلى جدول المدرسة{% endblock %}
+{% block page_description %}استخرج المعلمين والمواد والفصول والحصص، ثم راجعها قبل الحفظ.{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/document-import.css' %}"><link rel="stylesheet" href="{% static 'css/import-changes.css' %}">{% endblock %}
+{% block content %}
+<div class="dp-stack di" data-document-import data-max-rows="{{ max_rows }}">
+  <section class="dp-steps" aria-label="مراحل الاستيراد">
+    <div class="dp-step{% if not draft %} is-current{% endif %}"><span class="dp-step__n">١</span><strong>ارفع الملف</strong><p>Excel أو صورة واضحة أو PDF لجدول المدرسة.</p></div>
+    <div class="dp-step{% if draft %} is-current{% endif %}"><span class="dp-step__n">٢</span><strong>راجع وصحح</strong><p>تأكد من الأسماء، والأيام، وأوقات الحصص.</p></div>
+    <div class="dp-step{% if import_token %} is-current{% endif %}"><span class="dp-step__n">٣</span><strong>اعتمد الإدخال</strong><p>راجع التغييرات، ثم احفظ مع إمكانية التراجع.</p></div>
+  </section>
+  <noscript><div class="di-notice">فعّل JavaScript في المتصفح لتعديل الجدول والتحقق منه.</div></noscript>
+
+  {% if not configured %}
+    <div class="di-notice" role="status">ميزة الاستيراد الذكي غير مفعلة حاليًا. تواصل مع مسؤول المنصة لتفعيلها. يمكنك استخدام <a href="{% url 'dashboard:school_data_import' %}">قالب Excel الجاهز</a>.</div>
+  {% endif %}
+
+  {% if job %}
+  <section class="dp-panel" data-job data-token="{{ job.token }}" data-state="{{ job.state }}">
+    <div class="dp-panel__head"><h3>قراءة الجدول كاملًا</h3><p>يُقسّم الملف تلقائيًا، وتُجمع كل الأجزاء قبل عرض المعاينة.</p></div>
+    <div class="dp-panel__body dp-stack">
+      <progress data-job-progress value="{{ job.completed }}" max="{{ job.total }}" aria-label="تقدم قراءة الجدول"></progress>
+      <p role="status" aria-live="polite" data-job-status>اكتمل {{ job.completed }} من {{ job.total }} جزء.</p>
+      <p class="di-help">أبقِ الصفحة مفتوحة حتى اكتمال القراءة. يمكنك العودة إلى هذا الرابط لاستئناف الأجزاء المتبقية خلال ساعة؛ تُحتفظ بالأجزاء المكتملة.</p>
+      <p class="di-notice" data-job-error {% if not job.error %}hidden{% endif %}>{{ job.error }}</p>
+      <button type="button" class="dp-btn dp-btn--primary" data-job-resume {% if job.state != 'paused' %}hidden{% endif %}>استئناف الأجزاء المتبقية</button>
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="dp-panel">
+    <div class="dp-panel__head"><h3>ملف الجدول</h3><p>ندعم ترتيب الجدول بحسب المعلم أو الفصل، وأوراق Excel المتعددة والخلايا المدمجة، دون الحاجة إلى قالب محدد.</p></div>
+    <div class="dp-panel__body">
+      <form method="post" enctype="multipart/form-data" class="dp-stack dp-stack--tight" data-extract-form>
+        {% csrf_token %}<input type="hidden" name="action" value="extract">
+        <div class="dp-field"><label for="documentFile">اختر Excel أو صورة أو PDF</label>
+          <input id="documentFile" name="document" type="file" accept=".xlsx,.xlsm,.xls,.pdf,.png,.jpg,.jpeg,.webp" required {% if not configured %}disabled{% endif %} aria-describedby="documentHelp">
+          <p id="documentHelp" class="di-help">Excel بصيغ XLSX وXLSM وXLS، أو PDF وPNG وJPG وWEBP. حتى 10 م.ب. و20 ورقة Excel أو 10 صفحات PDF و{{ max_rows }} حصة. تُقسّم الجداول الكبيرة تلقائيًا.</p>
+        </div>
+        <fieldset class="di-options"><legend>ماذا تريد إدخاله؟</legend>
+          <label><input type="radio" name="mode" value="timetable" checked> الجدول والأسماء <span>الحصص مع المعلمين والمواد والفصول</span></label>
+          <label><input type="radio" name="mode" value="entities"> الأسماء فقط <span>إعداد القوائم دون إدخال حصص</span></label>
+        </fieldset>
+        {% include 'dashboard/_import_strategy.html' with strategy_id='uploadStrategy' %}
+        <p class="di-help">عند القراءة تُرسل قيم خلايا Excel أو صور صفحات الملف إلى OpenAI لتحليلها. تُقرأ نتائج المعادلات المحفوظة دون تشغيل الماكرو. لا تُحفظ بيانات في المدرسة حتى تعتمد المعاينة.</p>
+        <div class="di-actions">
+          <button type="submit" class="dp-btn dp-btn--primary" {% if not configured %}disabled{% endif %}><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><span data-extract-label>قراءة الملف واستخراج البيانات</span></button>
+          <a href="{% url 'dashboard:school_data_import' %}" class="dp-btn dp-btn--soft">قالب Excel الجاهز</a>
+        </div>
+        <p class="di-help" role="status" aria-live="polite" data-extract-status hidden>جارٍ تجهيز الملف وقراءة محتواه… سيظهر تقدّم القراءة للجدول الكبير.</p>
+      </form>
+    </div>
+  </section>
+
+  {% if draft %}
+  <section class="dp-panel" id="documentReview">
+    <div class="dp-panel__head"><h3>راجع البيانات المستخرجة</h3><p>{{ draft.file.name }} · {{ draft.file.pages }} {{ draft.file.unit|default:"صفحة" }} · المعاينة متاحة لمدة 30 دقيقة.</p></div>
+    <div class="dp-panel__body dp-stack">
+      <div class="di-notice">راجع دقة القراءة بالرجوع إلى ملفك؛ الأسماء أو الاختصارات غير الواضحة قد تحتاج إلى تصحيح. يمكنك تعديل كل خلية، أو حذف صف، أو إضافة حصة.</div>
+      {% if draft.coverage %}<p class="di-help">اكتملت قراءة {{ draft.coverage.completed }} من {{ draft.coverage.total }} دفعة قبل جمع هذه المعاينة.</p>{% endif %}
+      {% if draft.excel_coverage %}<p class="di-help">شملت القراءة {{ draft.excel_coverage.cells }} خلية Excel غير فارغة. خلايا تعذرت قراءتها وتحتاج مراجعة: {{ draft.excel_coverage.unresolved }}. يوضح مصدر كل حصة اسم الورقة وعنوان الخلية.</p>{% endif %}
+      <div class="di-notice">توقيت المدرسة: استُخدم لـ {{ draft.timing_summary.from_school|default:0 }} حصة. حصص بلا توقيت مكتمل: {{ draft.timing_summary.missing|default:0 }}. راجع <a href="{% url 'dashboard:days_list' %}">توقيت الحصص والأيام</a> إذا لزم استكماله، ثم اضغط التحقق لتحديث المعاينة.</div>
+      {% if parsed.warnings %}<ul class="di-warnings">{% for warning in parsed.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>{% endif %}
+      {% if parsed.errors %}
+        <details class="di-errors" open><summary>يلزم تصحيح {{ parsed.errors|length }} ملاحظة قبل الاعتماد</summary><ul>{% for error in review_errors %}<li>{{ error }}</li>{% endfor %}</ul>{% if hidden_review_errors %}<p>توجد {{ hidden_review_errors }} ملاحظة أخرى. استخدم مرشح الأخطاء لمراجعة جميع الصفوف.</p>{% endif %}</details>
+      {% endif %}
+      <form method="post" enctype="multipart/form-data" id="documentReviewForm" class="dp-stack" data-review-form>
+        {% csrf_token %}<input type="hidden" name="action" value="review"><input type="hidden" name="draft_token" value="{{ draft_token }}"><input type="hidden" name="draft_rows" data-draft-rows>
+        <div class="dp-field"><label for="reviewMode">طريقة الإدخال</label><select id="reviewMode" name="mode"><option value="timetable"{% if draft.mode == 'timetable' %} selected{% endif %}>الجدول والأسماء</option><option value="entities"{% if draft.mode == 'entities' %} selected{% endif %}>الأسماء فقط</option></select></div>
+        {% include 'dashboard/_import_strategy.html' with strategy_id='reviewStrategy' selected_strategy=draft.strategy %}
+        <div data-lessons-editor>
+          <div class="di-actions"><strong>الحصص المستخرجة <span class="dp-pill" data-row-count></span></strong><button type="button" class="dp-btn dp-btn--soft" data-add-row>إضافة حصة</button></div>
+          <p class="di-help">تُستخدم أوقات المدرسة المسجلة وتظهر بخلايا مظللة. عند غيابها يُستخدم توقيت الملف أو تستكمله هنا. في وضع الاستبدال، استبعاد صف قد يحذف الحصة المطابقة من المدرسة؛ راجع قائمة الحذف بعد التحقق. اسحب الجدول أفقيًا لرؤية بقية الأعمدة.</p>
+          <div class="di-editor-tools">
+            <div class="dp-field"><label for="documentSearch">ابحث في المعاينة</label><input id="documentSearch" type="search" placeholder="المعلم أو الفصل أو المادة" data-row-search></div>
+            <div class="dp-field"><label for="documentRowFilter">الصفوف المعروضة</label><select id="documentRowFilter" data-row-filter><option value="all">جميع الحصص</option><option value="errors">الحصص التي تحتوي أخطاء</option><option value="notes">الحصص التي تحتاج مراجعة</option></select></div>
+          </div>
+          <div class="di-table-wrap"><table class="di-table"><caption class="di-sr-only">تعديل بيانات الحصص المستخرجة</caption><thead><tr><th scope="col">اليوم</th><th scope="col">الحصة</th><th scope="col">البداية</th><th scope="col">النهاية</th><th scope="col">الفصل</th><th scope="col">المادة</th><th scope="col">المعلم / المعلمة</th><th scope="col">المصدر والملاحظات</th><th scope="col">استبعاد</th></tr></thead><tbody data-rows-body></tbody></table></div>
+          <p class="di-help" data-no-rows hidden>لم تُستخرج حصص. يمكنك إضافة حصص أو اختيار «الأسماء فقط».</p>
+          <div class="di-actions"><button type="button" class="dp-btn dp-btn--soft" data-page-previous>السابق</button><span data-page-label role="status" aria-live="polite"></span><button type="button" class="dp-btn dp-btn--soft" data-page-next>التالي</button></div>
+        </div>
+        <div class="di-names">
+          <div class="dp-field"><label for="docTeachers">أسماء معلمين إضافية</label><textarea id="docTeachers" name="teachers" rows="5" placeholder="اسم واحد في كل سطر">{% for name in draft.entities.teachers %}{{ name }}{% if not forloop.last %}
+{% endif %}{% endfor %}</textarea></div>
+          <div class="dp-field"><label for="docSubjects">أسماء مواد إضافية</label><textarea id="docSubjects" name="subjects" rows="5" placeholder="اسم واحد في كل سطر">{% for name in draft.entities.subjects %}{{ name }}{% if not forloop.last %}
+{% endif %}{% endfor %}</textarea></div>
+          <div class="dp-field"><label for="docClasses">أسماء فصول إضافية</label><textarea id="docClasses" name="classes" rows="5" placeholder="اسم واحد في كل سطر">{% for name in draft.entities.classes %}{{ name }}{% if not forloop.last %}
+{% endif %}{% endfor %}</textarea></div>
+        </div>
+        <p class="di-help">تُستخرج قوائم الأسماء أيضًا من صفوف الحصص أعلاه. استخدم هذه الحقول للأسماء الأخرى، وصحح الأسماء داخل الحصص في خلاياها. تعديل اسم في أحد الحقول لا يغير الخلايا الأخرى تلقائيًا.</p>
+        <details>
+          <summary>تصحيح اسم أو رمز متكرر في جميع الحصص</summary>
+          <div class="di-editor-tools">
+            <div class="dp-field"><label for="documentBulkField">نوع البيانات</label><select id="documentBulkField" data-bulk-field><option value="teacher_name">المعلم</option><option value="subject_name">المادة</option><option value="class_name">الفصل</option></select></div>
+            <div class="dp-field"><label for="documentBulkOld">الاسم أو الرمز الحالي</label><input id="documentBulkOld" list="documentBulkValues" data-bulk-old maxlength="100"></div>
+            <div class="dp-field"><label for="documentBulkNew">الاسم أو الرمز الصحيح</label><input id="documentBulkNew" data-bulk-new maxlength="100"></div>
+          </div>
+          <datalist id="documentBulkValues"></datalist>
+          <button type="button" class="dp-btn dp-btn--soft" data-bulk-apply>تطبيق التصحيح على جميع المواضع المطابقة</button>
+        </details>
+        <button type="submit" class="dp-btn dp-btn--primary">التحقق من التعديلات وعرض ملخص الإدخال</button>
+        <p class="di-help" data-editor-status role="status" aria-live="polite"></p>
+      </form>
+      {{ draft.rows|json_script:"documentDraftRows" }}
+      <datalist id="documentDays">{% for value, label in day_choices %}<option value="{{ label }}">{% endfor %}</datalist>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if import_token %}
+  <section class="dp-panel" data-import-confirmation>
+    <div class="dp-panel__head"><h3>جاهز للاعتماد</h3><p>{% if parsed.strategy == 'replace' %}استبدال جدول المدرسة كاملًا وفق المعاينة التالية.{% else %}دمج التعديلات مع الجدول الحالي وتحديث الحصص المطابقة.{% endif %}</p></div>
+    <div class="dp-panel__body dp-stack">
+      <div class="di-summary">
+        <div><strong>{{ impact.new_teachers }}</strong><span>معلم جديد · {{ impact.existing_teachers }} موجود</span></div>
+        <div><strong>{{ impact.new_subjects }}</strong><span>مادة جديدة · {{ impact.existing_subjects }} موجودة</span></div>
+        <div><strong>{{ impact.new_classes }}</strong><span>فصل جديد · {{ impact.existing_classes }} موجود</span></div>
+        <div><strong>{{ impact.new_lessons }}</strong><span>حصة جديدة · {{ impact.updated_lessons }} ستُحدَّث</span></div>
+      </div>
+      {% include 'dashboard/_import_changes.html' %}
+      <form method="post" action="{% url 'dashboard:school_data_import' %}" class="dp-stack dp-stack--tight">
+        {% csrf_token %}<input type="hidden" name="action" value="import"><input type="hidden" name="import_token" value="{{ import_token }}">
+        <label class="di-confirm"><input type="checkbox" name="review_confirmed" value="yes" required> راجعت الأسماء والحصص والأوقات، وأوافق على إضافتها وتحديث الحصص المطابقة.</label>
+        {% if parsed.strategy == 'replace' %}<label class="di-confirm"><input type="checkbox" name="replace_confirmed" value="yes" required> راجعت جميع التغييرات والحصص التي ستُحذف، وأؤكد أن الملف يمثل جدول المدرسة كاملًا وأوافق على استبداله.</label>{% endif %}
+        <button type="submit" class="dp-btn dp-btn--primary" data-final-import>اعتماد الاستيراد وحفظ البيانات</button>
+        <p class="di-help" data-dirty-notice hidden>تغيّرت المعاينة. اضغط «التحقق من التعديلات» قبل الاعتماد.</p>
+      </form>
+      <p class="di-help">بعد الحفظ يتاح التراجع عن آخر استيراد لمدة 30 دقيقة، ما لم تتغير البيانات لاحقًا.</p>
+    </div>
+  </section>
+  {% endif %}
+  <template id="documentRowTemplate"><tr>
+    <td><input data-field="day" list="documentDays" maxlength="20" aria-label="اليوم"></td>
+    <td><input data-field="period_index" inputmode="numeric" maxlength="2" aria-label="رقم الحصة"></td>
+    <td><input data-field="starts_at" type="time" aria-label="وقت البداية"></td>
+    <td><input data-field="ends_at" type="time" aria-label="وقت النهاية"></td>
+    <td><input data-field="class_name" maxlength="50" aria-label="الفصل"></td>
+    <td><input data-field="subject_name" maxlength="100" aria-label="المادة"></td>
+    <td><input data-field="teacher_name" maxlength="100" aria-label="المعلم أو المعلمة"></td>
+    <td class="di-row-note"><span data-source></span><span data-note></span><span data-row-errors></span></td>
+    <td><button type="button" class="dp-btn dp-btn--soft" data-remove-row aria-label="استبعاد الحصة من الاستيراد">حذف</button></td>
+  </tr></template>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/document-import.js' %}" defer></script><script src="{% static 'js/import-changes.js' %}" defer></script>{% endblock %}

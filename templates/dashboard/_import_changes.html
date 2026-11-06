@@ -1,0 +1,18 @@
+<section class="import-changes dp-stack dp-stack--tight" data-import-changes>
+  <strong>مقارنة الحصص قبل الحفظ</strong>
+  <p>{{ impact.new_lessons }} إضافة · {{ impact.updated_lessons }} تعديل · {{ impact.moved_lessons }} نقل · {{ impact.deleted_lessons }} حذف · {{ impact.unchanged_lessons }} دون تغيير</p>
+  {% if parsed.strategy == 'replace' %}
+  <p class="ic-replacement">سيُستبدل جدول حصص المدرسة كاملًا، بما فيه حصص الفصول والأيام الغائبة عن الملف. تبقى قوائم المعلمين والمواد والفصول وتوقيت المدرسة المسجل.</p>
+  {% endif %}
+  <p class="ic-help">يُعرض النقل عند وجود تطابق وحيد للفصل والمادة والمعلم بين موضع قديم وجديد. الحالات المتكررة غير المميزة تظهر كإضافة وحذف دون تخمين الربط بينها.</p>
+  {% if impact.changes %}
+  <div class="ic-tools">
+    <div class="dp-field"><label for="importChangesSearch">ابحث في التغييرات</label><input id="importChangesSearch" type="search" data-change-search placeholder="الفصل أو المعلم أو المادة"></div>
+    <div class="dp-field"><label for="importChangesFilter">نوع التغيير</label><select id="importChangesFilter" data-change-filter><option value="all">جميع التغييرات</option><option value="deleted">الحصص التي ستُحذف</option><option value="moved">الحصص المنقولة</option><option value="updated">الحصص المعدلة</option><option value="added">الحصص الجديدة</option></select></div>
+  </div>
+  <div class="ic-scroll"><table><caption class="ic-help">جميع التغييرات متاحة عبر البحث والصفحات، 100 تغيير في الصفحة.</caption><thead><tr><th scope="col">التغيير</th><th scope="col">الفصل</th><th scope="col">قبل</th><th scope="col">بعد الاعتماد</th></tr></thead><tbody data-changes-body></tbody></table></div>
+  <div class="ic-actions"><button type="button" class="dp-btn dp-btn--soft" data-changes-prev>السابق</button><span data-changes-page role="status" aria-live="polite"></span><button type="button" class="dp-btn dp-btn--soft" data-changes-next>التالي</button></div>
+  {{ impact.changes|json_script:"importChangesData" }}
+  <noscript><p>فعّل JavaScript لعرض تفاصيل التغييرات والحذف قبل الاعتماد.</p></noscript>
+  {% else %}<p>لا توجد تغييرات على الحصص.</p>{% endif %}
+</section>

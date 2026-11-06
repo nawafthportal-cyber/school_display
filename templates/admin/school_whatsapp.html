@@ -1,0 +1,45 @@
+{% extends "admin/admin_base.html" %}
+{% load static %}
+{% block title %}تواصل يدوي عبر واتساب | إدارة المنصة{% endblock %}
+{% block page_icon %}comment-dots{% endblock %}
+{% block page_title %}تواصل يدوي عبر واتساب{% endblock %}
+{% block page_description %}اختر فئة المدارس، جهّز رسالتك، ثم افتح محادثة كل مدير وأكمل الإرسال بنفسك{% endblock %}
+{% block breadcrumb %}<i class="fas fa-angle-left text-[9px]" aria-hidden="true"></i><a href="{% url 'dashboard:system_mail_list' %}">مركز البريد</a><i class="fas fa-angle-left text-[9px]" aria-hidden="true"></i><span>واتساب</span>{% endblock %}
+{% block page_actions %}<a href="{% url 'dashboard:system_mail_compose' %}" class="admin-btn admin-btn-secondary">إنشاء بريد إلكتروني</a>{% endblock %}
+{% block content %}
+<div id="schoolWhatsapp" class="school-whatsapp">
+  <section class="admin-card p-5 md:p-6 mb-5" aria-labelledby="whatsappSetupTitle">
+    <h2 id="whatsappSetupTitle" class="font-bold mb-4">١. اختر المدارس وجهّز الرسالة</h2>
+    <div class="wa-filter-grid">
+      <div><label class="block text-sm font-bold mb-2" for="{{ form.subscription_status.id_for_label }}">{{ form.subscription_status.label }}</label>{{ form.subscription_status }}</div>
+      <div><label class="block text-sm font-bold mb-2" for="whatsappSchoolSearch">بحث باسم المدرسة أو المدير أو رقم الجوال</label><input id="whatsappSchoolSearch" class="admin-input" type="search" placeholder="ابحث داخل المدارس الظاهرة..." autocomplete="off"></div>
+    </div>
+    <p class="text-xs text-slate-500 mt-2 mb-4">الاشتراك النشط يشمل التجربة المجانية السارية. فئة «توقفت بعد التجربة المجانية» تستبعد المدارس التي انتقلت إلى اشتراك مدفوع.</p>
+    <label class="block text-sm font-bold mb-2" for="whatsappMessage">{{ form.message.label }}</label>{{ form.message }}
+    <p id="whatsappMessageHint" class="text-xs text-slate-500 mt-2" role="status">اكتب الرسالة لتفعيل روابط المحادثات. تُفتح كل محادثة على حدة، ثم تراجع النص وترسله يدويًا في واتساب.</p>
+    <noscript><p class="text-sm mt-3">فعّل JavaScript لتجهيز روابط المحادثات بالنص الذي تكتبه.</p></noscript>
+  </section>
+  <section aria-labelledby="whatsappSchoolsTitle">
+    <div class="wa-section-heading"><h2 id="whatsappSchoolsTitle" class="font-bold">٢. افتح محادثة المدرسة</h2><p id="whatsappSummary" class="text-sm text-slate-600" role="status" aria-live="polite"></p></div>
+    <p id="whatsappEmpty" class="admin-card p-5 text-slate-500" hidden>لا توجد مدارس مطابقة للفئة والبحث.</p>
+    <div class="wa-schools-grid">
+    {% for card in school_cards %}
+      <article class="admin-card p-5 wa-school-card" data-wa-school data-subscription-active="{{ card.active|yesno:'1,0' }}" data-expired-trial="{{ card.expired_trial|yesno:'1,0' }}">
+        <div class="wa-school-heading"><h3 class="font-bold">{{ card.school.name }}</h3><span class="admin-status {% if card.active %}admin-status-success{% else %}admin-status-warning{% endif %}">{% if card.active %}اشتراك نشط{% elif card.expired_trial %}توقفت بعد التجربة المجانية{% else %}بدون اشتراك نشط{% endif %}</span></div>
+        {% for contact in card.contacts %}
+          <div class="wa-contact"><div class="wa-contact-info"><p class="text-sm font-bold">{{ contact.name }}</p><p class="text-sm text-slate-500 mt-1" dir="ltr">+{{ contact.phone }}</p></div>
+            <a class="admin-btn admin-btn-primary wa-chat-link" data-wa-phone="{{ contact.phone }}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" aria-disabled="true" tabindex="-1" aria-label="فتح واتساب مع {{ contact.name }} لمدرسة {{ card.school.name }}">فتح واتساب</a>
+            <p data-wa-opened class="text-xs text-teal-700 wa-opened" role="status" hidden>فُتحت المحادثة؛ أكمل الإرسال يدويًا في واتساب.</p>
+          </div>
+        {% empty %}<p class="text-sm text-slate-500 mt-4">لا يوجد رقم جوال صالح لمدير نشط مرتبط بهذه المدرسة.</p>{% endfor %}
+      </article>
+    {% endfor %}
+    </div>
+    <p class="text-xs text-slate-500 mt-4">تعتمد القائمة على أرقام المديرين النشطين. يفتح الرابط المحادثة إذا كان الرقم مسجّلًا في واتساب.{% if can_users_manage %} <a href="{% url 'dashboard:system_users_list' %}" class="text-teal-700 underline">تحديث أرقام مديري المدارس</a>{% endif %}</p>
+  </section>
+</div>
+<style>
+.school-whatsapp{max-width:72rem}.school-whatsapp .admin-input{width:100%;min-width:0}.wa-filter-grid,.wa-schools-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.wa-section-heading,.wa-school-heading{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}.wa-school-heading h3{overflow-wrap:anywhere;flex:1;min-width:10rem}.wa-school-heading .admin-status{white-space:normal}.wa-contact{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;border-top:1px solid #e2e8f0;padding-top:1rem;margin-top:1rem}.wa-contact-info{flex:1;min-width:0;overflow-wrap:anywhere}.wa-opened{flex-basis:100%}.wa-chat-link[aria-disabled="true"]{opacity:.45;cursor:not-allowed}.wa-school-card[hidden],#whatsappEmpty[hidden],.wa-opened[hidden]{display:none!important}@media(max-width:640px){.wa-filter-grid,.wa-schools-grid{grid-template-columns:minmax(0,1fr)}.wa-section-heading{align-items:flex-start}}
+</style>
+<script src="{% static 'js/school-whatsapp.js' %}" nonce="{{ csp_nonce }}" defer></script>
+{% endblock %}

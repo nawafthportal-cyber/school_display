@@ -81,7 +81,7 @@ class SchoolDashboardBrowserTests(StaticLiveServerTestCase):
             "days_list", "closures_list", "timetable_day", "timetable_week", "ann_list",
             "ann_create", "emergency_alert_list", "emergency_alert_create", "occasion_templates",
             "exc_list", "exc_create", "duty_list", "duty_create", "standby_list", "standby_create",
-            "school_data", "school_data_import", "lessons_list", "add_lesson", "customer_support_tickets",
+            "school_data", "school_data_import", "school_document_import", "lessons_list", "add_lesson", "customer_support_tickets",
             "customer_support_ticket_create", "change_password", "select_school", "two_factor_setup",
         )
         self.pages = [(name, reverse("dashboard:" + name)) for name in names]
