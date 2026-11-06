@@ -8,6 +8,7 @@
 {% block breadcrumb %}<i class="fas fa-angle-left text-[9px]"></i><span aria-current="page">مركز البريد</span>{% endblock %}
 {% block page_actions %}
   {% if can_mail_manage %}
+    <a href="{% url 'dashboard:system_school_whatsapp' %}" class="admin-btn admin-btn-secondary"><i class="fas fa-comment-dots" aria-hidden="true"></i> تواصل يدوي عبر واتساب</a>
     <a href="{% url 'dashboard:system_mail_compose' %}" class="admin-btn admin-btn-primary"><i class="fas fa-pen"></i> رسالة جديدة</a>
   {% endif %}
 {% endblock %}

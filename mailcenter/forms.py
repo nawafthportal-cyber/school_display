@@ -4,28 +4,32 @@ import re
 
 from django import forms
 from django.core.validators import validate_email
-from django.db.models import Count, Exists, OuterRef, Q
-from django.utils import timezone
+from django.db.models import Count, Q
 
 from core.models import School, UserProfile
-from subscriptions.models import SchoolSubscription
+from .recipients import (
+    SUBSCRIPTION_RECIPIENT_CHOICES,
+    school_matches_subscription_filter,
+    subscription_recipient_schools,
+)
 
 
 MAX_RECIPIENTS = 100
 
 
-def school_matches_subscription_filter(school, status):
-    if status == "active":
-        return school.mail_has_active_subscription
-    if status == "inactive":
-        return not school.mail_has_active_subscription
-    if status == "expired_trial":
-        return (
-            not school.mail_has_active_subscription
-            and school.mail_has_ended_trial
-            and not school.mail_has_paid_subscription
-        )
-    return True
+class WhatsAppContactForm(forms.Form):
+    subscription_status = forms.ChoiceField(
+        label="تصفية المدارس حسب الاشتراك",
+        required=False,
+        choices=SUBSCRIPTION_RECIPIENT_CHOICES,
+        widget=forms.Select(attrs={"class": "admin-input"}),
+    )
+    message = forms.CharField(
+        label="الرسالة المجهزة لواتساب",
+        max_length=4000,
+        widget=forms.Textarea(attrs={"id": "whatsappMessage", "class": "admin-input", "rows": 7,
+                                    "placeholder": "اكتب الرسالة التي تريد مراجعتها وإرسالها يدويًا لكل مدرسة..."}),
+    )
 
 
 class SchoolRecipientWidget(forms.CheckboxSelectMultiple):
@@ -53,12 +57,7 @@ class ComposeMailForm(forms.Form):
     subscription_status = forms.ChoiceField(
         label="تصفية المدارس حسب الاشتراك",
         required=False,
-        choices=[
-            ("", "جميع المدارس"),
-            ("active", "المدارس ذات الاشتراك النشط"),
-            ("inactive", "المدارس التي ليس لديها اشتراك نشط"),
-            ("expired_trial", "المدارس التي توقفت بعد التجربة المجانية"),
-        ],
+        choices=SUBSCRIPTION_RECIPIENT_CHOICES,
         help_text="الاشتراك النشط يشمل التجربة المجانية السارية. غير النشط يشمل المنتهي والملغى ومن دون اشتراك. اختر الفئة ثم اضغط «تحديد الظاهر» أو حدد مدارس بعينها. تغيير الفئة يلغي تحديد المدارس خارجها؛ العناوين الإضافية لا تتأثر.",
     )
     schools = SchoolRecipientChoiceField(
@@ -84,28 +83,7 @@ class ComposeMailForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        today = timezone.localdate()
-        subscriptions = SchoolSubscription.objects.filter(school_id=OuterRef("pk"))
-        self.fields["schools"].queryset = School.objects.annotate(
-            mail_has_active_subscription=Exists(
-                subscriptions.filter(status="active", starts_at__lte=today).filter(
-                    Q(ends_at__isnull=True) | Q(ends_at__gte=today)
-                )
-            ),
-            mail_has_ended_trial=Exists(
-                subscriptions.filter(
-                    plan__price=0, starts_at__lte=today,
-                    status__in=["active", "expired", "cancelled"],
-                ).filter(
-                    Q(status__in=["expired", "cancelled"]) | Q(ends_at__lt=today)
-                )
-            ),
-            mail_has_paid_subscription=Exists(
-                subscriptions.filter(
-                    plan__price__gt=0, starts_at__lte=today,
-                    status__in=["active", "expired", "cancelled"],
-                )
-            ),
+        self.fields["schools"].queryset = subscription_recipient_schools().annotate(
             mail_recipient_count=Count(
                 "users",
                 filter=Q(
