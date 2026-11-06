@@ -481,6 +481,12 @@ class DisplayTokenMiddleware:
         # ======================================================
         from subscriptions.access import school_display_is_suspended
         if school_display_is_suspended(getattr(screen, "school_id", None)):
+            # Existing TV clients already understand this status-only command.
+            # No schedule data is exposed; reloading opens the suspension page.
+            if path == "/api/display/status/" or path.startswith("/api/display/status/"):
+                response = JsonResponse({"reload": True, "fetch_required": False, "school_suspended": True})
+                response["Cache-Control"] = "private, no-store, max-age=0"
+                return response
             return JsonResponse({"error": "school_suspended", "message": "أُوقف العرض إداريًا؛ يرجى التواصل مع إدارة المنصة."}, status=403)
 
         if getattr(dj_settings, "DISPLAY_REQUIRE_ACTIVE_SUBSCRIPTION", True):
