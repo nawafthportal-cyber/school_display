@@ -23,6 +23,8 @@ class AdminBrowserRemediationTests(StaticLiveServerTestCase):
     def setUp(self):
         cache.clear()
         admin_fixtures.SystemAdminConsoleSmokeTests.setUp(self)
+        self.school.name = "مريم بنت الشيخ عبدالله آل مبارك الابتدائية لتحفيظ القرآن الكريم"
+        self.school.save(update_fields=["name"])
         self.client.force_login(self.owner)
         cookie = self.client.cookies[settings.SESSION_COOKIE_NAME].value
         if hasattr(asyncio, "WindowsProactorEventLoopPolicy"):
@@ -63,6 +65,7 @@ class AdminBrowserRemediationTests(StaticLiveServerTestCase):
                     facts = self.page.evaluate(LAYOUT_FACTS)
                     self.assertEqual(facts["unlabelled"], [], facts)
                     self.assertLessEqual(facts["overflow"], 1, facts)
+                    self.assertEqual(facts["outside"], [], facts)
         self.assertEqual(self.errors, [])
 
     def test_mobile_closed_menu_is_inert_and_open_menu_traps_focus(self):
