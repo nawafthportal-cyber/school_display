@@ -577,6 +577,13 @@ DATABASES = {
     )
 }
 
+# A file-backed CI database gives each live-server request its own SQLite
+# connection. Shared in-memory connections can race during browser teardown.
+_sqlite_test_name = os.getenv("SQLITE_TEST_DATABASE_NAME", "").strip()
+if RUNNING_TESTS and _sqlite_test_name and DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
+    DATABASES["default"].setdefault("TEST", {})["NAME"] = _sqlite_test_name
+    DATABASES["default"].setdefault("OPTIONS", {})["timeout"] = 30
+
 try:
     engine = DATABASES["default"].get("ENGINE", "")
     is_postgres = "postgres" in engine

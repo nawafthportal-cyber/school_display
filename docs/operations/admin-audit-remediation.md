@@ -49,3 +49,7 @@ amounts, invoice snapshots, receipt identifiers, and authenticator secrets.
 Provider references: [Cloudinary authenticated media](https://cloudinary.com/documentation/control_access_to_media),
 [Cloudinary rename and invalidation](https://cloudinary.com/documentation/image_upload_api_reference),
 [Resend delivery event retrieval](https://resend.com/docs/api-reference/emails/retrieve-email).
+
+Browser CI uses an explicit disposable SQLite file, so live-server threads have
+separate connections; assertions remain unchanged. Preview windows never send
+TV disconnect beacons. See [Django live-server thread guidance](https://docs.djangoproject.com/en/5.2/topics/testing/tools/#liveservertestcase).

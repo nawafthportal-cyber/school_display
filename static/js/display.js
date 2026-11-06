@@ -2559,7 +2559,7 @@
   var _goodbyeSent = false;
 
   function sendGoodbyeBeacon(reason) {
-    if (_goodbyeSent) return;
+    if (IS_PREVIEW || _goodbyeSent) return;
     var t = "";
     try {
       t = (getToken() || "").toString().trim();

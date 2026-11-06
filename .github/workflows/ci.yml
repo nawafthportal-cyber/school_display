@@ -71,6 +71,7 @@ jobs:
       - name: Test with coverage
         env:
           DEBUG: "True"
+          SQLITE_TEST_DATABASE_NAME: ${{ runner.temp }}/school-display-ci.sqlite3
         run: |
           coverage run manage.py test
           coverage report
