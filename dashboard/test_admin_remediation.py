@@ -257,3 +257,10 @@ class AdminRemediationTests(TestCase):
             result = reconcile_delivery(limit=100, apply=True)
         self.assertEqual(sync.call_count, 1)
         self.assertEqual(result["checked"], 1)
+
+    def test_suspension_lookup_uses_database_when_cache_is_unavailable(self):
+        from subscriptions.access import school_display_is_suspended
+        self.school.display_suspended = True
+        self.school.save(update_fields=["display_suspended"])
+        with patch("subscriptions.access.cache.get", side_effect=RuntimeError("cache unavailable")), patch("subscriptions.access.cache.set", side_effect=RuntimeError("cache unavailable")):
+            self.assertTrue(school_display_is_suspended(self.school.pk))

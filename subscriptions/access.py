@@ -12,6 +12,7 @@ import logging
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import InterfaceError, OperationalError
 from django.utils import timezone
 
 from .utils import school_effective_max_screens, school_has_active_subscription
@@ -27,10 +28,22 @@ def school_display_is_suspended(school_id) -> bool:
     from core.models import School
 
     key = f"subscriptions:display_suspended:{school_id}"
-    value = cache.get(key)
+    try:
+        value = cache.get(key)
+    except Exception:
+        value = None
     if value is None:
-        value = School.objects.filter(pk=school_id, display_suspended=True).exists()
-        cache.set(key, int(value), timeout=_ttl())
+        try:
+            value = School.objects.filter(pk=school_id, display_suspended=True).exists()
+        except (OperationalError, InterfaceError):
+            # Preserve the existing display's availability during an outage,
+            # just as the paid-subscription gate does. Known cached stops win.
+            logger.exception("display_suspension_lookup_failed school_id=%s", school_id)
+            return False
+        try:
+            cache.set(key, int(value), timeout=_ttl())
+        except Exception:
+            logger.debug("display_suspension_cache_set_failed school_id=%s", school_id)
     return bool(value)
 
 
