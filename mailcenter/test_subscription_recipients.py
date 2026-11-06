@@ -72,6 +72,11 @@ class SubscriptionRecipientTests(SubscriptionRecipientFixtures, TestCase):
     def test_stopped_trials_exclude_schools_that_upgraded_even_when_paid_term_ended(self):
         self.assertEqual(self.matching_keys("expired_trial"), {"trial_ended", "trial_cancelled"})
 
+    def test_pending_and_future_trials_are_not_classified_as_stopped(self):
+        self.add_subscription("no_subscription", plan=self.trial, status="pending", ends_at=self.today-timedelta(days=1))
+        self.add_subscription("future", plan=self.trial, status="cancelled", starts_at=self.today+timedelta(days=1))
+        self.assertEqual(self.matching_keys("expired_trial"), {"trial_ended", "trial_cancelled"})
+
     def test_page_renders_filter_and_subscription_metadata(self):
         response = self.client.get(reverse("dashboard:system_mail_compose"))
         self.assertContains(response, 'id="id_subscription_status"')

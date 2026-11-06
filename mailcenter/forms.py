@@ -93,7 +93,10 @@ class ComposeMailForm(forms.Form):
                 )
             ),
             mail_has_ended_trial=Exists(
-                subscriptions.filter(plan__price=0, starts_at__lte=today).filter(
+                subscriptions.filter(
+                    plan__price=0, starts_at__lte=today,
+                    status__in=["active", "expired", "cancelled"],
+                ).filter(
                     Q(status__in=["expired", "cancelled"]) | Q(ends_at__lt=today)
                 )
             ),
