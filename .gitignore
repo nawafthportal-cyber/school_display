@@ -136,3 +136,6 @@ celerybeat.pid
 *.profile.d/
 # JetBrains
 out/
+
+# Local private bank receipt storage
+private_receipts/

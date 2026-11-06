@@ -19,6 +19,7 @@ from subscriptions.models import SubscriptionEmailNotification
 from .forms import ComposeMailForm
 from .models import MailMessage
 from .services import sender_address, sync_message_content
+from .reconciliation import delivery_review_queryset
 
 
 @system_permission_required("mail.view")
@@ -31,6 +32,8 @@ def system_mail_list(request):
     query = (request.GET.get("q") or "").strip()
 
     queryset = MailMessage.objects.all()
+    if request.GET.get("attention") == "1":
+        queryset = queryset.filter(pk__in=delivery_review_queryset().values("pk"))
     if folder != "all":
         queryset = queryset.filter(direction=folder)
     if status in valid_statuses:
@@ -54,7 +57,7 @@ def system_mail_list(request):
         ).count(),
         "failed": MailMessage.objects.filter(
             direction=MailMessage.Direction.OUTBOUND,
-            status__in=(MailMessage.Status.FAILED, MailMessage.Status.BOUNCED),
+            status__in=(MailMessage.Status.FAILED, MailMessage.Status.BOUNCED, MailMessage.Status.SUPPRESSED, MailMessage.Status.COMPLAINED),
         ).count(),
     }
     status_summary = dict(
@@ -94,6 +97,7 @@ def system_mail_list(request):
             "status_summary": status_summary,
             "queue": queue,
             "mail_health": mail_health,
+            "delivery_review_count": delivery_review_queryset().count(),
         },
     )
 

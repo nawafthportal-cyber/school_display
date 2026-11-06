@@ -70,6 +70,7 @@ class SubscriptionRequiredMiddleware:
         # الدفع والفوترة: الطريق الوحيد لرفع الحجب
         "dashboard:my_subscription",
         "dashboard:subscription_invoice_view",
+        "dashboard:subscription_receipt",
         "dashboard:add_school",
         # التنقل بين المدارس: مدرسة متعثرة يجب ألا تحبس بقية مدارس المدير
         "dashboard:switch_school",

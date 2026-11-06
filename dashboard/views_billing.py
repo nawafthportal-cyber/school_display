@@ -339,123 +339,34 @@ def system_subscription_edit(request, pk: int):
     obj = get_object_or_404(SubModel, pk=pk)
 
     if request.method == "POST":
-        form = SchoolSubscriptionForm(request.POST, instance=obj)
-        if form.is_valid():
-            obj2 = form.save(commit=False)
-            # احسب تاريخ النهاية تلقائيًا من مدة الخطة إذا كانت النهاية غير محددة.
-            try:
-                if not getattr(obj2, "ends_at", None) and getattr(obj2, "starts_at", None) and getattr(obj2, "plan", None):
-                    days = getattr(obj2.plan, "duration_days", None)
-                    if days is not None:
-                        days_int = int(days)
-                        if days_int > 0:
-                            obj2.ends_at = obj2.starts_at + timedelta(days=days_int)
-            except Exception:
-                pass
-            obj2.save()
+        from django.core.exceptions import ValidationError
+        from subscriptions.models import SubscriptionInvoice, SubscriptionPaymentOperation
+        from subscriptions.invoicing import build_invoice_from_operation
 
-            payment_method_saved_label = None
-            payment_method_save_failed = False
-
-            # حفظ/تحديث طريقة الدفع لاشتراك سابق (عملية دفع + فاتورة إن وجدت)
-            try:
-                from subscriptions.models import SubscriptionPaymentOperation
-
-                plan_obj = getattr(obj2, "plan", None)
-                price = getattr(plan_obj, "price", 0) if plan_obj is not None else 0
-                method = (form.cleaned_data.get("payment_method") or "").strip()
-
-                if plan_obj is not None and float(price or 0) > 0 and method:
-                    # استخدم آخر عملية دفع موجودة للاشتراك (سواء كانت من طلب أو إضافة يدوية)
-                    op = (
-                        SubscriptionPaymentOperation.objects.filter(
-                            school=getattr(obj2, "school", None),
-                            subscription=obj2,
-                        )
-                        .order_by("-created_at", "-id")
-                        .first()
-                    )
-
-                    if op is None:
-                        op = SubscriptionPaymentOperation.objects.create(
-                            school=getattr(obj2, "school", None),
-                            subscription=obj2,
-                            plan=plan_obj,
-                            amount=price or 0,
-                            method=method,
-                            source="admin_manual",
-                            created_by=request.user,
-                            note="Updated via edit",
-                        )
-                    else:
-                        changed = False
-                        if getattr(op, "method", None) != method:
-                            op.method = method
-                            changed = True
-                        if getattr(op, "plan_id", None) != getattr(plan_obj, "id", None):
-                            op.plan = plan_obj
-                            changed = True
-                        try:
-                            if float(getattr(op, "amount", 0) or 0) != float(price or 0):
-                                op.amount = price or 0
-                                changed = True
-                        except Exception:
-                            pass
-                        if changed:
-                            op.save(update_fields=["method", "plan", "amount"])
-
-                    try:
-                        payment_method_saved_label = getattr(op, "get_method_display", lambda: op.method)()
-                    except Exception:
-                        payment_method_saved_label = op.method
-
-                    # تحديث/إنشاء الفاتورة بشكل منفصل حتى لا يمنع حفظ طريقة الدفع
-                    try:
-                        from django.template.loader import render_to_string
-
-                        from subscriptions.invoicing import _get_seller_info, _get_school_contact_info, build_invoice_from_operation
-
-                        try:
-                            inv = getattr(op, "invoice", None)
-                        except Exception:
-                            inv = None
-
-                        if inv is None:
-                            build_invoice_from_operation(op)
-                        else:
-                            inv.payment_method = op.method
-                            inv.amount = op.amount
-                            inv.plan = op.plan
-
-                            c_name, c_mobile = _get_school_contact_info(inv.school)
-
-                            html = render_to_string(
-                                "invoices/subscription_invoice.html",
-                                {
-                                    "invoice": inv,
-                                    "seller": _get_seller_info(),
-                                    "school": inv.school,
-                                    "subscription": inv.subscription,
-                                    "plan": inv.plan,
-                                    "contact_name": c_name,
-                                    "contact_mobile": c_mobile,
-                                },
+        try:
+            with transaction.atomic():
+                obj = SubModel.objects.select_for_update().get(pk=pk)
+                form = SchoolSubscriptionForm(request.POST, instance=obj)
+                if form.is_valid():
+                    obj2 = form.save()
+                    # Existing payments and invoice snapshots are historical records.
+                    if not SubscriptionPaymentOperation.objects.filter(subscription=obj2).exists():
+                        method = form.cleaned_data.get("payment_method")
+                        if method and obj2.plan.price > 0:
+                            op = SubscriptionPaymentOperation.objects.create(
+                                school=obj2.school, subscription=obj2, plan=obj2.plan,
+                                amount=obj2.plan.price, method=method, source="admin_manual",
+                                created_by=request.user, note="Payment recorded via edit",
                             )
-                            inv.html_snapshot = html
-                            inv.save(update_fields=["payment_method", "amount", "plan", "html_snapshot"])
-                    except Exception:
-                        logger.exception("Failed to update/generate invoice for subscription %s", getattr(obj2, "pk", None))
-            except Exception:
-                logger.exception("Failed to update payment method for subscription %s", getattr(obj2, "pk", None))
-                payment_method_save_failed = True
-
-            if payment_method_save_failed:
-                messages.warning(request, "تم حفظ الاشتراك، لكن تعذّر حفظ/تحديث طريقة الدفع. راجع سجل الأخطاء.")
-            elif payment_method_saved_label:
-                messages.success(request, f"تم حفظ طريقة الدفع: {payment_method_saved_label}.")
-
-            messages.success(request, "تم تحديث بيانات الاشتراك.")
-            return redirect("dashboard:system_subscriptions_list")
+                            if not SubscriptionInvoice.objects.filter(operation=op).exists():
+                                build_invoice_from_operation(op)
+                    messages.success(request, "تم تحديث الاشتراك مع الحفاظ على المدفوعات والفواتير السابقة.")
+                    return redirect("dashboard:system_subscriptions_list")
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        except Exception:
+            logger.exception("Subscription edit failed subscription_id=%s", pk)
+            form.add_error(None, "تعذر إكمال الحفظ؛ لم تتغير بيانات الاشتراك أو سجلاته المالية.")
         messages.error(request, "الرجاء تصحيح الأخطاء.")
     else:
         form = SchoolSubscriptionForm(instance=obj)
@@ -621,112 +532,25 @@ def system_subscription_request_detail(request, pk: int):
     if request.method == "POST":
         if not has_system_permission(request.user, "subscription_requests.manage"):
             raise PermissionDenied("لا تملك صلاحية معالجة طلبات الاشتراك.")
-        action = (request.POST.get("action") or "").strip()
-        admin_note = (request.POST.get("admin_note") or "").strip()
+        from django.core.exceptions import ValidationError
+        from subscriptions.request_processing import process_request
 
-        if action not in {"approve", "reject", "under_review"}:
-            messages.error(request, "إجراء غير صالح.")
-            return redirect("dashboard:system_subscription_request_detail", pk=pk)
-
-        if obj.status == "approved" and action == "approve":
-            messages.info(request, "هذا الطلب معتمد بالفعل.")
-            return redirect("dashboard:system_subscription_request_detail", pk=pk)
-
-        if obj.status == "rejected" and action == "reject":
-            messages.info(request, "هذا الطلب مرفوض بالفعل.")
-            return redirect("dashboard:system_subscription_request_detail", pk=pk)
-
-        if action == "under_review":
-            if obj.status in {"approved", "rejected"}:
-                messages.warning(request, "لا يمكن تغيير حالة طلب مُعالج.")
-                return redirect("dashboard:system_subscription_request_detail", pk=pk)
-            obj.status = "under_review"
-            obj.admin_note = admin_note
-            obj.processed_by = request.user
-            obj.processed_at = timezone.now()
-            obj.save(update_fields=["status", "admin_note", "processed_by", "processed_at", "updated_at"])
-            messages.success(request, "تم تحويل الطلب إلى (قيد المراجعة).")
-            return redirect("dashboard:system_subscription_request_detail", pk=pk)
-
-        if action == "reject":
-            if obj.status == "approved":
-                messages.warning(request, "لا يمكن رفض طلب مُعتمد.")
-                return redirect("dashboard:system_subscription_request_detail", pk=pk)
-            obj.status = "rejected"
-            obj.admin_note = admin_note
-            obj.processed_by = request.user
-            obj.processed_at = timezone.now()
-            obj.save(update_fields=["status", "admin_note", "processed_by", "processed_at", "updated_at"])
-            messages.success(request, "تم رفض الطلب.")
-            return redirect("dashboard:system_subscription_request_detail", pk=pk)
-
-        if action == "approve":
-            if obj.status == "rejected":
-                messages.warning(request, "لا يمكن اعتماد طلب مرفوض.")
-                return redirect("dashboard:system_subscription_request_detail", pk=pk)
-
-            SubNew = None
-            try:
-                SubNew = apps.get_model("subscriptions", "SchoolSubscription")
-            except Exception:
-                SubNew = None
-            if SubNew is None:
-                messages.error(request, "موديل الاشتراكات غير متوفر لإنشاء الاشتراك.")
-                return redirect("dashboard:system_subscription_request_detail", pk=pk)
-
-            with transaction.atomic():
-                # منع التكرار وفق unique constraint
-                sub_obj, _ = SubNew.objects.get_or_create(
-                    school=obj.school,
-                    plan=obj.plan,
-                    starts_at=obj.requested_starts_at,
-                    defaults={
-                        "status": "active",
-                        "notes": f"Approved from request #{obj.pk}",
-                    },
-                )
-
-                obj.status = "approved"
-                obj.admin_note = admin_note
-                obj.processed_by = request.user
-                obj.processed_at = timezone.now()
-                obj.approved_subscription = sub_obj
-                obj.save(
-                    update_fields=[
-                        "status",
-                        "admin_note",
-                        "processed_by",
-                        "processed_at",
-                        "approved_subscription",
-                        "updated_at",
-                    ]
-                )
-
-                # إنشاء عملية دفع لطلبات الاشتراك المدفوعة (لإنشاء الفاتورة تلقائياً عبر signals)
-                try:
-                    from subscriptions.models import SubscriptionPaymentOperation
-
-                    amt = getattr(obj, "amount", 0) or 0
-                    if float(amt) > 0 and not SubscriptionPaymentOperation.objects.filter(
-                        school=obj.school,
-                        subscription=sub_obj,
-                        source="request",
-                    ).exists():
-                        SubscriptionPaymentOperation.objects.create(
-                            school=obj.school,
-                            subscription=sub_obj,
-                            plan=obj.plan,
-                            amount=amt,
-                            method="bank_transfer",
-                            source="request",
-                            created_by=request.user,
-                            note=f"Approved from request #{obj.pk}",
-                        )
-                except Exception:
-                    pass
-
-            messages.success(request, "تم اعتماد الطلب وإنشاء/ربط الاشتراك.")
-            return redirect("dashboard:system_subscription_request_detail", pk=pk)
+        try:
+            _obj, changed = process_request(
+                request_id=pk, action=(request.POST.get("action") or "").strip(),
+                actor=request.user, admin_note=(request.POST.get("admin_note") or "").strip(),
+            )
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+        except Exception:
+            logger.exception("Subscription request transition failed request_id=%s", pk)
+            messages.error(request, "تعذر إكمال العملية؛ لم تُحفظ تغييرات الاعتماد أو الدفعة. راجع سجل الأخطاء ثم أعد المحاولة.")
+        else:
+            if changed:
+                messages.success(request, "تم حفظ حالة الطلب وربط الدفعة والفاتورة عند الاعتماد.")
+            else:
+                messages.info(request, "هذا الطلب مُعالج بالفعل.")
+        return redirect("dashboard:system_subscription_request_detail", pk=pk)
 
     return render(
         request,
@@ -1510,7 +1334,7 @@ def system_plans_list(request):
         subscriptions_total=Count("subscriptions", distinct=True),
         active_subscriptions=Count(
             "subscriptions",
-            filter=Q(subscriptions__status="active")
+            filter=Q(subscriptions__status="active", subscriptions__starts_at__lte=today)
             & (Q(subscriptions__ends_at__isnull=True) | Q(subscriptions__ends_at__gte=today)),
             distinct=True,
         ),

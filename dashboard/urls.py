@@ -2,10 +2,12 @@ from django.urls import path
 
 from . import auth_views, support_views, two_factor_views, views, views_pairing, views_screens, views_themes
 from mailcenter import dashboard_views as mail_views
+from .receipt_views import subscription_receipt
  
 app_name = "dashboard"
 
 urlpatterns = [
+    path("subscription-receipts/<path:asset>/", subscription_receipt, name="subscription_receipt"),
     # ==================
     # Auth / Account
     # ==================

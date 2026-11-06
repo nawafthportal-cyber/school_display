@@ -122,12 +122,23 @@ def _apply_provider_content(message: MailMessage, content: dict[str, Any]) -> No
         message.text_body = text_body
         message.html_body = html_body
     message.content_fetch_error = ""
+    if message.direction == MailMessage.Direction.OUTBOUND:
+        event = str(content.get("last_event") or "").removeprefix("email.")
+        status = EVENT_STATUS.get("email." + event)
+        if event in {"opened", "clicked"}:
+            status = MailMessage.Status.DELIVERED
+        terminal = {MailMessage.Status.DELIVERED, MailMessage.Status.BOUNCED, MailMessage.Status.FAILED,
+                    MailMessage.Status.COMPLAINED, MailMessage.Status.SUPPRESSED}
+        if status and not (message.status in terminal and status in {MailMessage.Status.SENT, MailMessage.Status.QUEUED, MailMessage.Status.DELIVERY_DELAYED}):
+            message.status = status
+        message.delivery_checked_at = timezone.now()
     message.save()
 
 
 def sync_message_content(message: MailMessage) -> bool:
     if not message.provider_id:
         return False
+    started_at = timezone.now()
     try:
         content = retrieve_email(
             message.provider_id,
@@ -137,7 +148,12 @@ def sync_message_content(message: MailMessage) -> bool:
         message.content_fetch_error = str(exc)[:500]
         message.save(update_fields=("content_fetch_error", "updated_at"))
         return False
-    _apply_provider_content(message, content)
+    with transaction.atomic():
+        message = MailMessage.objects.select_for_update().get(pk=message.pk)
+        if message.last_event_at and message.last_event_at > started_at:
+            content = dict(content)
+            content.pop("last_event", None)
+        _apply_provider_content(message, content)
     return True
 
 

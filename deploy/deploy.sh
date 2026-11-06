@@ -93,7 +93,7 @@ echo "=== [4/6] building images (service untouched) ==="
 # own images with no source volume, so building web alone left snapshot-worker,
 # wake-scheduler, screen-monitor and the rest on the previous release — a
 # half-deployed state that only showed up as stale worker behaviour.
-sudo docker compose -f "$CF" build 2>&1 | grep -iE "Building|Built|ERROR|FINISHED" | tail -12
+sudo env SOURCE_REVISION="$FULL" docker compose -f "$CF" build 2>&1 | grep -iE "Building|Built|ERROR|FINISHED" | tail -12
 
 echo "=== [5/6] migrate ==="
 sudo docker compose -f "$CF" run --rm -T web python manage.py migrate --noinput 2>&1 | grep -E "Applying|No migrations" | tail -5

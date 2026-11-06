@@ -9,6 +9,8 @@ x-logging: &default-logging
 x-django: &django
   build:
     context: .
+    args:
+      SOURCE_REVISION: ${SOURCE_REVISION:-development}
   restart: unless-stopped
   logging: *default-logging
   env_file:

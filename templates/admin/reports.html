@@ -4,7 +4,7 @@
 {% block title %}التقارير والإحصائيات{% endblock %}
 {% block page_icon %}chart-line{% endblock %}
 {% block page_title %}التقارير والإحصائيات{% endblock %}
-{% block page_description %}تحليل الإيرادات ونمو الاشتراكات وتوزيع المدارس على المنصة.{% endblock %}
+{% block page_description %}تحليل قيمة الباقات السارية ونمو الاشتراكات وتوزيع المدارس على المنصة.{% endblock %}
 {% block breadcrumb %}
   <i class="fas fa-angle-left text-[9px]"></i><span class="text-slate-500">التقارير</span>
 {% endblock %}
@@ -31,7 +31,7 @@
       <span class="admin-metric-icon"><i class="fas fa-chart-line"></i></span>
       <p class="admin-metric-value">{{ avg_revenue_per_active|floatformat:0|intcomma:False }}</p>
       <p class="admin-metric-label">ر.س متوسط قيمة الاشتراك</p>
-      <p class="admin-metric-note">ARPS — متوسط الإيراد لكل اشتراك سارٍ</p>
+      <p class="admin-metric-note">متوسط أسعار الباقات الحالية للاشتراكات السارية؛ لا يمثل إيرادًا محصلًا أو شهريًا</p>
     </div>
 
     {% if can_subscription_requests_view %}
@@ -65,7 +65,7 @@
   <section class="admin-panel">
     <div class="admin-panel-header">
       <div>
-        <h2 class="text-base font-black text-slate-900">تفاصيل الإيرادات حسب الباقة</h2>
+        <h2 class="text-base font-black text-slate-900">قيمة الباقات السارية حسب الباقة</h2>
         <p class="mt-1 text-xs text-slate-500">محسوبة من أسعار الباقات المرتبطة بالاشتراكات السارية.</p>
       </div>
       <span class="text-xs font-bold text-slate-500">{{ revenue_by_plan|length }} باقة</span>
@@ -103,7 +103,7 @@
               <td colspan="5">
                 <div class="admin-empty">
                   <i class="fas fa-chart-pie mb-2 text-2xl text-slate-300"></i>
-                  <p>لا توجد بيانات إيرادات حالياً.</p>
+                  <p>لا توجد باقات سارية حالياً.</p>
                 </div>
               </td>
             </tr>

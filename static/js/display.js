@@ -2559,7 +2559,7 @@
   var _goodbyeSent = false;
 
   function sendGoodbyeBeacon(reason) {
-    if (_goodbyeSent) return;
+    if (IS_PREVIEW || _goodbyeSent) return;
     var t = "";
     try {
       t = (getToken() || "").toString().trim();
@@ -6917,6 +6917,10 @@
           body = null;
         }
 
+        if (body && body.error === "school_suspended") {
+          window.location.reload();
+          return null;
+        }
         var bindingInfo = isBindingConflictResponse(r, body, raw, "snapshot");
         if (bindingInfo.matched) {
           enterBindingLostState("snapshot_binding_conflict", {
@@ -7135,6 +7139,10 @@
           bodyErr = null;
         }
 
+        if (bodyErr && bodyErr.error === "school_suspended") {
+          window.location.reload();
+          return { fetch_required: false, _blocked: true };
+        }
         var bindingInfo = isBindingConflictResponse(r, bodyErr, raw, "status");
         if (bindingInfo.matched) {
           enterBindingLostState("status_binding_conflict", {

@@ -78,7 +78,7 @@
           <h3 class="mb-3 text-sm font-black text-slate-800">إضافة رد</h3>
           <form method="post" class="space-y-3">
             {% csrf_token %}
-            {{ comment_form.message }}
+            <label for="{{ comment_form.message.id_for_label }}">{{ comment_form.message.label }}</label>{{ comment_form.message }}
             {% if comment_form.message.errors %}
               <p class="admin-field-error">{{ comment_form.message.errors|striptags }}</p>
             {% endif %}

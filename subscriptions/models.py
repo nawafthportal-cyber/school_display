@@ -11,6 +11,7 @@ from django.db import models
 from django.utils import timezone
 
 from core.models import School, SubscriptionPlan
+from .receipt_storage import PrivateReceiptStorage
 
 
 _RECEIPT_ALLOWED_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
@@ -503,6 +504,7 @@ class SubscriptionRequest(models.Model):
         default=0,
     )
     receipt_image = models.ImageField(
+        storage=PrivateReceiptStorage(),
         upload_to="receipts/subscription_requests/%Y/%m",
         max_length=500,
         blank=True,
@@ -580,6 +582,11 @@ class SubscriptionPaymentOperation(models.Model):
         ("admin_manual", "إضافة يدوية"),
         ("request", "طلب اشتراك"),
     ]
+
+    subscription_request = models.OneToOneField(
+        SubscriptionRequest, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="payment_operation", verbose_name="طلب التحويل المعتمد",
+    )
 
     school = models.ForeignKey(
         School,

@@ -116,8 +116,11 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(self.page.locator("#heroCard").evaluate("n=>getComputedStyle(n).backgroundColor"), "rgb(16, 36, 59)")
         self.assertEqual(self.page.locator("#heroTitle").evaluate("n=>getComputedStyle(n).webkitTextFillColor"), "rgb(245, 208, 131)")
         self.page.screenshot(path=str(self.artifacts / "occasion-theme-tv-preview.png"), full_page=True, animations="disabled")
+        goodbye_requests = []
+        self.page.on("request", lambda request: goodbye_requests.append(request.url) if "/api/display/goodbye/" in request.url else None)
         response = self.page.goto(self.live_server_url + "/dashboard/occasion-templates/national_day/edit/", wait_until="networkidle")
         self.assertEqual(response.status, 200)
+        self.assertEqual(goodbye_requests, [], "A preview must never send a TV disconnect signal")
         self.assertEqual(self.page.input_value('[name="name"]'), "هوية مدرستنا الوطنية")
         self.page.get_by_role("button", name="استعادة التصميم الافتراضي", exact=True).click()
         self.page.get_by_role("button", name="استعادة التصميم الافتراضي", exact=True).wait_for(state="hidden")

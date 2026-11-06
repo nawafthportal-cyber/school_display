@@ -723,6 +723,11 @@ def display_view(request, screen_key: str):
     if not ctx:
         raise Http404("Display is not configured or found.")
 
+    from subscriptions.access import school_display_is_suspended
+    if school_display_is_suspended(ctx.get("school_id")):
+        return render(request, "website/display_subscription_inactive.html",
+                      {"school_name": ctx.get("school_name"), "administratively_suspended": True}, status=403)
+
     # A lapsed school gets a dignified renewal notice on the TV rather than a
     # display shell that silently fails against a 402 from the snapshot API.
     if not _display_subscription_active(ctx.get("school_id")):

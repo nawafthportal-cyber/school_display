@@ -2281,7 +2281,8 @@ class SystemAdminConsoleRegressionTests(TestCase):
 
         self.assertRedirects(response, reverse("dashboard:system_schools_list"))
         self.subscribed_school.refresh_from_db()
-        self.assertFalse(self.subscribed_school.is_active)
+        self.assertTrue(self.subscribed_school.is_active)
+        self.assertTrue(self.subscribed_school.display_suspended)
 
     def test_reports_hides_sections_outside_the_employee_permissions(self):
         employee = self._create_employee(

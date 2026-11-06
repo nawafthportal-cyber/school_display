@@ -45,6 +45,8 @@
       var effectiveOpen = isDesktop() || Boolean(open);
       sidebar.classList.toggle("translate-x-full", !effectiveOpen);
       sidebar.classList.toggle("translate-x-0", effectiveOpen);
+      sidebar.inert = !effectiveOpen;
+      sidebar.setAttribute("aria-hidden", String(!effectiveOpen));
       overlay.classList.toggle("hidden", isDesktop() || !effectiveOpen);
       if (openButton) openButton.setAttribute("aria-expanded", String(!isDesktop() && effectiveOpen));
     }
@@ -58,6 +60,12 @@
     });
     overlay.addEventListener("click", function () { setOpen(false); });
     document.addEventListener("keydown", function (event) {
+      if (event.key === "Tab" && !isDesktop() && openButton && openButton.getAttribute("aria-expanded") === "true") {
+        var focusable = Array.prototype.filter.call(sidebar.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex="0"]'), function (node) { return node.getClientRects().length > 0; });
+        var first = focusable[0], last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !sidebar.contains(document.activeElement))) { event.preventDefault(); if (last) last.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !sidebar.contains(document.activeElement))) { event.preventDefault(); if (first) first.focus(); }
+      }
       if (event.key !== "Escape" || isDesktop()) return;
       setOpen(false);
       if (openButton) openButton.focus();
