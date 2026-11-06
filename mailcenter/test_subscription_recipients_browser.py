@@ -87,7 +87,10 @@ class SubscriptionRecipientBrowserTests(SubscriptionRecipientFixtures, StaticLiv
         for width in (390, 1440):
             with self.subTest(width=width):
                 self.page.set_viewport_size({"width": width, "height": 900})
-                self.page.goto(self.live_server_url+reverse("dashboard:system_school_whatsapp"), wait_until="networkidle")
+                self.page.goto(self.live_server_url+reverse("dashboard:system_mail_whatsapp"), wait_until="networkidle")
+                active_navigation = self.page.locator(".admin-nav-link.is-active")
+                self.assertEqual(active_navigation.count(), 1)
+                self.assertEqual(active_navigation.get_attribute("href"), reverse("dashboard:system_mail_list"))
                 status = self.page.locator("#id_subscription_status")
                 status.select_option("active")
                 self.assertEqual(self.page.locator('[data-wa-school]:visible').count(), 5)

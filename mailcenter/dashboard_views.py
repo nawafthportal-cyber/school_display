@@ -116,7 +116,7 @@ def system_mail_detail(request, pk: int):
 
 @system_permission_required("mail.manage")
 @require_GET
-def system_school_whatsapp(request):
+def system_mail_whatsapp(request):
     cards = whatsapp_school_contacts()
     return render(request, "admin/school_whatsapp.html", {
         "form": WhatsAppContactForm(),

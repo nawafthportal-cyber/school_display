@@ -4,7 +4,7 @@
 {% block page_title %}رسالة جديدة{% endblock %}
 {% block page_description %}إرسال رسالة رسمية من نطاق لوحة العرض الذكية{% endblock %}
 {% block breadcrumb %}<i class="fas fa-angle-left text-[9px]"></i><a href="{% url 'dashboard:system_mail_list' %}">مركز البريد</a><i class="fas fa-angle-left text-[9px]"></i><span>رسالة جديدة</span>{% endblock %}
-{% block page_actions %}<a href="{% url 'dashboard:system_school_whatsapp' %}" target="_blank" rel="noopener" class="admin-btn admin-btn-secondary"><i class="fas fa-comment-dots" aria-hidden="true"></i> تواصل يدوي عبر واتساب</a>{% endblock %}
+{% block page_actions %}<a href="{% url 'dashboard:system_mail_whatsapp' %}" target="_blank" rel="noopener" class="admin-btn admin-btn-secondary"><i class="fas fa-comment-dots" aria-hidden="true"></i> تواصل يدوي عبر واتساب</a>{% endblock %}
 {% block content %}
 <form method="post" class="admin-card p-5 md:p-7 max-w-4xl">{% csrf_token %}{% if reply_message %}<input type="hidden" name="reply" value="{{ reply_message.pk }}"><div class="rounded-xl bg-teal-50 border border-teal-100 p-4 mb-5 text-sm">رد على: <strong>{{ reply_message.subject }}</strong></div>{% endif %}
   {% if form.non_field_errors %}<div class="admin-toast is-error mb-4">{{ form.non_field_errors }}</div>{% endif %}

@@ -8,23 +8,23 @@
 {% block page_actions %}<a href="{% url 'dashboard:system_mail_compose' %}" class="admin-btn admin-btn-secondary">إنشاء بريد إلكتروني</a>{% endblock %}
 {% block content %}
 <div id="schoolWhatsapp" class="school-whatsapp">
-  <section class="admin-card p-5 md:p-6 mb-5" aria-labelledby="whatsappSetupTitle">
+  <section class="admin-panel p-5 md:p-6 mb-5" aria-labelledby="whatsappSetupTitle">
     <h2 id="whatsappSetupTitle" class="font-bold mb-4">١. اختر المدارس وجهّز الرسالة</h2>
     <div class="wa-filter-grid">
-      <div><label class="block text-sm font-bold mb-2" for="{{ form.subscription_status.id_for_label }}">{{ form.subscription_status.label }}</label>{{ form.subscription_status }}</div>
-      <div><label class="block text-sm font-bold mb-2" for="whatsappSchoolSearch">بحث باسم المدرسة أو المدير أو رقم الجوال</label><input id="whatsappSchoolSearch" class="admin-input" type="search" placeholder="ابحث داخل المدارس الظاهرة..." autocomplete="off"></div>
+      <div class="admin-form-field"><label class="block text-sm font-bold mb-2" for="{{ form.subscription_status.id_for_label }}">{{ form.subscription_status.label }}</label>{{ form.subscription_status }}</div>
+      <div class="admin-form-field"><label class="block text-sm font-bold mb-2" for="whatsappSchoolSearch">بحث باسم المدرسة أو المدير أو رقم الجوال</label><input id="whatsappSchoolSearch" class="admin-input" type="search" placeholder="ابحث داخل المدارس الظاهرة..." autocomplete="off"></div>
     </div>
     <p class="text-xs text-slate-500 mt-2 mb-4">الاشتراك النشط يشمل التجربة المجانية السارية. فئة «توقفت بعد التجربة المجانية» تستبعد المدارس التي انتقلت إلى اشتراك مدفوع.</p>
-    <label class="block text-sm font-bold mb-2" for="whatsappMessage">{{ form.message.label }}</label>{{ form.message }}
+    <div class="admin-form-field"><label class="block text-sm font-bold mb-2" for="whatsappMessage">{{ form.message.label }}</label>{{ form.message }}</div>
     <p id="whatsappMessageHint" class="text-xs text-slate-500 mt-2" role="status">اكتب الرسالة لتفعيل روابط المحادثات. تُفتح كل محادثة على حدة، ثم تراجع النص وترسله يدويًا في واتساب.</p>
     <noscript><p class="text-sm mt-3">فعّل JavaScript لتجهيز روابط المحادثات بالنص الذي تكتبه.</p></noscript>
   </section>
   <section aria-labelledby="whatsappSchoolsTitle">
     <div class="wa-section-heading"><h2 id="whatsappSchoolsTitle" class="font-bold">٢. افتح محادثة المدرسة</h2><p id="whatsappSummary" class="text-sm text-slate-600" role="status" aria-live="polite"></p></div>
-    <p id="whatsappEmpty" class="admin-card p-5 text-slate-500" hidden>لا توجد مدارس مطابقة للفئة والبحث.</p>
+    <p id="whatsappEmpty" class="admin-panel p-5 text-slate-500" hidden>لا توجد مدارس مطابقة للفئة والبحث.</p>
     <div class="wa-schools-grid">
     {% for card in school_cards %}
-      <article class="admin-card p-5 wa-school-card" data-wa-school data-subscription-active="{{ card.active|yesno:'1,0' }}" data-expired-trial="{{ card.expired_trial|yesno:'1,0' }}">
+      <article class="admin-panel p-5 wa-school-card" data-wa-school data-subscription-active="{{ card.active|yesno:'1,0' }}" data-expired-trial="{{ card.expired_trial|yesno:'1,0' }}">
         <div class="wa-school-heading"><h3 class="font-bold">{{ card.school.name }}</h3><span class="admin-status {% if card.active %}admin-status-success{% else %}admin-status-warning{% endif %}">{% if card.active %}اشتراك نشط{% elif card.expired_trial %}توقفت بعد التجربة المجانية{% else %}بدون اشتراك نشط{% endif %}</span></div>
         {% for contact in card.contacts %}
           <div class="wa-contact"><div class="wa-contact-info"><p class="text-sm font-bold">{{ contact.name }}</p><p class="text-sm text-slate-500 mt-1" dir="ltr">+{{ contact.phone }}</p></div>

@@ -34,7 +34,7 @@ class WhatsAppPageTests(SubscriptionRecipientFixtures, TestCase):
         UserProfile.objects.filter(user__username="manager_active").update(mobile="٠٥٠١٢٣٤٥٦٧")
 
     def test_page_has_categories_message_and_normalized_manager_number(self):
-        response = self.client.get(reverse("dashboard:system_school_whatsapp"))
+        response = self.client.get(reverse("dashboard:system_mail_whatsapp"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-wa-phone="966501234567"')
         self.assertContains(response, "المدارس التي توقفت بعد التجربة المجانية")
@@ -53,7 +53,7 @@ class WhatsAppPageTests(SubscriptionRecipientFixtures, TestCase):
             profile = UserProfile.objects.create(user=user, mobile=phone)
             if username != "unlinked":
                 profile.schools.add(self.schools["active"])
-        response = self.client.get(reverse("dashboard:system_school_whatsapp"))
+        response = self.client.get(reverse("dashboard:system_mail_whatsapp"))
         active = next(card for card in response.context["school_cards"] if card["school"].pk == self.schools["active"].pk)
         self.assertEqual([contact["phone"] for contact in active["contacts"]], ["966501234567"])
         self.assertNotContains(response, 'data-wa-phone="966509999999"')
@@ -62,20 +62,20 @@ class WhatsAppPageTests(SubscriptionRecipientFixtures, TestCase):
 
     def test_school_managers_and_unprivileged_staff_cannot_access_contacts(self):
         self.client.force_login(get_user_model().objects.get(username="manager_active"))
-        response = self.client.get(reverse("dashboard:system_school_whatsapp"))
+        response = self.client.get(reverse("dashboard:system_mail_whatsapp"))
         self.assertIn(response.status_code, (302, 403))
         self.assertNotContains(response, "966501234567", status_code=response.status_code)
         for permission, expected_status in (("mail.view", 403), ("mail.manage", 200)):
             user = get_user_model().objects.create_user(username=f"staff_{expected_status}", is_staff=True)
             SystemEmployeeProfile.objects.create(user=user, role="custom", permission_keys=[permission])
             self.client.force_login(user)
-            response = self.client.get(reverse("dashboard:system_school_whatsapp"))
+            response = self.client.get(reverse("dashboard:system_mail_whatsapp"))
             self.assertEqual(response.status_code, expected_status)
             if expected_status == 403:
                 self.assertNotContains(response, "966501234567", status_code=403)
 
     def test_post_is_not_a_send_endpoint(self):
-        response = self.client.post(reverse("dashboard:system_school_whatsapp"), {"message": "نص تجريبي"})
+        response = self.client.post(reverse("dashboard:system_mail_whatsapp"), {"message": "نص تجريبي"})
         self.assertEqual(response.status_code, 405)
         self.assertFalse(MailMessage.objects.exists())
         self.assertEqual(len(mail.outbox), 0)
@@ -83,4 +83,4 @@ class WhatsAppPageTests(SubscriptionRecipientFixtures, TestCase):
     def test_mail_pages_link_to_manual_whatsapp_page(self):
         for name in ("system_mail_list", "system_mail_compose"):
             response = self.client.get(reverse(f"dashboard:{name}"))
-            self.assertContains(response, reverse("dashboard:system_school_whatsapp"))
+            self.assertContains(response, reverse("dashboard:system_mail_whatsapp"))

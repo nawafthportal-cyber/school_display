@@ -316,7 +316,7 @@ def _build_admin_nav_links(
             "icon": "fa-envelope-open-text",
             "emoji": "✉️",
             "tone": "teal",
-            "exact": ("system_school_whatsapp",),
+            "exact": (),
             "startswith": ("system_mail",),
             "visible": True,
             "badge_count": int(unread_mail_count or 0),
