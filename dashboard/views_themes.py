@@ -16,6 +16,53 @@ from .views_screens import _refresh_school_displays
 
 @never_cache
 @manager_required
+def occasion_theme_edit(request, key):
+    from core import occasions
+    from core.occasion_customizations import customization_payload
+    from django.http import Http404
+    from core.models import School
+    from schedule.models import SchoolOccasionTheme
+    from .theme_forms import SchoolOccasionThemeForm
+
+    school, response = get_active_school_or_redirect(request)
+    if response:
+        return response
+    original = occasions.get(key)
+    if original is None:
+        raise Http404
+    instance = SchoolOccasionTheme.objects.filter(school=school, occasion_key=original.key).first()
+    is_custom = instance is not None
+    if request.method == "POST" and request.POST.get("action") == "reset":
+        with transaction.atomic():
+            SchoolOccasionTheme.objects.filter(school=school, occasion_key=original.key).delete()
+            transaction.on_commit(lambda: _refresh_school_displays(school))
+        messages.success(request, "تمت استعادة اسم ثيم المناسبة وتصميمه الافتراضيين لهذه المدرسة.")
+        return redirect("dashboard:occasion_theme_edit", key=original.key)
+    if instance is None:
+        instance = SchoolOccasionTheme(
+            school=school, occasion_key=original.key, name=original.theme_name, tagline=original.tagline,
+            deep=original.deep, accent=original.accent, highlight=original.highlight, soft=original.soft,
+        )
+    form = SchoolOccasionThemeForm(request.POST if request.method == "POST" else None, instance=instance)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            School.objects.select_for_update().get(pk=school.pk)
+            # Concurrent first saves still update one school/occasion row.
+            existing = SchoolOccasionTheme.objects.filter(school=school, occasion_key=original.key).first()
+            if existing is not None:
+                form.instance.pk = existing.pk
+            form.save()
+            transaction.on_commit(lambda: _refresh_school_displays(school))
+        messages.success(request, "تم حفظ اسم الثيم وتصميمه وتحديث شاشات المدرسة التي تستخدم هذه المناسبة.")
+        return redirect("dashboard:occasion_theme_edit", key=original.key)
+    return render(request, "dashboard/occasion_theme_edit.html", {
+        "form": form, "occasion": original, "school": school, "is_custom": is_custom,
+        "occasion_data": {**original.as_card_dict(), **(customization_payload(instance) or {})},
+    })
+
+
+@never_cache
+@manager_required
 def theme_list(request):
     school, response = get_active_school_or_redirect(request)
     if response:

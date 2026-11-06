@@ -63,7 +63,7 @@
             <div class="dp-min0">
               <span class="dp-pill dp-pill--level-{{ a.level|default:'info' }}">{{ a.get_level_display }}</span>
               {% if a.occasion_theme %}
-                <span class="dp-pill dp-pill--gold">ثيم: {{ a.get_occasion_theme_display }}</span>
+                <span class="dp-pill dp-pill--gold">ثيم: {{ a.occasion_theme_label }}</span>
               {% endif %}
               <h3 class="dp-record__title" style="margin-top:.55rem">{{ a.title }}</h3>
             </div>

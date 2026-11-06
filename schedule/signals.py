@@ -14,7 +14,7 @@ from schedule.cache_utils import (
     invalidate_display_snapshot_cache_for_school_id,
 )
 from display.ws_groups import school_group_name
-from schedule.models import Break, ClassLesson, DaySchedule, DisplayTheme, Period, SchoolClosure, SchoolSettings
+from schedule.models import Break, ClassLesson, DaySchedule, DisplayTheme, Period, SchoolClosure, SchoolOccasionTheme, SchoolSettings
 
 logger = logging.getLogger(__name__)
 
@@ -263,8 +263,10 @@ def clear_display_cache_on_settings_change(sender, instance, **kwargs):
 
 @receiver(post_save, sender=DisplayTheme)
 @receiver(post_delete, sender=DisplayTheme)
+@receiver(post_save, sender=SchoolOccasionTheme)
+@receiver(post_delete, sender=SchoolOccasionTheme)
 def clear_display_cache_on_theme_change(sender, instance, **kwargs):
-    _bump_and_invalidate(school_id=instance.school_id, reason="custom_theme", model_label="schedule.DisplayTheme")
+    _bump_and_invalidate(school_id=instance.school_id, reason="custom_theme", model_label=sender._meta.label)
 
 
 @receiver(post_save, sender=DaySchedule)

@@ -1,7 +1,7 @@
 from django import forms
 
 from core.display_themes import COLOR_FIELDS
-from schedule.models import DisplayTheme, SchoolSettings
+from schedule.models import DisplayTheme, SchoolOccasionTheme, SchoolSettings
 
 
 class DisplayThemeForm(forms.ModelForm):
@@ -25,3 +25,13 @@ class DisplayThemeForm(forms.ModelForm):
         if DisplayTheme.objects.filter(school=self.instance.school, name=name).exclude(pk=self.instance.pk).exists():
             raise forms.ValidationError("يوجد ثيم بهذا الاسم. اختر اسمًا آخر.")
         return name
+
+
+class SchoolOccasionThemeForm(forms.ModelForm):
+    class Meta:
+        model = SchoolOccasionTheme
+        fields = ("name", "tagline", "deep", "accent", "highlight", "soft", "pattern")
+        widgets = {key: forms.TextInput(attrs={"type": "color"}) for key in ("deep", "accent", "highlight", "soft")}
+
+    def clean_name(self):
+        return self.cleaned_data["name"].strip()

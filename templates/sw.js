@@ -12,7 +12,7 @@
  * nothing. It never runs while the screen is online.
  */
 
-const RELEASE = 'v9';
+const RELEASE = 'v10';
 const SHELL_CACHE = 'school-display-shell-' + RELEASE;
 const RUNTIME_CACHE = 'school-display-runtime-' + RELEASE;
 const EXPECTED_CACHES = [SHELL_CACHE, RUNTIME_CACHE];
@@ -30,6 +30,7 @@ const SHELL_ASSETS = [
   '/static/css/fonts.css',
   '/static/js/display-controls.js',
   '/static/js/display-theme.js',
+  '/static/js/occasion-theme.js',
   '/static/js/display.min.js',
   '/static/js/display-sw-register.js',
 ];

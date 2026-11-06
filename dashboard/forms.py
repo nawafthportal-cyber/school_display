@@ -544,6 +544,12 @@ class ScreenDisplayCustomizationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         screen = self.instance
         self.fields["custom_theme"].queryset = DisplayTheme.objects.filter(school_id=school_settings.school_id)
+        from core.occasion_customizations import customizations_for_school
+        occasion_customizations = customizations_for_school(school_settings.school_id)
+        self.fields["occasion_theme"].choices = [
+            (key, occasion_customizations.get(key, {}).get("name", label))
+            for key, label in self.fields["occasion_theme"].choices
+        ]
         self.initial["custom_theme"] = screen.custom_theme_override_id or (
             school_settings.custom_theme_id if not screen.theme_override else None
         )
@@ -975,6 +981,13 @@ class AnnouncementForm(forms.ModelForm):
     def __init__(self, *args, school=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.school = school
+        if school is not None:
+            from core.occasion_customizations import customizations_for_school
+            customizations = customizations_for_school(school.pk)
+            self.fields["occasion_theme"].choices = [
+                (key, customizations.get(key, {}).get("name", label))
+                for key, label in self.fields["occasion_theme"].choices
+            ]
         if school is not None:
             # الشاشات المعطلة (يدويًا أو تلقائيًا عند تجاوز حد الباقة) تبقى
             # معروضة إن كان التنبيه يستهدفها بالفعل. بدون ذلك يختفي استهدافها

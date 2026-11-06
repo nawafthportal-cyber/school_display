@@ -26,6 +26,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from core import occasions
 from core.display_themes import effective_custom_theme, theme_payload
+from core.occasion_customizations import customizations_for_school
 from core.health import readiness_status
 from core.email_verification import EmailVerificationError, mark_verified, verify_token
 from core.models import DisplayPairingSession, DisplayScreen, SubscriptionPlan
@@ -476,6 +477,7 @@ def _build_display_context(request, key: str | None) -> dict | None:
         # لحظة الإقلاع ومحفوظة ضمن الصفحة في ذاكرة Service Worker، فتعمل
         # المناسبات بلا اتصال أيضًا.
         "occasion_themes": occasions.all_occasions(),
+        "occasion_customizations": customizations_for_school(settings_obj.school_id),
         "occasion_theme_meta_json": json.dumps(
             occasions.theme_map(), ensure_ascii=False, separators=(",", ":")
         ),
