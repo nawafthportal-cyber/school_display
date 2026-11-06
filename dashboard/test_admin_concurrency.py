@@ -6,7 +6,7 @@ from unittest import skipUnless
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import close_old_connections, connection, transaction
+from django.db import close_old_connections, connection, connections, transaction
 from django.test import TransactionTestCase, override_settings
 
 from core.models import School, SubscriptionPlan
@@ -33,7 +33,7 @@ class AdminConcurrencyTests(TransactionTestCase):
                 barrier.wait(timeout=10)
                 return operation(action)
             finally:
-                close_old_connections()
+                connections.close_all()
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             futures = [executor.submit(worker, action) for action in actions]
