@@ -200,7 +200,7 @@ def _names_from_sheet(wb, sheet_name: str) -> tuple[list[str], bool]:
     return result, exceeded
 
 
-def parse_workbook(uploaded_file) -> dict:
+def parse_workbook(uploaded_file, *, allow_entities_only: bool = False, keep_empty_rows: bool = False) -> dict:
     try:
         wb = load_workbook(uploaded_file, read_only=True, data_only=True)
     except Exception as exc:
@@ -268,7 +268,7 @@ def parse_workbook(uploaded_file) -> dict:
             break
         padded = tuple(values or ()) + (None,) * max(0, 7 - len(tuple(values or ())))
         day_raw, index_raw, start_raw, end_raw, class_raw, subject_raw, teacher_raw = padded[:7]
-        if not any(_text(value) for value in padded[:7]):
+        if not keep_empty_rows and not any(_text(value) for value in padded[:7]):
             continue
         row_issues = []
         day = DAY_NAMES.get(_text(day_raw))
@@ -363,7 +363,7 @@ def parse_workbook(uploaded_file) -> dict:
                         issues.append(issue)
                         row["issues"].append(issue)
                         row["errors"].append(issue["message"])
-    if not rows:
+    if not rows and not (allow_entities_only and any(entities.values())):
         issues.append(
             _issue(
                 sheet="الجدول",
@@ -390,9 +390,13 @@ def parse_workbook(uploaded_file) -> dict:
     }
 
 
+@transaction.atomic
 def build_import_impact(*, school, parsed: dict) -> dict:
     """Describe what a valid import will create or update without writing data."""
-    settings_obj = SchoolSettings.objects.filter(school=school).first()
+    from .import_changes import lesson_changes
+    settings_obj = SchoolSettings.objects.select_for_update().filter(school=school).first()
+    if parsed.get("strategy") == "replace" and settings_obj:
+        list(ClassLesson.objects.select_for_update().filter(settings=settings_obj).values_list("pk", flat=True))
     teacher_names = {row["teacher_name"] for row in parsed.get("rows", []) if row["teacher_name"]}
     subject_names = {row["subject_name"] for row in parsed.get("rows", []) if row["subject_name"]}
     class_names = {row["class_name"] for row in parsed.get("rows", []) if row["class_name"]}
@@ -410,33 +414,22 @@ def build_import_impact(*, school, parsed: dict) -> dict:
         name.casefold() for name in Subject.objects.filter(school=school).values_list("name", flat=True)
     }
     existing_classes = set()
-    existing_slots = set()
     if settings_obj is not None:
         existing_classes = {
             name.casefold()
             for name in SchoolClass.objects.filter(settings=settings_obj).values_list("name", flat=True)
         }
-        existing_slots = set(
-            ClassLesson.objects.filter(settings=settings_obj).values_list(
-                "weekday", "period_index", "school_class__name"
-            )
-        )
-    imported_slots = {
-        (row["day"], row["period_index"], row["class_name"])
-        for row in parsed.get("rows", [])
-        if not row.get("errors")
-    }
-    update_count = sum(1 for slot in imported_slots if slot in existing_slots)
-    return {
+    result = {
         "new_teachers": sum(1 for name in teacher_names if name.casefold() not in existing_teachers),
         "existing_teachers": sum(1 for name in teacher_names if name.casefold() in existing_teachers),
         "new_subjects": sum(1 for name in subject_names if name.casefold() not in existing_subjects),
         "existing_subjects": sum(1 for name in subject_names if name.casefold() in existing_subjects),
         "new_classes": sum(1 for name in class_names if name.casefold() not in existing_classes),
         "existing_classes": sum(1 for name in class_names if name.casefold() in existing_classes),
-        "new_lessons": max(0, len(imported_slots) - update_count),
-        "updated_lessons": update_count,
     }
+    result.update(lesson_changes(settings_obj=settings_obj, parsed=parsed))
+    result["state_fingerprint"] = _import_state_fingerprint(settings_obj) if settings_obj else "no-settings"
+    return result
 
 
 def _get_or_create_named(model, *, name: str, **scope):
@@ -483,7 +476,19 @@ def _validate_imported_timetable(settings_obj, weekdays):
 def apply_import(*, school, parsed: dict) -> dict:
     if parsed.get("errors"):
         raise ValueError("لا يمكن استيراد ملف يحتوي أخطاء.")
-    settings_obj, _ = SchoolSettings.objects.get_or_create(school=school, defaults={"name": school.name})
+    replacing = parsed.get("strategy") == "replace"
+    if replacing and (not parsed.get("rows") or parsed.get("mode") == "entities"):
+        raise ValueError("استبدال الجدول يتطلب ملف حصص كاملًا وسليمًا؛ لا يمكن استخدام قائمة أسماء أو جدول فارغ.")
+    settings_obj, settings_created = SchoolSettings.objects.select_for_update().get_or_create(school=school, defaults={"name": school.name})
+    moves = {}
+    if replacing:
+        from .import_changes import lesson_slot, lesson_changes
+        list(ClassLesson.objects.select_for_update().filter(settings=settings_obj).values_list("pk", flat=True))
+        current_state = "no-settings" if settings_created else _import_state_fingerprint(settings_obj)
+        if not parsed.get("replacement_fingerprint") or parsed["replacement_fingerprint"] != current_state:
+            raise ValueError("تغير الجدول أو بيانات المدرسة بعد المعاينة. أعد التحقق ومراجعة التغييرات والحذف قبل الاستبدال.")
+        changes = lesson_changes(settings_obj=settings_obj, parsed=parsed)["changes"]
+        moves = {lesson_slot(item["after"]): item["before"]["id"] for item in changes if item["kind"] == "moved"}
     entities = parsed.get("entities") or {}
     undo = {
         "created_teachers": [],
@@ -495,7 +500,15 @@ def apply_import(*, school, parsed: dict) -> dict:
         "updated_periods": [],
         "created_lessons": [],
         "updated_lessons": [],
+        "moved_lessons": [],
+        "deleted_lessons": [],
     }
+    snapshot_fields = ("id", "school_class_id", "weekday", "period_index", "subject_id", "teacher_id", "is_active")
+    if replacing:
+        deleted_ids = [item["before"]["id"] for item in changes if item["kind"] == "deleted"]
+        removed = ClassLesson.objects.filter(settings=settings_obj, pk__in=deleted_ids)
+        undo["deleted_lessons"] = list(removed.values(*snapshot_fields))
+        removed.delete()
 
     def ensure_teacher(name):
         obj, created = _get_or_create_named(Teacher, school=school, name=name)
@@ -557,7 +570,9 @@ def apply_import(*, school, parsed: dict) -> dict:
             else:
                 starts_at = datetime.strptime(row["starts_at"], "%H:%M").time()
                 ends_at = datetime.strptime(row["ends_at"], "%H:%M").time()
-                if period.starts_at != starts_at or period.ends_at != ends_at:
+                # Document imports use registered school timings. In particular,
+                # don't round away seconds the minute-based preview cannot show.
+                if (period.starts_at != starts_at or period.ends_at != ends_at) and not parsed.get("requires_document_review") and not replacing:
                     undo["updated_periods"].append(
                         {
                             "id": period.pk,
@@ -569,6 +584,13 @@ def apply_import(*, school, parsed: dict) -> dict:
                     period.ends_at = ends_at
                     period.save(update_fields=("starts_at", "ends_at"))
             period_slots[slot] = True
+        moved_id = moves.get((row["day"], row["period_index"], row["class_name"].casefold()))
+        if moved_id:
+            lesson = ClassLesson.objects.get(settings=settings_obj, pk=moved_id)
+            undo["moved_lessons"].append({field: getattr(lesson, field if field != "id" else "pk") for field in snapshot_fields})
+            lesson.weekday, lesson.period_index = row["day"], row["period_index"]
+            lesson.school_class, lesson.subject, lesson.teacher, lesson.is_active = school_class, subject, teacher, True
+            lesson.save(update_fields=("weekday", "period_index", "school_class", "subject", "teacher", "is_active"))
         lesson, lesson_created = ClassLesson.objects.get_or_create(
             settings=settings_obj,
             weekday=row["day"],
@@ -603,6 +625,8 @@ def apply_import(*, school, parsed: dict) -> dict:
         "teachers": Teacher.objects.filter(school=school).count(),
         "subjects": Subject.objects.filter(school=school).count(),
         "classes": SchoolClass.objects.filter(settings=settings_obj).count(),
+        "deleted_lessons": len(undo["deleted_lessons"]),
+        "moved_lessons": len(undo["moved_lessons"]),
         "undo": undo,
     }
 
@@ -610,7 +634,8 @@ def apply_import(*, school, parsed: dict) -> dict:
 @transaction.atomic
 def undo_import(*, school, undo: dict) -> dict:
     """Reverse one import without touching records that existed before it."""
-    settings_obj = SchoolSettings.objects.get(school=school)
+    settings_obj = SchoolSettings.objects.select_for_update().get(school=school)
+    list(ClassLesson.objects.select_for_update().filter(settings=settings_obj).values_list("pk", flat=True))
     if not undo.get("expected_state") or undo["expected_state"] != _import_state_fingerprint(settings_obj):
         raise ValueError("تغيرت بيانات المدرسة أو الجدول بعد الاستيراد. تعذر التراجع حفاظًا على التعديلات اللاحقة.")
     restored = 0
@@ -627,6 +652,12 @@ def undo_import(*, school, undo: dict) -> dict:
         settings=settings_obj,
         pk__in=undo.get("created_lessons", []),
     ).delete()
+    for item in undo.get("moved_lessons", []):
+        restored += ClassLesson.objects.filter(settings=settings_obj, pk=item["id"]).update(
+            **{field: value for field, value in item.items() if field != "id"})
+    deleted_snapshots = undo.get("deleted_lessons", [])
+    ClassLesson.objects.bulk_create([ClassLesson(settings=settings_obj, **item) for item in deleted_snapshots])
+    restored += len(deleted_snapshots)
 
     day_ids = list(DaySchedule.objects.filter(settings=settings_obj).values_list("pk", flat=True))
     for item in undo.get("updated_periods", []):

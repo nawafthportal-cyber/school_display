@@ -772,12 +772,25 @@ def school_data_import(request):
             messages.error(request, "صيغة الملف غير مدعومة. ارفع ملفًا بامتداد xlsx.")
         else:
             parsed = parse_workbook(uploaded)
+            parsed["strategy"] = request.POST.get("strategy", "merge")
+            if parsed["strategy"] not in ("merge", "replace"):
+                parsed["errors"].append("اختر دمج التعديلات أو استبدال الجدول كاملًا.")
+            if parsed["strategy"] == "replace" and not parsed["errors"]:
+                from .document_import import parse_draft, prepare_draft
+                draft = prepare_draft(school=school, extraction={
+                    "entities": parsed["entities"], "warnings": [],
+                    "rows": [{**row, "day": row["day_label"], "period_index": str(row["period_index"])} for row in parsed["rows"]],
+                })
+                parsed = parse_draft(school=school, draft=draft)
+                parsed["strategy"] = "replace"
             parsed["file"] = {
                 "name": (getattr(uploaded, "name", "") or "school-data.xlsx")[:180],
                 "size": int(getattr(uploaded, "size", 0) or 0),
             }
             if not parsed["errors"]:
                 impact = build_import_impact(school=school, parsed=parsed)
+                if parsed["strategy"] == "replace":
+                    parsed["replacement_fingerprint"] = impact["state_fingerprint"]
             import_token = get_random_string(40)
             cache.set(
                 f"school-data-import:{request.user.pk}:{school.pk}:{import_token}",
@@ -796,13 +809,42 @@ def school_data_import(request):
             messages.error(request, "انتهت صلاحية المعاينة. ارفع الملف مرة أخرى.")
         elif parsed.get("errors"):
             messages.error(request, "لا يمكن استيراد ملف يحتوي أخطاء.")
+        elif parsed.get("requires_document_review") and request.POST.get("review_confirmed") != "yes":
+            messages.error(request, "أكد مراجعة بيانات الملف قبل اعتماد الاستيراد.")
+        elif parsed.get("strategy") == "replace" and request.POST.get("replace_confirmed") != "yes":
+            messages.error(request, "أكد مراجعة قائمة التغييرات والحذف واستبدال جدول المدرسة كاملًا قبل الاعتماد.")
         else:
+            if parsed.get("requires_document_review") and parsed.get("school_timing_fingerprint"):
+                from .document_import import school_timing_fingerprint
+                if parsed["school_timing_fingerprint"] != school_timing_fingerprint(school):
+                    cache.delete(key)
+                    messages.error(request, "تغير توقيت حصص المدرسة بعد المعاينة. تحقق من التوقيت الجديد قبل الحفظ.")
+                    return redirect(f"{reverse('dashboard:school_document_import')}?draft={parsed['document_draft_token']}")
+            lock_key = f"school-data-import-running:{school.pk}"
+            lock_token = get_random_string(40)
+            if not cache.add(lock_key, lock_token, timeout=120):
+                messages.warning(request, "يجري حفظ استيراد آخر لهذه المدرسة. انتظر قليلًا ثم أعد المحاولة.")
+                return redirect("dashboard:school_data_import")
             try:
+                # A second request may have read the preview before the first
+                # import completed. Recheck under the school-wide lease.
+                if not cache.get(key):
+                    messages.warning(request, "تم استخدام المعاينة أو انتهت صلاحيتها. أعد المعاينة قبل الاستيراد.")
+                    return redirect("dashboard:school_data_import")
                 result = apply_import(school=school, parsed=parsed)
+                cache.delete(key)
             except ValueError as exc:
                 messages.error(request, str(exc))
+                if parsed.get("strategy") == "replace":
+                    cache.delete(key)
+                if parsed.get("requires_document_review") and parsed.get("document_draft_token"):
+                    return redirect(
+                        f"{reverse('dashboard:school_document_import')}?draft={parsed['document_draft_token']}"
+                    )
                 return redirect("dashboard:school_data_import")
-            cache.delete(key)
+            finally:
+                if cache.get(lock_key) == lock_token:
+                    cache.delete(lock_key)
             undo_token = get_random_string(40)
             undo_payload = {
                 "token": undo_token,
@@ -822,6 +864,7 @@ def school_data_import(request):
                 request,
                 (
                     f"تم الاستيراد: {result['lessons']} حصة، "
+                    f"نُقلت {result.get('moved_lessons', 0)} وحُذفت {result.get('deleted_lessons', 0)} حصة، "
                     f"{result['classes']} فصل، {result['subjects']} مادة، "
                     f"{result['teachers']} معلم/ـة."
                 ),
