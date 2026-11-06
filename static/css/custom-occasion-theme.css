@@ -1,0 +1,15 @@
+/* Overrides are scoped to a customized occasion; emergency colors remain independent. */
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot .glass-panel { background:var(--occasion-deep) !important; color:var(--occasion-soft); }
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot h1,
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot h2,
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot h3 { color:var(--occasion-highlight) !important; -webkit-text-fill-color:var(--occasion-highlight) !important; }
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot #heroTitle { background:none !important; text-shadow:none !important; }
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot .text-white:not([class*="bg-"]):not(h1):not(h2):not(h3),
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot .text-slate-100:not([class*="bg-"]),
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot .text-slate-200:not([class*="bg-"]),
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot .text-slate-300:not([class*="bg-"]),
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot .text-slate-400:not([class*="bg-"]),
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot #clock,
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot #countdown { color:var(--occasion-soft) !important; -webkit-text-fill-color:var(--occasion-soft) !important; text-shadow:none !important; }
+body[data-occasion-theme][data-custom-occasion-theme] #occasionThemeBadge { color:var(--occasion-soft); }
+body[data-occasion-theme][data-custom-occasion-theme] #fitRoot #alertContainer .text-white { color:#fff !important; -webkit-text-fill-color:#fff !important; }

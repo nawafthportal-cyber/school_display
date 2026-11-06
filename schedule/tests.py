@@ -774,6 +774,7 @@ class SnapshotPayloadBuildTests(SimpleTestCase):
         request = RequestFactory().get("/api/display/snapshot/")
         with (
             patch.object(av, "_call_build_day_snapshot", return_value=day_snap),
+            patch("core.occasion_customizations.customizations_for_school", return_value={}),
             patch.object(av, "_merge_real_data_into_snapshot", side_effect=merge_content) as merge_real,
             patch.object(av, "_build_period_classes_map", return_value={}),
             patch.object(av, "_metrics_incr", lambda *args, **kwargs: None),

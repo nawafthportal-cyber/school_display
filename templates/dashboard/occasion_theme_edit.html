@@ -1,0 +1,59 @@
+{% extends "dashboard/_base.html" %}
+{% load static %}
+{% block title %}تخصيص ثيم {{ occasion.name }}{% endblock %}
+{% block page_title %}اسم وتصميم ثيم المناسبة{% endblock %}
+{% block page_description %}تخصيص {{ occasion.name }} لمدرسة {{ school.name }}{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/occasion-theme-editor.css' %}">{% endblock %}
+{% block content %}
+<div class="dp-stack occasion-theme-workspace">
+  <div class="dp-toolbar"><a class="dp-btn dp-btn--ghost" href="{% url 'dashboard:occasion_templates' %}">← قوالب المناسبات</a><span class="dp-pill dp-pill--teal">خاص بهذه المدرسة</span></div>
+  <form method="post" id="occasionThemeForm" class="dp-form dp-form--aside">
+    {% csrf_token %}
+    <div class="dp-form__main">
+      {% if form.non_field_errors %}<div class="dp-note dp-note--amber" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      <section class="dp-panel">
+        <div class="dp-panel__head"><h3>هوية المناسبة</h3><p>الاسم يظهر في القوالب وقائمة الاختيار وعلى شاشة العرض.</p></div>
+        <div class="dp-panel__body">
+          {% include "dashboard/_field.html" with field=form.name only %}
+          {% include "dashboard/_field.html" with field=form.tagline only %}
+        </div>
+      </section>
+      <section class="dp-panel">
+        <div class="dp-panel__head"><h3>الألوان والزخارف</h3><p>تظهر معاينة التصميم أثناء تعديل الألوان.</p></div>
+        <div class="dp-panel__body">
+          <div class="occasion-editor-colors">
+            {% for field in form %}{% if field.name == 'deep' or field.name == 'accent' or field.name == 'highlight' or field.name == 'soft' %}
+            <div class="dp-field occasion-editor-color"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="dp-field__error">{{ error }}</div>{% endfor %}</div>
+            {% endif %}{% endfor %}
+          </div>
+          {% include "dashboard/_field.html" with field=form.pattern only %}
+          <p id="occasionContrastStatus" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+    </div>
+    <aside class="dp-form__aside">
+      <div class="dp-preview">
+        <div class="dp-preview__head"><strong>معاينة مباشرة</strong><span class="dp-pill dp-pill--green">{{ occasion.name }}</span></div>
+        <div id="occasionLivePreview" class="occasion-editor-preview" style="--original-occasion-pattern:{{ occasion.pattern_css|safe }}">
+          <div class="occasion-editor-pattern" aria-hidden="true"></div>
+          <small data-occasion-name>{{ occasion.theme_name }}</small>
+          <span class="occasion-editor-mark" aria-hidden="true">{{ occasion.mark }}</span>
+          <h3>{{ occasion.title }}</h3>
+          <p>{{ occasion.body }}</p>
+          <small data-occasion-tagline>{{ occasion.tagline }}</small>
+        </div>
+        <p class="occasion-editor-note">يحفظ هذا التصميم لمدرستك ويُستخدم عندما تكون هذه المناسبة مفعّلة على الشاشة. يبقى عنوان التنبيه ونصه وفترة عرضه قابلًا للتعديل من التنبيهات.</p>
+      </div>
+    </aside>
+    <div class="dp-actionbar">
+      <div class="dp-actionbar__copy"><strong>تخصيص محفوظ للمدرسة</strong><span>يُحدّث شاشات المدرسة التي تستخدم هذه المناسبة بعد الحفظ.</span></div>
+      <div class="dp-actionbar__buttons">
+        <button type="submit" id="saveOccasionTheme" class="dp-btn dp-btn--primary">حفظ اسم الثيم وتصميمه</button>
+        {% if is_custom %}<button type="submit" name="action" value="reset" formnovalidate class="dp-btn dp-btn--ghost">استعادة التصميم الافتراضي</button>{% endif %}
+      </div>
+    </div>
+  </form>
+</div>
+{{ occasion_data|json_script:"occasionEditorData" }}
+{% endblock %}
+{% block extra_js %}<script defer src="{% static 'js/occasion-theme.js' %}"></script><script defer src="{% static 'js/occasion-theme-editor.js' %}"></script>{% endblock %}

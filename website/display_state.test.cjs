@@ -293,6 +293,7 @@ function alertClockHarness() {
     serverOffsetMs: 0, hasServerClockSync: true, clockDriftDetected: false,
     lastServerSyncAt: deviceTime, lastServerHeaderSyncAt: 0, lastLocalTime: deviceTime, lastCheckTime: deviceTime,
     annSource: [], annList: [], annPages: [], annLayoutKey: '', annPtr: 0, last: { annSig: '' },
+    occasionCustomizations: {},
     emergencySource: [], emergencySelected: null, emergencySignature: '', emergencyPages: [], emergencyLayoutKey: '',
     document: { body: { getAttribute: () => '1' }, getElementById: id => nodes[id] || null },
     dom: { alertContainer: banner },

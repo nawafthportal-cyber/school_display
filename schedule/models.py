@@ -108,6 +108,37 @@ class DisplayTheme(models.Model):
             raise ValidationError(errors)
 
 
+class SchoolOccasionTheme(models.Model):
+    from core.occasions import announcement_choices
+    from core.occasion_customizations import PATTERN_CHOICES
+
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="occasion_theme_customizations")
+    occasion_key = models.CharField(max_length=30, choices=announcement_choices())
+    name = models.CharField("اسم الثيم", max_length=70)
+    tagline = models.CharField("العبارة المصاحبة", max_length=100, blank=True)
+    deep = models.CharField("لون الخلفية", max_length=7, validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "اختر لونًا صالحًا.")])
+    accent = models.CharField("اللون الرئيسي", max_length=7, validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "اختر لونًا صالحًا.")])
+    highlight = models.CharField("لون الزخارف والعناوين", max_length=7, validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "اختر لونًا صالحًا.")])
+    soft = models.CharField("لون النصوص", max_length=7, validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "اختر لونًا صالحًا.")])
+    pattern = models.CharField("زخرفة الخلفية", max_length=12, choices=PATTERN_CHOICES, default="original")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("school", "occasion_key"), name="school_occasion_theme_unique")]
+        verbose_name = "تخصيص ثيم مناسبة"
+
+    def clean(self):
+        from core.display_themes import HEX_COLOR, contrast_ratio
+        super().clean()
+        errors = {}
+        for key, minimum in (("soft", 4.5), ("highlight", 3)):
+            if HEX_COLOR.fullmatch(getattr(self, key) or "") and HEX_COLOR.fullmatch(self.deep or ""):
+                if contrast_ratio(getattr(self, key), self.deep) < minimum:
+                    errors[key] = "اختر لونًا أوضح على الخلفية لضمان سهولة القراءة."
+        if errors:
+            raise ValidationError(errors)
+
+
 class SchoolSettings(models.Model):
     # Legacy stored values (kept for backward compatibility)
     THEME_DEFAULT = "default"

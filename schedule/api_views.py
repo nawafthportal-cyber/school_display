@@ -2902,6 +2902,10 @@ def _merge_real_data_into_snapshot(request, snap: dict, settings_obj: SchoolSett
         qs = qs.prefetch_related("screens").order_by(*order)[:10]
 
         items = []
+        from core.occasion_customizations import customizations_for_school
+        occasion_customizations = (snap.get("settings") or {}).get("occasion_customizations")
+        if occasion_customizations is None:
+            occasion_customizations = customizations_for_school(school.pk)
         for a in qs:
             d = a.as_dict() if hasattr(a, "as_dict") else {
                 "title": getattr(a, "title", "") or "",
@@ -2909,6 +2913,9 @@ def _merge_real_data_into_snapshot(request, snap: dict, settings_obj: SchoolSett
                 "level": getattr(a, "level", "") or "info",
             }
             title = (d.get("title") or "").strip()
+            custom_occasion = occasion_customizations.get(d.get("occasion_theme"))
+            if custom_occasion:
+                d["occasion_theme_label"] = custom_occasion["name"]
             body = (d.get("body") or "").strip()
             if title and body:
                 d["message"] = f"{title}\n{body}"
@@ -3502,6 +3509,8 @@ def _build_final_snapshot(
     s["theme"] = _normalize_theme_value(getattr(settings_obj, "theme", None) or s.get("theme"))
     from core.display_themes import effective_custom_theme, theme_payload
     s["custom_theme"] = theme_payload(effective_custom_theme(settings_obj))
+    from core.occasion_customizations import customizations_for_school
+    s["occasion_customizations"] = customizations_for_school(settings_obj.school_id)
 
     # ✅ Featured panel toggle (excellence|duty)
     s.setdefault("featured_panel", getattr(settings_obj, "featured_panel", "excellence") or "excellence")

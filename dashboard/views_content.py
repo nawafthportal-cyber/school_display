@@ -4,6 +4,7 @@ supervision duty and emergency alerts.
 """
 
 from __future__ import annotations
+from core.occasion_customizations import cards_for_school, customizations_for_school
 
 from django.db.models import Exists, OuterRef, Prefetch
 
@@ -60,7 +61,9 @@ def ann_list(request):
     expired_count = max(total_count - active_count - future_count, 0)
 
     page = Paginator(qs, 10).get_page(request.GET.get("page"))
+    occasion_customizations = customizations_for_school(school.pk)
     for ann in page.object_list:
+        ann.occasion_theme_label = occasion_customizations.get(ann.occasion_theme, {}).get("name", ann.get_occasion_theme_display())
         if ann.active_now:
             ann.dashboard_status_key = "active"
             ann.dashboard_status_label = "فعال الآن"
@@ -126,7 +129,7 @@ def ann_create(request):
         {
             "form": form,
             "title": "إنشاء تنبيه",
-            "occasion_cards": occasions.card_list(),
+            "occasion_cards": cards_for_school(school.pk),
         },
     )
 
@@ -296,11 +299,14 @@ def emergency_alert_delete(request, pk: int):
 
 @manager_required
 def occasion_templates(request):
+    school, response = get_active_school_or_redirect(request)
+    if response:
+        return response
     return render(
         request,
         "dashboard/occasion_templates.html",
         {
-            "occasion_cards": occasions.card_list(),
+            "occasion_cards": cards_for_school(school.pk),
             "upcoming_occasions": occasions.upcoming(timezone.localdate(), lead_days=60),
         },
     )
@@ -328,7 +334,7 @@ def ann_edit(request, pk: int):
         {
             "form": form,
             "title": "تعديل تنبيه",
-            "occasion_cards": occasions.card_list(),
+            "occasion_cards": cards_for_school(school.pk),
         },
     )
 

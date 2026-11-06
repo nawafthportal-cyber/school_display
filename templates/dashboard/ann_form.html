@@ -42,6 +42,8 @@
           </div>
           {% include "dashboard/_field.html" with field=form.body only %}
           {% include "dashboard/_field.html" with field=form.occasion_theme hint="الثيم يغيّر ألوان وخلفية وزخارف شاشة العرض طوال فترة نشاط الإعلان، ثم تعود الشاشة تلقائيًا لتصميم المدرسة." only %}
+          <a id="occasionThemeEdit" class="dp-btn dp-btn--ghost" target="_blank" rel="noopener" hidden
+             data-edit-url="{% url 'dashboard:occasion_theme_edit' '__occasion__' %}">تعديل اسم هذا الثيم وتصميمه ↗</a>
         </div>
       </section>
 
@@ -148,6 +150,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var body = document.getElementById('{{ form.body.id_for_label }}');
   var level = document.getElementById('{{ form.level.id_for_label }}');
   var occasionTheme = document.getElementById('{{ form.occasion_theme.id_for_label }}');
+  var occasionThemeEdit = document.getElementById('occasionThemeEdit');
   var scope = document.getElementById('{{ form.scope.id_for_label }}');
   var screenTargets = document.getElementById('announcementScreenTargets');
   var starts = document.getElementById('{{ form.starts_at.id_for_label }}');
@@ -203,6 +206,10 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('previewTheme').textContent = selectedText(occasionTheme, 'بدون ثيم مناسبة');
     if (level) previewCard.dataset.level = level.value || 'info';
     if (occasionTheme) previewCard.dataset.occasionTheme = occasionTheme.value || '';
+    if (occasionThemeEdit && occasionTheme) {
+      occasionThemeEdit.hidden = !occasionTheme.value;
+      occasionThemeEdit.href = occasionThemeEdit.dataset.editUrl.replace('__occasion__', encodeURIComponent(occasionTheme.value));
+    }
 
     var status = document.getElementById('previewStatus');
     var live = checkbox && checkbox.checked;

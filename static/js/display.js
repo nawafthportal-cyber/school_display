@@ -3337,6 +3337,9 @@
 
   function hydrateBrand(payload) {
     const settings = (payload && payload.settings) || {};
+    if (Object.prototype.hasOwnProperty.call(settings, "occasion_customizations")) {
+      occasionCustomizations = settings.occasion_customizations || {};
+    }
     const name = safeText(settings.name || payload.school_name || "");
     const logo = resolveImageURL(screenSetting("screenLogoUrl", "") || settings.logo_url || payload.logo_url || "");
     const theme = safeText(screenSetting("screenTheme", "") || settings.theme || "");
@@ -4251,11 +4254,22 @@
   })();
   let occasionThemeSignature = "";
   let activeOccasionAnnouncement = null;
+  let occasionCustomizations = window.SchoolOccasionThemes ? window.SchoolOccasionThemes.read("schoolOccasionThemes") : {};
+
+  function occasionMeta(key) {
+    const original = OCCASION_THEME_META[key];
+    return window.SchoolOccasionThemes ? window.SchoolOccasionThemes.meta(key, occasionCustomizations, original) : original;
+  }
+
+  function occasionLabel(selected, meta) {
+    const custom = window.SchoolOccasionThemes && window.SchoolOccasionThemes.selected(selected.occasion_theme, occasionCustomizations);
+    return safeText(custom ? custom.name : (selected.occasion_theme_label || meta.label));
+  }
 
   function refreshOccasionPresentation() {
     const selected = activeOccasionAnnouncement;
     const key = safeText(selected && selected.occasion_theme);
-    const meta = OCCASION_THEME_META[key];
+    const meta = occasionMeta(key);
     const stateType = safeText(document.body && document.body.dataset.displayState).toLowerCase();
     const ambientState =
       stateType === "before" ||
@@ -4277,7 +4291,7 @@
     setTextIfChanged(dom.occasionHeroIcon, meta.mark || meta.badgeIcon);
     setTextIfChanged(
       dom.occasionHeroLabel,
-      safeText(selected.occasion_theme_label || meta.label)
+      occasionLabel(selected, meta)
     );
     setTextIfChanged(dom.occasionHeroTitle, safeText(selected.title || meta.label));
     setTextIfChanged(
@@ -4321,19 +4335,20 @@
         selected = {
           id: "screen-fixed-occasion",
           occasion_theme: screenOccasion,
-          occasion_theme_label: OCCASION_THEME_META[screenOccasion].label,
-          title: OCCASION_THEME_META[screenOccasion].label,
+          occasion_theme_label: occasionMeta(screenOccasion).label,
+          title: occasionMeta(screenOccasion).label,
         };
       }
     }
     const key = selected ? safeText(selected.occasion_theme || "") : "";
-    const signature = screenOccasion + "||" + key + "||" + safeText(selected && (selected.id || selected.pk || ""));
+    const signature = screenOccasion + "||" + key + "||" + safeText(selected && (selected.id || selected.pk || "")) + "||" + JSON.stringify(occasionCustomizations);
     activeOccasionAnnouncement = selected;
     if (signature === occasionThemeSignature) {
       refreshOccasionPresentation();
       return;
     }
     occasionThemeSignature = signature;
+    if (window.SchoolOccasionThemes) window.SchoolOccasionThemes.apply(document.body, key, occasionCustomizations);
 
     if (!key || !OCCASION_THEME_META[key]) {
       activeOccasionAnnouncement = null;
@@ -4345,12 +4360,12 @@
       return;
     }
 
-    const meta = OCCASION_THEME_META[key];
+    const meta = occasionMeta(key);
     document.body.setAttribute("data-occasion-theme", key);
     setTextIfChanged(dom.occasionThemeBadgeIcon, meta.badgeIcon);
     setTextIfChanged(
       dom.occasionThemeBadgeLabel,
-      safeText(selected.occasion_theme_label || meta.label)
+      occasionLabel(selected, meta)
     );
     setTextIfChanged(dom.occasionThemeSymbolOne, meta.symbols[0]);
     setTextIfChanged(dom.occasionThemeSymbolTwo, meta.symbols[1]);
@@ -4505,7 +4520,7 @@
       }, Math.min(2147483000, Math.max(50, nextBoundaryMs - currentMs + 50)), "announcement_time_boundary");
     }
     const showAnnouncements = screenFlag("screenShowAnnouncements", true);
-    const sig = annSignature(sourceList) + "||" + (showAnnouncements ? "1" : "0");
+    const sig = annSignature(sourceList) + "||" + (showAnnouncements ? "1" : "0") + "||" + JSON.stringify(occasionCustomizations);
     if (sig && sig === last.annSig) {
       refreshOccasionPresentation();
       return;

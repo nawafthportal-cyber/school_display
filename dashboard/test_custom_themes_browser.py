@@ -4,6 +4,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import override_settings
 from django.utils import timezone
@@ -22,6 +23,7 @@ except ImportError:
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
 class CustomThemeBrowserTests(StaticLiveServerTestCase):
     def setUp(self):
+        cache.clear()
         school = School.objects.create(name="مدرسة الإبداع", slug="theme-browser-school")
         user = get_user_model().objects.create_user(username="theme-browser", password="ThemeTest123!")
         profile = UserProfile.objects.create(user=user, active_school=school)
@@ -42,7 +44,7 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         except Exception as exc:
             self.playwright.stop()
             raise unittest.SkipTest(f"Chromium unavailable: {exc}")
-        self.context = self.browser.new_context(viewport={"width": 1440, "height": 1000})
+        self.context = self.browser.new_context(viewport={"width": 1440, "height": 1000}, service_workers="block")
         self.context.add_init_script('window.themeViolations=[];document.addEventListener("securitypolicyviolation",e=>window.themeViolations.push(e.effectiveDirective));')
         self.page = self.context.new_page()
         self.errors = []
@@ -86,6 +88,70 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         self.page.wait_for_function("() => document.body.dataset.displayState !== 'loading'")
         self.assertEqual(self.page.locator("body").evaluate("n=>n.style.getPropertyValue('--glass-surface')"), "#15362C")
         self.page.screenshot(path=str(self.artifacts / "custom-theme-tv-preview.png"), full_page=True)
+        self.assertEqual(self.errors, [])
+
+    def test_occasion_name_palette_and_pattern_are_saved_and_rendered_on_tv(self):
+        self.page.goto(self.live_server_url + "/dashboard/occasion-templates/national_day/edit/")
+        self.page.fill('[name="name"]', "هوية مدرستنا الوطنية")
+        self.page.fill('[name="deep"]', "#10243b")
+        self.page.fill('[name="accent"]', "#436a8a")
+        self.page.fill('[name="highlight"]', "#f5d083")
+        self.page.fill('[name="soft"]', "#f4f6f8")
+        self.page.select_option('[name="pattern"]', "dots")
+        self.assertEqual(self.page.locator("#occasionLivePreview").evaluate("n=>n.style.getPropertyValue('--occasion-deep')"), "#10243b")
+        self.page.click("#saveOccasionTheme")
+        self.page.get_by_role("button", name="استعادة التصميم الافتراضي", exact=True).wait_for()
+        self.page.reload(wait_until="networkidle")
+        self.assertEqual(self.page.input_value('[name="name"]'), "هوية مدرستنا الوطنية")
+        self.page.screenshot(path=str(self.artifacts / "occasion-theme-editor-desktop.png"), full_page=True, animations="disabled")
+        self.page.goto(self.live_server_url + "/dashboard/announcements/new/?template=national_day")
+        self.assertEqual(self.page.locator('[name="occasion_theme"] option:checked').text_content(), "هوية مدرستنا الوطنية")
+        self.page.click('button[type="submit"]:has-text("حفظ التنبيه")')
+        self.page.wait_for_url("**/dashboard/announcements/")
+        self.page.goto(self.live_server_url + f"/s/{self.short_code}/?preview=1")
+        self.page.wait_for_function("() => document.body.dataset.occasionTheme === 'national_day'")
+        self.page.wait_for_function("() => document.body.style.getPropertyValue('--occasion-deep') === '#10243B'")
+        self.assertEqual(self.page.locator("#occasionThemeBadgeLabel").text_content(), "هوية مدرستنا الوطنية")
+        self.assertIn("radial-gradient", self.page.locator(".occasion-theme-pattern").evaluate("n=>getComputedStyle(n).backgroundImage"))
+        self.assertEqual(self.page.locator("#heroCard").evaluate("n=>getComputedStyle(n).backgroundColor"), "rgb(16, 36, 59)")
+        self.assertEqual(self.page.locator("#heroTitle").evaluate("n=>getComputedStyle(n).webkitTextFillColor"), "rgb(245, 208, 131)")
+        self.page.screenshot(path=str(self.artifacts / "occasion-theme-tv-preview.png"), full_page=True, animations="disabled")
+        response = self.page.goto(self.live_server_url + "/dashboard/occasion-templates/national_day/edit/", wait_until="networkidle")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(self.page.input_value('[name="name"]'), "هوية مدرستنا الوطنية")
+        self.page.get_by_role("button", name="استعادة التصميم الافتراضي", exact=True).click()
+        self.page.get_by_role("button", name="استعادة التصميم الافتراضي", exact=True).wait_for(state="hidden")
+        self.page.goto(self.live_server_url + f"/s/{self.short_code}/?preview=1")
+        self.page.wait_for_function("() => document.body.dataset.occasionTheme === 'national_day'")
+        self.assertEqual(self.page.locator("body").evaluate("n=>n.style.getPropertyValue('--occasion-deep')"), "")
+        self.assertEqual(self.page.locator("#occasionThemeBadgeLabel").text_content(), "اليوم الوطني السعودي")
+        self.assertEqual(self.errors, [])
+
+    def test_light_occasion_palette_keeps_text_readable_on_the_actual_tv(self):
+        self.page.goto(self.live_server_url + "/dashboard/occasion-templates/national_day/edit/")
+        for name, value in {"name": "مناسبة فاتحة", "deep": "#ffffff", "accent": "#145a6a", "highlight": "#145a6a", "soft": "#0f172a"}.items():
+            self.page.fill(f'[name="{name}"]', value)
+        self.page.click("#saveOccasionTheme")
+        self.page.get_by_role("button", name="استعادة التصميم الافتراضي", exact=True).wait_for()
+        self.page.goto(self.live_server_url + "/dashboard/announcements/new/?template=national_day")
+        self.page.click('button[type="submit"]:has-text("حفظ التنبيه")')
+        self.page.wait_for_url("**/dashboard/announcements/")
+        self.page.goto(self.live_server_url + f"/s/{self.short_code}/?preview=1")
+        self.page.wait_for_function("() => document.body.hasAttribute('data-custom-occasion-theme')")
+        self.assertEqual(self.page.locator("#heroCard").evaluate("n=>getComputedStyle(n).backgroundColor"), "rgb(255, 255, 255)")
+        self.assertEqual(self.page.locator("#heroTitle").evaluate("n=>getComputedStyle(n).webkitTextFillColor"), "rgb(20, 90, 106)")
+        self.assertEqual(self.page.locator("#clock").evaluate("n=>getComputedStyle(n).webkitTextFillColor"), "rgb(15, 23, 42)")
+        self.assertEqual(self.errors, [])
+
+    def test_mobile_occasion_editor_fits_and_blocks_unreadable_colors(self):
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.page.goto(self.live_server_url + "/dashboard/occasion-templates/national_day/edit/")
+        self.page.wait_for_load_state("networkidle")
+        self.assertTrue(self.page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1"))
+        self.assertEqual(self.page.evaluate("window.themeViolations"), [])
+        self.page.fill('[name="soft"]', "#001d16")
+        self.assertTrue(self.page.locator("#saveOccasionTheme").is_disabled())
+        self.page.screenshot(path=str(self.artifacts / "occasion-theme-editor-mobile.png"), full_page=True, animations="disabled")
         self.assertEqual(self.errors, [])
 
     def test_mobile_editor_and_library_fit_without_horizontal_overflow(self):

@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="{% static 'css/display-controls.css' %}?v=2026-09-09-bell1">
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=2026-02-08-standby-chip-contrast-v2">
   <link rel="stylesheet" href="{% static 'css/display-board.css' %}?v=2026-10-10-responsive1">
+  <link rel="stylesheet" href="{% static 'css/custom-occasion-theme.css' %}">
   {% comment %}
     احتياطيات المتصفحات القديمة (Tizen 3/4، webOS 4). كل قواعدها داخل
     ‎@supports not(...)‎ فلا يطبّق منها المتصفح الحديث شيئًا، وموضعها بعد
@@ -48,7 +49,7 @@
       --occasion-glow: color-mix(in srgb, {{ occasion.accent }} 34%, transparent);
     }
     body[data-occasion-theme="{{ occasion.key }}"] .occasion-theme-pattern {
-      background-image: {{ occasion.pattern_css|safe }};
+      background-image: var(--custom-occasion-pattern, {{ occasion.pattern_css|safe }});
     }
     body[data-occasion-theme="{{ occasion.key }}"] .occasion-hero__mark {
       border-radius: {{ occasion.mark_shape }};
@@ -563,12 +564,14 @@
     <script type="application/json" id="occasionThemeMeta">{{ occasion_theme_meta_json|safe }}</script>
 
     {{ custom_display_theme|json_script:"customDisplayTheme" }}
+    {{ occasion_customizations|json_script:"schoolOccasionThemes" }}
+    <script defer src="{% static 'js/occasion-theme.js' %}"></script>
     <script defer src="{% static 'js/display-theme.js' %}?v=2026-11-06-1"></script>
     <script defer src="{% static 'js/display-controls.js' %}?v=2026-09-09-bell1"></script>
     {% if display_use_minified_js %}
-    <script defer src="{% static 'js/display.min.js' %}?v=2026-11-06-theme1"></script>
+    <script defer src="{% static 'js/display.min.js' %}?v=2026-11-06-occasion1"></script>
     {% else %}
-    <script defer src="{% static 'js/display.js' %}?v=2026-11-06-theme1"></script>
+    <script defer src="{% static 'js/display.js' %}?v=2026-11-06-occasion1"></script>
     {% endif %}
     <script defer src="{% static 'js/display-sw-register.js' %}?v=2026-09-09-bell1"></script>
 </body>

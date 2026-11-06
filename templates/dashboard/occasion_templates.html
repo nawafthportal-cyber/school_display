@@ -49,6 +49,7 @@
 
         <div class="occasion-card-body">
           <h2>{{ item.name }}</h2>
+          {% if item.is_custom %}<p>المناسبة: {{ item.original_name }} · تصميم خاص بالمدرسة</p>{% endif %}
           <p>{{ item.body }}</p>
           <div class="occasion-features">
             <span>يغيّر مظهر الشاشة</span>
@@ -56,6 +57,7 @@
             <span>عودة تلقائية</span>
           </div>
           <a href="{% url 'dashboard:ann_create' %}?template={{ item.key }}">استخدام القالب والثيم</a>
+          <a href="{% url 'dashboard:occasion_theme_edit' item.key %}" style="margin-top:.5rem;background:#f1f5f9;color:#145a6a">تعديل اسم الثيم وتصميمه</a>
         </div>
       </article>
     {% endfor %}
