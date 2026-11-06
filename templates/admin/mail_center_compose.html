@@ -7,7 +7,7 @@
 {% block content %}
 <form method="post" class="admin-card p-5 md:p-7 max-w-4xl">{% csrf_token %}{% if reply_message %}<input type="hidden" name="reply" value="{{ reply_message.pk }}"><div class="rounded-xl bg-teal-50 border border-teal-100 p-4 mb-5 text-sm">رد على: <strong>{{ reply_message.subject }}</strong></div>{% endif %}
   {% if form.non_field_errors %}<div class="admin-toast is-error mb-4">{{ form.non_field_errors }}</div>{% endif %}
-  <div class="space-y-5">{% for field in form %}<div><label class="block text-sm font-bold mb-2" for="{{ field.id_for_label }}">{{ field.label }}</label>{% if field.name == 'schools' %}<div class="mail-school-picker"><div class="mail-school-tools"><input id="schoolPickerSearch" aria-label="بحث داخل المدارس" type="search" placeholder="ابحث باسم المدرسة..." autocomplete="off"><button type="button" id="selectVisibleSchools">تحديد الظاهر</button><button type="button" id="clearSchools">إلغاء التحديد</button></div><div id="schoolChoices" class="mail-school-choices">{{ field }}</div></div>{% else %}{{ field }}{% endif %}{% if field.help_text %}<p class="text-xs text-slate-500 mt-1">{{ field.help_text }}</p>{% endif %}{% for error in field.errors %}<p class="text-xs text-rose-700 mt-1">{{ error }}</p>{% endfor %}</div>{% endfor %}</div>
+  <div class="space-y-5">{% for field in form %}<div><label class="block text-sm font-bold mb-2" for="{{ field.id_for_label }}">{{ field.label }}</label>{% if field.name == 'schools' %}<div class="mail-school-picker"><div class="mail-school-tools"><input id="schoolPickerSearch" aria-label="بحث داخل المدارس" type="search" placeholder="ابحث باسم المدرسة..." autocomplete="off"><button type="button" id="selectVisibleSchools">تحديد الظاهر</button><button type="button" id="clearSchools">إلغاء التحديد</button></div><p id="schoolPickerSummary" class="text-xs text-slate-600 px-3 py-2" role="status" aria-live="polite"></p><p id="schoolPickerEmpty" class="text-sm text-slate-500 px-3 py-2" hidden>لا توجد مدارس مطابقة للتصفية والبحث.</p><div id="schoolChoices" class="mail-school-choices">{{ field }}</div></div>{% else %}{{ field }}{% endif %}{% if field.help_text %}<p class="text-xs text-slate-500 mt-1">{{ field.help_text }}</p>{% endif %}{% for error in field.errors %}<p class="text-xs text-rose-700 mt-1">{{ error }}</p>{% endfor %}</div>{% endfor %}</div>
   <div class="flex gap-2 mt-6"><button type="submit" class="admin-btn admin-btn-primary"><i class="fas fa-paper-plane"></i> إرسال</button><a href="{% url 'dashboard:system_mail_list' %}" class="admin-btn admin-btn-secondary">إلغاء</a></div>
 </form>
 <style>.admin-card>input,.admin-card textarea,.admin-card select,.admin-card input[type="text"]{width:100%;border:1px solid #cbd5e1;border-radius:.75rem;padding:.75rem 1rem;background:#fff}.admin-card input:focus,.admin-card textarea:focus{outline:2px solid #0f766e33;border-color:#0f766e}.mail-school-picker{border:1px solid #cbd5e1;border-radius:.75rem;overflow:hidden;background:#fff}.mail-school-tools{display:flex;gap:.5rem;padding:.75rem;border-bottom:1px solid #e2e8f0;background:#f8fafc}.mail-school-tools input{flex:1;min-width:0;border:1px solid #cbd5e1;border-radius:.6rem;padding:.55rem .75rem}.mail-school-tools button{border:1px solid #cbd5e1;border-radius:.6rem;padding:.5rem .7rem;background:#fff;color:#334155;font-size:.75rem;font-weight:700}.mail-school-choices{max-height:19rem;overflow:auto;padding:.5rem}.mail-school-choices>div>div{border-radius:.6rem;padding:.5rem .65rem}.mail-school-choices>div>div:hover{background:#f0fdfa}.mail-school-choices label{display:flex;align-items:center;gap:.65rem;cursor:pointer;font-size:.875rem}.mail-school-choices input[type="checkbox"]{width:1rem;height:1rem;accent-color:#0f766e;flex:none}@media(max-width:640px){.mail-school-tools{flex-wrap:wrap}.mail-school-tools input{flex-basis:100%}}</style>
@@ -15,19 +15,47 @@
 (() => {
   const search = document.getElementById('schoolPickerSearch');
   const choices = document.getElementById('schoolChoices');
-  if (!search || !choices) return;
+  const status = document.getElementById('id_subscription_status');
+  if (!search || !choices || !status) return;
   const rows = [...choices.querySelectorAll(':scope > div > div')];
+  const matchesStatus = box => {
+    if (status.value === 'active') return box.dataset.subscriptionActive === '1';
+    if (status.value === 'inactive') return box.dataset.subscriptionActive === '0';
+    if (status.value === 'expired_trial') return box.dataset.expiredTrial === '1';
+    return true;
+  };
+  const updateSummary = () => {
+    const visible = rows.filter(row => !row.hidden).length;
+    const selected = choices.querySelectorAll('input:checked').length;
+    document.getElementById('schoolPickerSummary').textContent = `المدارس الظاهرة: ${visible} — المدارس المحددة: ${selected}`;
+    document.getElementById('schoolPickerEmpty').hidden = visible > 0;
+  };
   const filter = () => {
     const query = search.value.trim().toLocaleLowerCase('ar');
-    rows.forEach(row => { row.hidden = query && !row.textContent.toLocaleLowerCase('ar').includes(query); });
+    rows.forEach(row => {
+      const box = row.querySelector('input[type="checkbox"]');
+      row.hidden = !matchesStatus(box) || (query !== '' && !row.textContent.toLocaleLowerCase('ar').includes(query));
+    });
+    updateSummary();
   };
+  status.addEventListener('change', () => {
+    rows.forEach(row => {
+      const box = row.querySelector('input[type="checkbox"]');
+      if (!matchesStatus(box)) box.checked = false;
+    });
+    filter();
+  });
   search.addEventListener('input', filter);
+  choices.addEventListener('change', updateSummary);
   document.getElementById('selectVisibleSchools').addEventListener('click', () => {
     rows.filter(row => !row.hidden).forEach(row => { const box = row.querySelector('input[type="checkbox"]'); if (box) box.checked = true; });
+    updateSummary();
   });
   document.getElementById('clearSchools').addEventListener('click', () => {
     rows.forEach(row => { const box = row.querySelector('input[type="checkbox"]'); if (box) box.checked = false; });
+    updateSummary();
   });
+  filter();
 })();
 </script>
 {% endblock %}
