@@ -4,6 +4,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import override_settings
 from django.utils import timezone
@@ -22,6 +23,7 @@ except ImportError:
 @override_settings(PASSWORD_HASHERS=["django.contrib.auth.hashers.MD5PasswordHasher"])
 class CustomThemeBrowserTests(StaticLiveServerTestCase):
     def setUp(self):
+        cache.clear()
         school = School.objects.create(name="مدرسة الإبداع", slug="theme-browser-school")
         user = get_user_model().objects.create_user(username="theme-browser", password="ThemeTest123!")
         profile = UserProfile.objects.create(user=user, active_school=school)
@@ -42,7 +44,7 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         except Exception as exc:
             self.playwright.stop()
             raise unittest.SkipTest(f"Chromium unavailable: {exc}")
-        self.context = self.browser.new_context(viewport={"width": 1440, "height": 1000})
+        self.context = self.browser.new_context(viewport={"width": 1440, "height": 1000}, service_workers="block")
         self.context.add_init_script('window.themeViolations=[];document.addEventListener("securitypolicyviolation",e=>window.themeViolations.push(e.effectiveDirective));')
         self.page = self.context.new_page()
         self.errors = []
@@ -114,7 +116,9 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(self.page.locator("#heroCard").evaluate("n=>getComputedStyle(n).backgroundColor"), "rgb(16, 36, 59)")
         self.assertEqual(self.page.locator("#heroTitle").evaluate("n=>getComputedStyle(n).webkitTextFillColor"), "rgb(245, 208, 131)")
         self.page.screenshot(path=str(self.artifacts / "occasion-theme-tv-preview.png"), full_page=True, animations="disabled")
-        self.page.goto(self.live_server_url + "/dashboard/occasion-templates/national_day/edit/")
+        response = self.page.goto(self.live_server_url + "/dashboard/occasion-templates/national_day/edit/", wait_until="networkidle")
+        self.assertEqual(response.status, 200)
+        self.assertEqual(self.page.input_value('[name="name"]'), "هوية مدرستنا الوطنية")
         self.page.get_by_role("button", name="استعادة التصميم الافتراضي", exact=True).click()
         self.page.get_by_role("button", name="استعادة التصميم الافتراضي", exact=True).wait_for(state="hidden")
         self.page.goto(self.live_server_url + f"/s/{self.short_code}/?preview=1")
