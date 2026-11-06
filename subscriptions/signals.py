@@ -104,6 +104,14 @@ def _safe_create_invoice(sender, instance: SubscriptionPaymentOperation, created
 def connect_signals():
     from django.db.models.signals import post_save, post_delete
 
+    def school_access_changed(sender, instance, **kwargs):
+        _invalidate_access_cache(instance.pk)
+        from django.db import transaction
+        transaction.on_commit(lambda: _invalidate_access_cache(instance.pk))
+
+    post_save.connect(school_access_changed, sender=School, weak=False,
+                      dispatch_uid="subscriptions_school_display_access")
+
     post_save.connect(_safe_sync, sender=SchoolSubscription, dispatch_uid="subscriptions_sync_school_active_save")
     post_delete.connect(_safe_sync_delete, sender=SchoolSubscription, dispatch_uid="subscriptions_sync_school_active_delete")
 

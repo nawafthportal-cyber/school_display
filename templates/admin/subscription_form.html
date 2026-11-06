@@ -92,13 +92,13 @@
                 {# --- مدرسة: combobox مع بحث --- #}
                 {% if field.name == "school" %}
                 <div class="md:col-span-2 space-y-2">
-                  <label class="block text-xs font-extrabold text-slate-700">{{ field.label }}</label>
+                  <label for="{{ field.id_for_label }}" class="block text-xs font-extrabold text-slate-700">{{ field.label }}</label>
 
                   <div class="relative" id="schoolCombo">
                     <!-- input -->
                     <div class="relative">
                       <input
-                        id="schoolSearchInput"
+                        id="schoolSearchInput" aria-label="بحث عن المدرسة"
                         type="text"
                         class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900
                                outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
@@ -165,7 +165,7 @@
                 {# --- الخطة --- #}
                 {% if field.name == "plan" %}
                 <div class="space-y-2">
-                  <label class="block text-xs font-extrabold text-slate-700">{{ field.label }}</label>
+                  <label for="{{ field.id_for_label }}" class="block text-xs font-extrabold text-slate-700">{{ field.label }}</label>
                   {{ field }}
                   {% if field.help_text %}
                     <p class="text-[11px] text-slate-500">{{ field.help_text }}</p>
@@ -195,7 +195,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
               
               <div class="space-y-2">
-                <label class="block text-xs font-extrabold text-slate-700">{{ form.starts_at.label }}</label>
+                <label for="{{ form.starts_at.id_for_label }}" class="block text-xs font-extrabold text-slate-700">{{ form.starts_at.label }}</label>
                 {{ form.starts_at }}
                 {% if form.starts_at.help_text %}
                   <p class="text-[11px] text-slate-500">{{ form.starts_at.help_text }}</p>
@@ -208,7 +208,7 @@
               </div>
 
               <div class="space-y-2">
-                <label class="block text-xs font-extrabold text-slate-700">{{ form.ends_at.label }}</label>
+                <label for="{{ form.ends_at.id_for_label }}" class="block text-xs font-extrabold text-slate-700">{{ form.ends_at.label }}</label>
                 {{ form.ends_at }}
                 <p class="text-[11px] text-slate-500">يتم حساب تاريخ النهاية تلقائياً من مدة الباقة عند الحفظ.</p>
                 {% if form.ends_at.errors %}
@@ -248,7 +248,7 @@
               {% for field in form %}
                 {% if field.name != "school" and field.name != "plan" and field.name != "starts_at" and field.name != "ends_at" and field.name != "status" %}
                   <div class="space-y-2" {% if field.name == "payment_method" %}id="paymentMethodWrap"{% endif %}>
-                    <label class="block text-xs font-extrabold text-slate-700">{{ field.label }}</label>
+                    <label for="{{ field.id_for_label }}" class="block text-xs font-extrabold text-slate-700">{{ field.label }}</label>
                     {{ field }}
                     {% if field.name == "payment_method" %}
                       <p class="text-[11px] text-slate-500" id="paymentMethodHint">اختر طريقة الدفع للاشتراكات المدفوعة. (الباقة المجانية لا تحتاج)</p>
@@ -284,7 +284,7 @@
               {% for field in form %}
                 {% if field.name == "status" %}
                   <div class="space-y-2">
-                    <label class="block text-xs font-extrabold text-slate-700">{{ field.label }}</label>
+                    <label for="{{ field.id_for_label }}" class="block text-xs font-extrabold text-slate-700">{{ field.label }}</label>
                     {{ field }}
                     <div class="text-[11px] text-slate-500">حدد حالة الاشتراك (سارية، منتهية، إلخ).</div>
                   </div>

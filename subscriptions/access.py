@@ -23,6 +23,17 @@ _ACTIVE_KEY = "subscriptions:active:{school_id}:{day}"
 _LIMIT_KEY = "subscriptions:max_screens:{school_id}:{day}"
 
 
+def school_display_is_suspended(school_id) -> bool:
+    from core.models import School
+
+    key = f"subscriptions:display_suspended:{school_id}"
+    value = cache.get(key)
+    if value is None:
+        value = School.objects.filter(pk=school_id, display_suspended=True).exists()
+        cache.set(key, int(value), timeout=_ttl())
+    return bool(value)
+
+
 def _ttl() -> int:
     return int(getattr(settings, "SUBSCRIPTION_ACCESS_CACHE_TTL", 300) or 300)
 
@@ -87,6 +98,7 @@ def invalidate_school_subscription_cache(school_id: int | None) -> None:
             [
                 _ACTIVE_KEY.format(school_id=int(school_id), day=day),
                 _LIMIT_KEY.format(school_id=int(school_id), day=day),
+                f"subscriptions:display_suspended:{school_id}",
             ]
         )
     except Exception:

@@ -377,7 +377,7 @@ def _subscription_is_active(school_id: int) -> bool:
 
 def _collect_states(now) -> dict[int, _SchoolState]:
     screens = list(
-        DisplayScreen.objects.filter(is_active=True, school__isnull=False, auto_disabled_by_limit=False)
+        DisplayScreen.objects.filter(is_active=True, school__isnull=False, auto_disabled_by_limit=False, school__display_suspended=False)
         .exclude(bound_device_id__isnull=True)
         .exclude(bound_device_id="")
         .select_related("school", "school__schedule_settings")

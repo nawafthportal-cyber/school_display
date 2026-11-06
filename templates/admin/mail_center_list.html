@@ -13,6 +13,7 @@
 {% endblock %}
 
 {% block content %}
+{% if delivery_review_count %}<section class="admin-card p-4 mb-5" role="status"><strong>تحتاج {{ delivery_review_count }} رسالة إلى مراجعة التسليم</strong><p>تشمل الفشل والارتداد والحجب والتأخر، أو رسائل مضى يوم على إرسالها دون تأكيد تسليم. تتم مراجعة حالة المزود دون إعادة إرسال.</p><a href="?folder=outbound&amp;attention=1" class="admin-btn admin-btn-secondary">عرض الرسائل التي تحتاج متابعة</a></section>{% endif %}
 <section class="admin-card p-4 md:p-5 mb-5">
   <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
     <div><h2 class="font-black">جاهزية البريد</h2><p class="text-xs text-slate-500 mt-1" dir="ltr">{{ mail_health.inbound_address }}</p></div>
@@ -28,7 +29,7 @@
   <div class="admin-card p-4"><p class="text-xs text-slate-500">الوارد</p><p class="text-2xl font-black mt-1">{{ counts.inbound|intcomma }}</p></div>
   <div class="admin-card p-4"><p class="text-xs text-slate-500">غير المقروء</p><p class="text-2xl font-black mt-1 text-teal-700">{{ counts.unread|intcomma }}</p></div>
   <div class="admin-card p-4"><p class="text-xs text-slate-500">الصادر</p><p class="text-2xl font-black mt-1">{{ counts.outbound|intcomma }}</p></div>
-  <div class="admin-card p-4"><p class="text-xs text-slate-500">فشل أو ارتد</p><p class="text-2xl font-black mt-1 text-rose-700">{{ counts.failed|intcomma }}</p></div>
+  <div class="admin-card p-4"><p class="text-xs text-slate-500">فشل أو ارتد أو حُجب</p><p class="text-2xl font-black mt-1 text-rose-700">{{ counts.failed|intcomma }}</p></div>
 </div>
 
 <section class="admin-card p-4 md:p-5 mb-5">
@@ -40,8 +41,8 @@
     </div>
     <form method="get" class="flex flex-col sm:flex-row gap-2">
       <input type="hidden" name="folder" value="{{ folder }}">
-      <input type="search" name="q" value="{{ query }}" placeholder="الموضوع، المرسل أو رقم Resend" class="admin-input min-w-64">
-      <select name="status" class="admin-input">
+      <input type="search" aria-label="بحث في البريد" name="q" value="{{ query }}" placeholder="الموضوع، المرسل أو رقم Resend" class="admin-input min-w-64">
+      <select aria-label="حالة البريد" name="status" class="admin-input">
         <option value="">كل الحالات</option>
         {% for value,label in status_choices %}<option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>

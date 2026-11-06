@@ -102,3 +102,33 @@ jobs:
 
       - name: Build production image
         run: docker build --tag school-display:ci .
+
+  postgres-concurrency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: admin_concurrency
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci-isolated-test-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci -d admin_concurrency"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DEBUG: "True"
+      SECRET_KEY: isolated-postgres-test-secret
+      TWO_FACTOR_ENCRYPTION_KEY: ""
+      DATABASE_URL: postgres://ci:ci-isolated-test-password@localhost:5432/admin_concurrency
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: python -m pip install -r requirements-dev.txt
+      - name: Validate concurrent owner and payment transitions on PostgreSQL
+        run: python manage.py test dashboard.test_admin_concurrency --noinput

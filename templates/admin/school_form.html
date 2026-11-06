@@ -87,7 +87,7 @@
           {% if field.name == "slug" %}
             <div class="md:col-span-2 space-y-2">
               <div class="flex items-center justify-between gap-3">
-                <label class="block text-xs font-extrabold text-slate-700">
+                <label for="{{ field.id_for_label }}" class="block text-xs font-extrabold text-slate-700">
                   {{ field.label }}
                 </label>
                 <button type="button"
@@ -157,7 +157,7 @@
 
           {% else %}
             <div class="space-y-2">
-              <label class="block text-xs font-extrabold text-slate-700">
+              <label for="{{ field.id_for_label }}" class="block text-xs font-extrabold text-slate-700">
                 {{ field.label }}
               </label>
 

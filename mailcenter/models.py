@@ -51,6 +51,7 @@ class MailMessage(models.Model):
     attachments = models.JSONField(default=list, blank=True)
     tags = models.JSONField(default=dict, blank=True)
     last_event_at = models.DateTimeField(null=True, blank=True)
+    delivery_checked_at = models.DateTimeField(null=True, blank=True)
     provider_created_at = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)

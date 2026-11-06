@@ -18,6 +18,8 @@ RUN addgroup --system django \
     && adduser --system --ingroup django --home /app django
 
 COPY --chown=django:django . .
+ARG SOURCE_REVISION=development
+RUN printf '%s' "$SOURCE_REVISION" > /app/BUILD_REVISION
 RUN mkdir -p /app/staticfiles \
     && chown -R django:django /app/staticfiles
 

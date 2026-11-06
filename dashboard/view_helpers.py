@@ -802,10 +802,12 @@ def _admin_school_form_class():
         class Meta:
             model = School
 
-            fields = ["name", "slug", "school_type", "is_active"]
+            fields = ["name", "slug", "school_type", "is_active", "display_suspended"]
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
+            self.fields["is_active"].disabled = True
+            self.fields["is_active"].help_text = "محسوب من الاشتراك؛ استخدم الإيقاف الإداري للتحكم في العرض دون تغيير السجلات المالية."
             if "school_type" in self.fields:
                 self.fields["school_type"].required = True
                 # خيار توضيحي بدل "---------"

@@ -479,6 +479,10 @@ class DisplayTokenMiddleware:
         # The lookup itself is cached per school and invalidated on any
         # subscription change, so this stays cheap at fleet scale.
         # ======================================================
+        from subscriptions.access import school_display_is_suspended
+        if school_display_is_suspended(getattr(screen, "school_id", None)):
+            return JsonResponse({"error": "school_suspended", "message": "أُوقف العرض إداريًا؛ يرجى التواصل مع إدارة المنصة."}, status=403)
+
         if getattr(dj_settings, "DISPLAY_REQUIRE_ACTIVE_SUBSCRIPTION", True):
             try:
                 from subscriptions.access import school_subscription_is_active

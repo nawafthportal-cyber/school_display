@@ -405,6 +405,8 @@ def admin_support_ticket_badges(request):
         "admin_new_support_tickets_count": open_support_tickets_count,
         "admin_unread_mail_count": int(unread_mail_count or 0),
     }
+    from core.release import release_label
+    counts["admin_release_label"] = release_label()
 
     for permission_key in (
         "schools.view",

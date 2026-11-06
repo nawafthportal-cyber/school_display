@@ -1219,3 +1219,6 @@ TELEGRAM_ALERT_MAX_ATTEMPTS = env_int_clamped(
     1,
     30,
 )
+
+# Provider-state reconciliation is read-only and never retries deliveries.
+MAIL_DELIVERY_RECONCILE_ENABLED = env_bool("MAIL_DELIVERY_RECONCILE_ENABLED", "False" if RUNNING_TESTS else "True")

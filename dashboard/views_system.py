@@ -455,12 +455,12 @@ def system_school_delete(request, pk: int):
             # Payment checkouts reference the school with on_delete=PROTECT, so
             # any school that ever reached a payment gateway cannot be removed.
             # Deactivate it instead of returning a 500 to the operator.
-            if school.is_active:
-                school.is_active = False
-                school.save(update_fields=["is_active"])
+            if not school.display_suspended:
+                school.display_suspended = True
+                school.save(update_fields=["display_suspended"])
             messages.warning(
                 request,
-                f"تعذر حذف «{school_name}» لارتباطها بسجلات مالية محفوظة؛ تم إيقافها بدلاً من حذفها.",
+                f"تعذر حذف «{school_name}» لارتباطها بسجلات مالية محفوظة؛ تم إيقاف العرض إداريًا مع الحفاظ على الاشتراك والبيانات. يمكنك استئنافه من تعديل المدرسة.",
             )
         else:
             messages.warning(request, f"تم حذف المدرسة: {school_name}")
@@ -740,9 +740,14 @@ def system_user_edit(request, pk: int):
             form.fields.pop("is_staff", None)
             form.fields.pop("is_superuser", None)
         if form.is_valid():
-            form.save()
-            messages.success(request, "تم تحديث بيانات المستخدم بنجاح.")
-            return redirect("dashboard:system_users_list")
+            from django.core.exceptions import ValidationError
+            try:
+                form.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, "تم تحديث بيانات المستخدم بنجاح.")
+                return redirect("dashboard:system_users_list")
         messages.error(request, "الرجاء تصحيح الأخطاء.")
     else:
         form = SystemUserUpdateForm(instance=user)
@@ -782,23 +787,31 @@ def system_user_delete(request, pk: int):
             return redirect("dashboard:system_users_list")
 
     if request.method == "POST":
-        username = getattr(user, "username", str(user.pk))
-        try:
-            user.delete()
-        except ProtectedError:
-            # Audit trails (emergency alerts, payment operations) keep a PROTECT
-            # reference to their author.  Deactivate rather than crash.
-            if user.is_active:
-                user.is_active = False
-                user.save(update_fields=["is_active"])
-            messages.warning(
-                request,
-                f"تعذر حذف {username} لارتباطه بسجلات تشغيلية محفوظة؛ تم إيقاف الحساب بدلاً من حذفه.",
-            )
-        else:
-            messages.success(request, f"تم حذف المستخدم {username}.")
-        return redirect("dashboard:system_users_list")
-
+        with transaction.atomic():
+            from core.owner_safety import protect_owner_change
+            from django.core.exceptions import ValidationError
+            try:
+                protect_owner_change(user.pk)
+            except ValidationError as exc:
+                messages.error(request, " ".join(exc.messages))
+                return redirect("dashboard:system_users_list")
+            user = UserModel.objects.select_for_update().get(pk=user.pk)
+            username = getattr(user, "username", str(user.pk))
+            try:
+                user.delete()
+            except ProtectedError:
+                # Audit trails (emergency alerts, payment operations) keep a PROTECT
+                # reference to their author.  Deactivate rather than crash.
+                if user.is_active:
+                    user.is_active = False
+                    user.save(update_fields=["is_active"])
+                messages.warning(
+                    request,
+                    f"تعذر حذف {username} لارتباطه بسجلات تشغيلية محفوظة؛ تم إيقاف الحساب بدلاً من حذفه.",
+                )
+            else:
+                messages.success(request, f"تم حذف المستخدم {username}.")
+            return redirect("dashboard:system_users_list")
     return render(request, "admin/user_delete_confirm.html", {"user_obj": user})
 
 @system_permission_required("reports.view")

@@ -167,7 +167,7 @@
         <span class="text-xs font-extrabold text-slate-700 uppercase tracking-wide">ملاحظات</span>
       </div>
       <div class="p-5">
-        {{ form.notes }}
+        <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>{{ form.notes }}
         {% if form.notes.errors %}<p class="text-xs text-rose-500 mt-1">{{ form.notes.errors.0 }}</p>{% endif %}
       </div>
     </div>

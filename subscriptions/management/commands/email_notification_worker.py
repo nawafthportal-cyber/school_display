@@ -50,11 +50,17 @@ class Command(BaseCommand):
         )
         last_expiry_scan_date = None
         last_subscription_expiry_date = None
+        last_delivery_review = -3600
 
         while True:
             state = "running" if email_notifications_enabled() else "disabled"
             touch_worker_heartbeat(state=state)
             try:
+                if getattr(settings, "MAIL_DELIVERY_RECONCILE_ENABLED", False) and settings.RESEND_API_KEY and time.monotonic() - last_delivery_review > 3600:
+                    from mailcenter.reconciliation import reconcile_delivery
+                    summary = reconcile_delivery(limit=10, apply=True)
+                    last_delivery_review = time.monotonic()
+                    self.stdout.write(f"mail_delivery_review {summary}")
                 reconciled = reconcile_missing_invoices()
                 if reconciled:
                     self.stdout.write(f"invoice_reconciliation created={reconciled}")

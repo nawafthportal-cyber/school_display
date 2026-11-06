@@ -70,7 +70,7 @@
       <select id="subscriptionPlan" name="plan">
         <option value="">كل الباقات</option>
         {% for plan in plans %}
-          <option value="{{ plan.pk }}" {% if plan_id == plan.pk|stringformat:"s" %}selected{% endif %}>{{ plan.name }}</option>
+          <option value="{{ plan.pk }}" {% if plan_id == plan.pk|stringformat:"s" %}selected{% endif %}>{{ plan.name }} — {{ plan.duration_days }} يوم — {{ plan.price }} ر.س</option>
         {% endfor %}
       </select>
     </div>

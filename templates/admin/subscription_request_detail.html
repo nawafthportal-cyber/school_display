@@ -95,7 +95,7 @@
           {% if can_manage_subscription_requests %}
           <form method="post" class="space-y-3">
             {% csrf_token %}
-            <textarea name="admin_note" rows="3" placeholder="ملاحظة للإدارة/المدرسة (اختياري)" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{{ obj.admin_note }}</textarea>
+            <textarea aria-label="ملاحظة الإدارة" name="admin_note" rows="3" placeholder="ملاحظة للإدارة/المدرسة (اختياري)" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">{{ obj.admin_note }}</textarea>
 
             <div class="flex flex-col sm:flex-row gap-2">
               {% if obj.status != 'approved' and obj.status != 'rejected' %}

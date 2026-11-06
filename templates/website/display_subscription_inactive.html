@@ -131,22 +131,23 @@
                 <p class="school">{{ school_name }}</p>
             {% endif %}
 
-            <span class="badge">الاشتراك غير نشط</span>
+            <span class="badge">{% if administratively_suspended %}إيقاف إداري{% else %}الاشتراك غير نشط{% endif %}</span>
 
             <h1>تم إيقاف العرض مؤقتاً</h1>
 
             <p class="lede">
-                انتهى اشتراك المدرسة في المنصة. يستأنف العرض تلقائياً
-                خلال دقائق بعد تجديد الاشتراك.
+                {% if administratively_suspended %}أوقفت إدارة المنصة عرض هذه المدرسة مؤقتاً. يرجى التواصل مع الدعم لاستئنافه.{% else %}انتهى اشتراك المدرسة في المنصة. يستأنف العرض تلقائياً
+                خلال دقائق بعد تجديد الاشتراك.{% endif %}
             </p>
 
             <div class="divider"></div>
 
             <p class="contact">
+                {% if administratively_suspended %}يرجى مراجعة إدارة المنصة لاستئناف عرض المدرسة مع الحفاظ على اشتراكها الحالي.{% else %}
                 للتجديد، يرجى الدخول إلى لوحة التحكم عبر
                 <strong>school-display.com</strong>
                 <br>
-                ثم فتح صفحة <strong>اشتراكي</strong>.
+                ثم فتح صفحة <strong>اشتراكي</strong>.{% endif %}
             </p>
         </div>
     </main>

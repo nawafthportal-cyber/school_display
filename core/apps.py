@@ -21,6 +21,7 @@ class CoreConfig(AppConfig):
         # Register authentication signals even when startup diagnostics are
         # disabled.  The import is intentionally local to Django's ready hook.
         from core import session_security  # noqa: F401
+        from core import deployment_checks  # noqa: F401
 
         # Keep this log OFF by default in dev; in production it can be useful.
         # Prints once per process/worker.

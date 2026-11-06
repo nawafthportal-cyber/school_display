@@ -10,6 +10,7 @@ from django import forms
 from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
@@ -51,6 +52,15 @@ from subscriptions.models import SchoolSubscription, SubscriptionScreenAddon, Su
 logger = logging.getLogger(__name__)
 
 UserModel = get_user_model()
+
+
+def _validate_updated_password(password, user, cleaned):
+    from copy import copy
+    candidate = copy(user)
+    for field in ("username", "email", "first_name", "last_name"):
+        if field in cleaned:
+            setattr(candidate, field, cleaned[field] or "")
+    validate_password(password, candidate)
 
 
 # ========================
@@ -1566,6 +1576,7 @@ class SchoolSubscriptionForm(forms.ModelForm):
             ("", "— اختر —"),
             ("bank_transfer", "تحويل بنكي"),
             ("moyasar", "ميسر"),
+            ("tamara", "تمارا"),
         ],
         widget=forms.Select(),
         help_text="يُطلب فقط عند إنشاء اشتراك مدفوع (غير مجاني).",
@@ -1591,6 +1602,8 @@ class SchoolSubscriptionForm(forms.ModelForm):
                 )
                 if op is not None and getattr(op, "method", None):
                     self.fields["payment_method"].initial = op.method
+                    self.fields["payment_method"].disabled = True
+                    self.fields["payment_method"].help_text = "طريقة الدفع محفوظة في سجل مالي سابق؛ تعديل الاشتراك لا يغيّر الدفعة أو فاتورتها."
         except Exception:
             pass
 
@@ -1610,6 +1623,8 @@ class SchoolSubscriptionForm(forms.ModelForm):
             )
 
     def clean(self):
+        from subscriptions.models import SubscriptionPaymentOperation
+
         cleaned = super().clean()
         start = cleaned.get("starts_at")
         end = cleaned.get("ends_at")
@@ -1655,6 +1670,10 @@ class SchoolSubscriptionForm(forms.ModelForm):
                     "الرجاء تحديد طريقة الدفع للاشتراك المدفوع.",
                 )
 
+        if self.instance.pk and SubscriptionPaymentOperation.objects.filter(subscription_id=self.instance.pk).exists():
+            original_school_id = SchoolSubscription.objects.values_list("school_id", flat=True).get(pk=self.instance.pk)
+            if cleaned.get("school") and cleaned["school"].pk != original_school_id:
+                self.add_error("school", "لا يمكن نقل اشتراك ذي سجلات مالية إلى مدرسة أخرى.")
         return cleaned
 
 
@@ -1983,11 +2002,17 @@ class SystemUserUpdateForm(forms.ModelForm):
                 raise ValidationError("كلمتا المرور غير متطابقتين.")
             if len(p1) < 8:
                 raise ValidationError("يجب أن تكون كلمة المرور ٨ أحرف على الأقل.")
+            _validate_updated_password(p1, self.instance, cleaned)
 
         return cleaned
 
     @transaction.atomic
     def save(self, commit=True):
+        from core.owner_safety import protect_owner_change
+
+        if commit and self.instance.pk:
+            protect_owner_change(self.instance.pk, active=self.cleaned_data.get("is_active", False),
+                                 superuser=self.cleaned_data.get("is_superuser", self.instance.is_superuser))
         user = super().save(commit=False)
 
         new_password = self.cleaned_data.get("new_password1")
@@ -2200,6 +2225,7 @@ class SystemEmployeeUpdateForm(forms.ModelForm):
                 raise ValidationError("كلمتا المرور غير متطابقتين.")
             if len(password1) < 8:
                 raise ValidationError("يجب أن تكون كلمة المرور 8 أحرف على الأقل.")
+            _validate_updated_password(password1, self.instance, cleaned)
         return cleaned
 
     @transaction.atomic

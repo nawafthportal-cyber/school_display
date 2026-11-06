@@ -14,3 +14,7 @@ media
 staticfiles
 node_modules
 docs
+audit_reports
+.release-commit
+BUILD_REVISION
+private_receipts

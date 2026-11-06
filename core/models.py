@@ -60,6 +60,10 @@ class School(models.Model):
         "اشتراك نشط",
         default=True,
     )
+    display_suspended = models.BooleanField(
+        "إيقاف العرض إداريًا", default=False,
+        help_text="يوقف شاشات المدرسة مع الاحتفاظ بالاشتراك والبيانات؛ أزل التحديد لاستئناف العرض.",
+    )
 
     school_type = models.CharField(
         "نوع المدرسة",
