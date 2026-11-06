@@ -111,6 +111,8 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         self.page.wait_for_function("() => document.body.style.getPropertyValue('--occasion-deep') === '#10243B'")
         self.assertEqual(self.page.locator("#occasionThemeBadgeLabel").text_content(), "هوية مدرستنا الوطنية")
         self.assertIn("radial-gradient", self.page.locator(".occasion-theme-pattern").evaluate("n=>getComputedStyle(n).backgroundImage"))
+        self.assertEqual(self.page.locator("#heroCard").evaluate("n=>getComputedStyle(n).backgroundColor"), "rgb(16, 36, 59)")
+        self.assertEqual(self.page.locator("#heroTitle").evaluate("n=>getComputedStyle(n).webkitTextFillColor"), "rgb(245, 208, 131)")
         self.page.screenshot(path=str(self.artifacts / "occasion-theme-tv-preview.png"), full_page=True, animations="disabled")
         self.page.goto(self.live_server_url + "/dashboard/occasion-templates/national_day/edit/")
         self.page.get_by_role("button", name="استعادة التصميم الافتراضي", exact=True).click()
@@ -119,6 +121,22 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         self.page.wait_for_function("() => document.body.dataset.occasionTheme === 'national_day'")
         self.assertEqual(self.page.locator("body").evaluate("n=>n.style.getPropertyValue('--occasion-deep')"), "")
         self.assertEqual(self.page.locator("#occasionThemeBadgeLabel").text_content(), "اليوم الوطني السعودي")
+        self.assertEqual(self.errors, [])
+
+    def test_light_occasion_palette_keeps_text_readable_on_the_actual_tv(self):
+        self.page.goto(self.live_server_url + "/dashboard/occasion-templates/national_day/edit/")
+        for name, value in {"name": "مناسبة فاتحة", "deep": "#ffffff", "accent": "#145a6a", "highlight": "#145a6a", "soft": "#0f172a"}.items():
+            self.page.fill(f'[name="{name}"]', value)
+        self.page.click("#saveOccasionTheme")
+        self.page.get_by_role("button", name="استعادة التصميم الافتراضي", exact=True).wait_for()
+        self.page.goto(self.live_server_url + "/dashboard/announcements/new/?template=national_day")
+        self.page.click('button[type="submit"]:has-text("حفظ التنبيه")')
+        self.page.wait_for_url("**/dashboard/announcements/")
+        self.page.goto(self.live_server_url + f"/s/{self.short_code}/?preview=1")
+        self.page.wait_for_function("() => document.body.hasAttribute('data-custom-occasion-theme')")
+        self.assertEqual(self.page.locator("#heroCard").evaluate("n=>getComputedStyle(n).backgroundColor"), "rgb(255, 255, 255)")
+        self.assertEqual(self.page.locator("#heroTitle").evaluate("n=>getComputedStyle(n).webkitTextFillColor"), "rgb(20, 90, 106)")
+        self.assertEqual(self.page.locator("#clock").evaluate("n=>getComputedStyle(n).webkitTextFillColor"), "rgb(15, 23, 42)")
         self.assertEqual(self.errors, [])
 
     def test_mobile_occasion_editor_fits_and_blocks_unreadable_colors(self):

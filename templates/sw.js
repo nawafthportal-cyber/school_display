@@ -31,6 +31,7 @@ const SHELL_ASSETS = [
   '/static/js/display-controls.js',
   '/static/js/display-theme.js',
   '/static/js/occasion-theme.js',
+  '/static/css/custom-occasion-theme.css',
   '/static/js/display.min.js',
   '/static/js/display-sw-register.js',
 ];

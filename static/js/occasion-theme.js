@@ -23,6 +23,8 @@
   function apply(target, key, overrides) {
     if (!target) return;
     var value = selected(key, overrides);
+    if (value) target.setAttribute("data-custom-occasion-theme", key);
+    else target.removeAttribute("data-custom-occasion-theme");
     colors.forEach(function (color) {
       if (value) target.style.setProperty("--occasion-" + color, value[color]);
       else target.style.removeProperty("--occasion-" + color);
