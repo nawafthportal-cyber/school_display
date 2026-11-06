@@ -5,7 +5,7 @@ amounts, invoice snapshots, receipt identifiers, and authenticator secrets.
 
 | Finding | Resolution |
 | --- | --- |
-| F01 | Authenticated Cloudinary receipts served only through an authorized Django endpoint. Legacy assets change delivery type in place; asset identity, bytes and etag are verified. No public signatures in forms. |
+| F01 | Authenticated Cloudinary receipts served only through an authorized Django endpoint. Legacy assets change delivery type in place; asset identity, byte count and SHA-256 content are verified. No public signatures in forms. |
 | F02 | Editing and deleting owners share ordered row locks and preserve at least one active owner. |
 | F03 | Approval rejects an existing cancelled/pending subscription conflict without changing the request or historical subscription. |
 | F04 | Request, subscription, payment and invoice commit together; a failure rolls back approval. |
@@ -36,7 +36,7 @@ amounts, invoice snapshots, receipt identifiers, and authenticator secrets.
    timestamp; they do not rewrite school content or financial history.
 5. Run `secure_subscription_receipts` to inventory; then run with `--apply`.
    Verify the original public URL denies anonymous access, the private original
-   is readable to an authorized user, and its asset ID/etag/byte size match.
+   is readable to an authorized user, and its asset ID, byte size and SHA-256 content match.
    Do not change assets back to public delivery during rollback.
 6. Run `reconcile_mail_delivery --apply --limit 100`. Inspect aggregate outcomes;
    a provider-expired or unknown record remains unknown, never falsely delivered.

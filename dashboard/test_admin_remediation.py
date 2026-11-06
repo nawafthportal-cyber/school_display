@@ -2,12 +2,13 @@ import io
 import tempfile
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
@@ -79,8 +80,8 @@ class AdminRemediationTests(TestCase):
         req = self.request()
         req.receipt_image = "receipts/existing"
         req.save(update_fields=["receipt_image"])
-        original = {"asset_id": "original-asset", "etag": "original-hash", "bytes": 1024}
-        with patch("cloudinary.api.resource", side_effect=[cloudinary.api.NotFound("missing"), original, original, cloudinary.api.NotFound("missing")]), patch("cloudinary.uploader.rename", return_value=original) as rename:
+        original = {"asset_id": "original-asset", "etag": "original-hash", "bytes": 1024, "secure_url": "https://res.cloudinary.com/test/image/upload/receipt.png"}
+        with patch("cloudinary.api.resource", side_effect=[cloudinary.api.NotFound("missing"), original, original, cloudinary.api.NotFound("missing")]), patch("cloudinary.uploader.rename", return_value=original) as rename, patch("subscriptions.management.commands.secure_subscription_receipts.requests.get", return_value=Mock(content=b"x"*1024)), patch("subscriptions.receipt_storage.AuthenticatedCloudReceipts._open", return_value=ContentFile(b"x"*1024)):
             output = io.StringIO()
             call_command("secure_subscription_receipts", apply=True, stdout=output)
         self.assertIn('"secured": 1', output.getvalue())
@@ -95,8 +96,8 @@ class AdminRemediationTests(TestCase):
         req = self.request()
         req.receipt_image = "receipts/existing"
         req.save(update_fields=["receipt_image"])
-        original = {"asset_id": "original-asset", "etag": "original-hash", "bytes": 1024}
-        with patch("cloudinary.api.resource", side_effect=[cloudinary.api.NotFound("missing"), original, dict(original, etag="changed")]), patch("cloudinary.uploader.rename", return_value=original):
+        original = {"asset_id": "original-asset", "etag": "original-hash", "bytes": 1024, "secure_url": "https://res.cloudinary.com/test/image/upload/receipt.png"}
+        with patch("cloudinary.api.resource", side_effect=[cloudinary.api.NotFound("missing"), original, dict(original, etag="changed")]), patch("cloudinary.uploader.rename", return_value=original), patch("subscriptions.management.commands.secure_subscription_receipts.requests.get", return_value=Mock(content=b"x"*1024)):
             with self.assertRaises(CommandError):
                 call_command("secure_subscription_receipts", apply=True, stdout=io.StringIO())
 

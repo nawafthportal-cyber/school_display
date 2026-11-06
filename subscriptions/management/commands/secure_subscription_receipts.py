@@ -1,6 +1,9 @@
 """Preserve existing receipt assets while removing public delivery access."""
 
 import json
+import hashlib
+
+import requests
 
 import cloudinary.api
 import cloudinary.uploader
@@ -20,7 +23,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not getattr(settings, "USE_CLOUD_STORAGE", False):
             raise CommandError("This command is only for Cloudinary receipts.")
-        AuthenticatedCloudReceipts()
+        backend = AuthenticatedCloudReceipts()
         receipts = SubscriptionRequest.objects.exclude(receipt_image="").order_by("pk")
         result = {"receipts": receipts.count(), "secured": 0, "already_private": 0, "dry_run": not options["apply"]}
         for obj in receipts:
@@ -34,6 +37,9 @@ class Command(BaseCommand):
                 continue
             public = cloudinary.api.resource(name, type="upload", resource_type="image")
             if options["apply"]:
+                original = requests.get(public["secure_url"], timeout=20)
+                original.raise_for_status()
+                digest = hashlib.sha256(original.content).digest()
                 moved = cloudinary.uploader.rename(name, name, type="upload", to_type="authenticated",
                                                    resource_type="image", invalidate=True, overwrite=False)
                 if moved.get("asset_id") != public.get("asset_id"):
@@ -41,6 +47,9 @@ class Command(BaseCommand):
                 verified = cloudinary.api.resource(name, type="authenticated", resource_type="image")
                 if (verified.get("etag"), verified.get("bytes")) != (public.get("etag"), public.get("bytes")):
                     raise CommandError(f"Receipt content preservation check failed for request {obj.pk}")
+                with backend.open(name, "rb") as secured_file:
+                    if hashlib.sha256(secured_file.read()).digest() != digest:
+                        raise CommandError(f"Receipt content hash changed for request {obj.pk}")
                 try:
                     cloudinary.api.resource(name, type="upload", resource_type="image")
                 except cloudinary.api.NotFound:
