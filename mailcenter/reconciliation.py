@@ -34,6 +34,11 @@ def reconcile_delivery(*, limit=10, apply=False):
             # Retained as unknown; do not call undelivered mail delivered/failed.
             MailMessage.objects.filter(pk=message.pk).update(delivery_checked_at=timezone.now())
             result["unavailable"] += 1
+            # A provider outage/auth/rate-limit failure must not keep the
+            # notification worker busy for one timeout per remaining message.
+            if not any(code in message.content_fetch_error for code in ("HTTP 404", "HTTP 410")):
+                result["checked"] += 1
+                break
         result["checked"] += 1
         time.sleep(0.6)
     return result

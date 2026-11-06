@@ -248,3 +248,12 @@ class AdminRemediationTests(TestCase):
         self.assertEqual(result["unavailable"], 1)
         msg.refresh_from_db(); self.assertEqual(msg.status, "sent")
         self.assertTrue(delivery_review_queryset().filter(pk=msg.pk).exists())
+
+    def test_provider_failure_stops_batch_before_worker_heartbeat_is_delayed(self):
+        for number in range(2):
+            msg = MailMessage.objects.create(direction="outbound", status="sent", provider_id=f"old-{number}")
+            MailMessage.objects.filter(pk=msg.pk).update(created_at=timezone.now()-timedelta(days=2))
+        with patch("mailcenter.reconciliation.sync_message_content", return_value=False) as sync:
+            result = reconcile_delivery(limit=100, apply=True)
+        self.assertEqual(sync.call_count, 1)
+        self.assertEqual(result["checked"], 1)
