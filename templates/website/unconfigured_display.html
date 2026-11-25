@@ -26,7 +26,7 @@
     <link rel="apple-touch-icon" href="/favicon.png?v=20260723-logo1">
     <link rel="stylesheet" href="{% static 'css/fonts.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/landing-v2.css' %}?v=20261125-2">
+    <link rel="stylesheet" href="{% static 'css/landing-v2.css' %}?v=20261126">
 
     <script type="application/ld+json">
     {
@@ -86,7 +86,7 @@
                     <h1 id="heroTitle">شغّل شاشات مدرستك <em>من لوحة واحدة</em></h1>
                     <p>اعرض جدول الحصص والانتظار والمناوبات والإعلانات على تلفاز المدرسة، وأدر محتوى كل شاشة من الجوال أو الحاسب.</p>
                     <a class="hero-price" href="#pricing">
-                        {% if starting_plan %}<span class="hero-price-amount">من <strong>{{ starting_plan.price|floatformat:"-2g" }} ر.س</strong> شهريًا لشاشة واحدة</span>{% endif %}
+                        {% if starting_plan %}<span class="hero-price-amount">من <strong>{{ starting_plan.price|floatformat:"-2g" }} ر.س</strong> شهريًا</span>{% endif %}
                         <span class="hero-price-link">عرض الباقات <i class="fa-solid fa-arrow-down" aria-hidden="true"></i></span>
                     </a>
                 </div>
@@ -221,29 +221,20 @@
             <div class="container">
                 <header class="section-head">
                     <h2 id="pricingTitle">الباقات والأسعار</h2>
-                    <p>{% if not pricing_has_feature_restrictions %}كل المزايا مشمولة. {% endif %}اختر عدد الشاشات لمقارنة إجمالي السعر لكل مدة.</p>
+                    <p>{% if not pricing_has_feature_restrictions and pricing_plans %}كل المزايا مشمولة. {% endif %}قارن الأسعار واختر المدة المناسبة لمدرستك.</p>
                 </header>
-                {% if pricing_groups %}
+                {% if pricing_plans %}
+                {% if pricing_plans|length > 1 %}
                 <div class="pricing-picker" data-pricing-picker hidden>
-                    <strong id="screenCountLabel">عدد الشاشات</strong>
-                    <div class="pricing-options" role="group" aria-labelledby="screenCountLabel">
-                        {% for screen_count, plans in pricing_groups %}
-                        <button type="button" data-pricing-choice="{{ forloop.counter0 }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="pricing-screen-{{ forloop.counter0 }}"
-                                aria-label="{% if screen_count is None %}شاشات غير محدودة{% else %}عدد الشاشات {{ screen_count }}{% endif %}">{% if screen_count is None %}غير محدودة{% else %}{{ screen_count }}{% endif %}</button>
+                    <strong id="pricingDurationLabel">مدة الاشتراك</strong>
+                    <div class="pricing-options" role="group" aria-labelledby="pricingDurationLabel">
+                        {% for plan in pricing_plans %}
+                        <button type="button" data-pricing-choice="{{ plan.landing_term }}" aria-pressed="false" aria-controls="pricing-{{ plan.landing_term }}">{{ plan.landing_filter_label }}</button>
                         {% endfor %}
                     </div>
                 </div>
-                <div class="pricing-groups" data-pricing-groups>
-                    {% for screen_count, plans in pricing_groups %}
-                    <details class="pricing-group" id="pricing-screen-{{ forloop.counter0 }}" name="landing-screen-count" {% if forloop.first %}open{% endif %}>
-                        <summary class="pricing-group-title">
-                            <strong>{% if screen_count == 1 %}شاشة واحدة{% elif screen_count == 2 %}شاشتان{% elif screen_count is None %}شاشات غير محدودة{% elif screen_count <= 10 %}{{ screen_count }} شاشات{% else %}{{ screen_count }} شاشة{% endif %}</strong>
-                            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
-                        </summary>
-                        {% include "website/_pricing_cards.html" %}
-                    </details>
-                    {% endfor %}
-                </div>
+                {% endif %}
+                {% include "website/_pricing_cards.html" %}
                 {% else %}
                 <div class="pricing-empty">
                     <p>سيتم نشر الباقات قريبًا.</p>
@@ -353,6 +344,6 @@
         </div>
     </div>
 
-    <script src="{% static 'js/landing-v2.js' %}?v=20261125-2" defer></script>
+    <script src="{% static 'js/landing-v2.js' %}?v=20261126" defer></script>
 </body>
 </html>

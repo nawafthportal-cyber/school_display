@@ -68,23 +68,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const pricingPicker = document.querySelector('[data-pricing-picker]');
-    const pricingGroups = document.querySelector('[data-pricing-groups]');
-    if (pricingPicker && pricingGroups) {
+    const pricingPlans = document.querySelector('[data-pricing-plans]');
+    if (pricingPicker && pricingPlans) {
         const choices = Array.from(pricingPicker.querySelectorAll('[data-pricing-choice]'));
-        const groups = Array.from(pricingGroups.querySelectorAll('.pricing-group'));
+        const cards = Array.from(pricingPlans.querySelectorAll('[data-pricing-term]'));
 
         choices.forEach((choice) => {
             choice.addEventListener('click', () => {
-                const index = Number(choice.dataset.pricingChoice);
-                choices.forEach((item) => item.setAttribute('aria-pressed', String(item === choice)));
-                groups.forEach((group, groupIndex) => {
-                    group.hidden = groupIndex !== index;
+                const selected = choice.getAttribute('aria-pressed') === 'true' ? null : choice;
+                choices.forEach((item) => item.setAttribute('aria-pressed', String(item === selected)));
+                cards.forEach((card) => {
+                    card.hidden = selected !== null && card.dataset.pricingTerm !== selected.dataset.pricingChoice;
                 });
-                groups[index].open = true;
+                pricingPlans.toggleAttribute('data-filtered', selected !== null);
             });
         });
-        choices[0].click();
-        pricingGroups.dataset.enhanced = '';
         pricingPicker.hidden = false;
     }
 
@@ -234,11 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openOrderModal(button, isTrial) {
         if (!modal || !orderForm) return;
-        const { plan, period, term, price, priceDisplay, planCode, orderUrl, userAuthenticated } = button.dataset;
-        if (!isTrial && userAuthenticated === 'true' && orderUrl) {
-            window.location.assign(orderUrl);
-            return;
-        }
+        const { plan, period, price, priceDisplay, planCode } = button.dataset;
 
         lastModalTrigger = button;
         clearFormFeedback();
@@ -246,8 +240,8 @@ document.addEventListener('DOMContentLoaded', () => {
         activeOrderIsTrial = isTrial;
         setSubmitting(submitOrderBtn.disabled);
         document.getElementById('p_plan_code').value = isTrial ? '' : planCode;
-        document.getElementById('p_plan').value = plan;
-        document.getElementById('p_period').value = term || period;
+        document.getElementById('p_plan').value = plan || period;
+        document.getElementById('p_period').value = period;
         document.getElementById('p_price').value = price;
         setPasswordFieldsRequired(true);
 
@@ -256,13 +250,13 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `شغّل شاشة واحدة مجانًا لمدة ${body.dataset.trialDays} يومًا دون بطاقة بنكية.`
             : 'أنشئ حساب المدرسة، ثم أكّد بريدك واختر وسيلة الدفع من صفحة اشتراكك.';
         orderPlanSummary.hidden = isTrial;
-        orderPlanSummary.textContent = isTrial ? '' : `${plan} · ${period}${term !== period ? ` (${term})` : ''} · ${priceDisplay}\u00a0ر.س`;
+        orderPlanSummary.textContent = isTrial ? '' : `${period} · ${priceDisplay}\u00a0ر.س`;
         formConsentCopy.textContent = isTrial
             ? 'بياناتك مخصصة للحساب والدعم فقط.'
             : 'تراجع تفاصيل الباقة والسعر قبل الدفع.';
         accountLoginChoice.hidden = isTrial;
         if (!isTrial && orderLoginLink) {
-            orderLoginLink.href = `${body.dataset.loginUrl}?next=${encodeURIComponent(orderUrl)}`;
+            orderLoginLink.href = `${body.dataset.loginUrl}?next=${encodeURIComponent(button.getAttribute('href'))}`;
         }
 
         modal.classList.add('active');
@@ -414,6 +408,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (event) => {
         const planButton = event.target.closest('[data-role="open-plan"]');
         if (planButton) {
+            if (
+                !modal || !orderForm || planButton.dataset.userAuthenticated === 'true'
+                || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
+            ) return;
+            event.preventDefault();
             openOrderModal(planButton, false);
             return;
         }

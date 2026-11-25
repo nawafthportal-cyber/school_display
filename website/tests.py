@@ -136,7 +136,7 @@ class TrialSignupTests(TestCase):
         self.assertContains(response, "اربط التلفاز بالجوال")
         self.assertContains(response, "إدارة المحتوى — 299 ر.س شهريًا")
         self.assertNotContains(response, "مجمع تعليمي: حتى 3 مدارس و15 شاشة")
-        self.assertContains(response, "عام دراسي")
+        self.assertContains(response, "سنة كاملة")
         self.assertContains(response, "الباقات والأسعار")
         self.assertContains(response, 'id="orderPlanSummary"')
         self.assertContains(response, 'data-form-step="1"')
@@ -148,7 +148,7 @@ class TrialSignupTests(TestCase):
             code="landing-annual",
             name="الباقة السنوية المتزامنة",
             description="وصف موحد يظهر في جميع واجهات الباقات",
-            price=9876,
+            price=Decimal("987.65"),
             duration_days=365,
             max_users=12,
             max_screens=4,
@@ -166,8 +166,8 @@ class TrialSignupTests(TestCase):
         SubscriptionPlan.objects.create(
             code="landing-hidden",
             name="باقة مخفية من الهبوط",
-            price=4321,
-            duration_days=180,
+            price=432,
+            duration_days=365,
             max_users=5,
             max_screens=1,
             is_active=False,
@@ -176,60 +176,51 @@ class TrialSignupTests(TestCase):
         response = self.client.get(reverse("website:home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, active_plan.name)
+        self.assertNotContains(response, active_plan.name)
         self.assertContains(response, active_plan.description)
         self.assertContains(response, "الخيار الأنسب للمدارس")
-        self.assertContains(response, "9876")
+        self.assertContains(response, "987.65")
         self.assertContains(response, "اشتراك مدرسي لمدة عام")
         self.assertContains(response, "ريال سعودي شامل الضريبة / سنوي")
         self.assertContains(response, "أقل من 30 ريالاً لكل شاشة شهرياً")
         self.assertContains(response, "دعم فني مباشر")
-        self.assertContains(response, "تشغيل حتى 4 شاشات")
+        self.assertNotContains(response, "تشغيل حتى 4 شاشات")
         self.assertContains(response, "اشترك في الباقة الآن")
         self.assertContains(response, "data-plan-code=\"landing-annual\"")
         self.assertNotContains(response, "المستخدمون:")
         self.assertNotContains(response, "المدارس:")
-        self.assertNotContains(response, "باقة مخفية من الهبوط")
+        self.assertNotContains(response, 'data-plan-code="landing-hidden"')
 
-    def test_landing_pricing_groups_all_terms_for_each_screen_count(self):
-        monthly = SubscriptionPlan.objects.create(
-            code="grouped-monthly",
-            name="باقة مجمعة شهرية",
-            price=240,
-            duration_days=30,
-            max_screens=3,
-            is_active=True,
-        )
-        annual = SubscriptionPlan.objects.create(
-            code="grouped-annual",
-            name="باقة مجمعة سنوية",
-            price=2200,
-            duration_days=365,
-            max_screens=3,
-            is_active=True,
-        )
-        semiannual = SubscriptionPlan.objects.create(
-            code="grouped-semiannual",
-            name="باقة مجمعة نصف سنوية",
-            price=1300,
-            duration_days=182,
-            max_screens=3,
+    def test_landing_pricing_displays_one_available_plan_for_each_supported_term(self):
+        SubscriptionPlan.objects.create(
+            code="quarterly",
+            name="باقة ثلاثة أشهر",
+            price=1,
+            duration_days=90,
             is_active=True,
         )
 
         response = self.client.get(reverse("website:home"))
 
-        groups = dict(response.context["pricing_groups"])
-        terms = {plan["code"]: plan["landing_duration"] for plan in groups[3]}
-        self.assertEqual(terms[monthly.code], "شهر واحد")
-        self.assertEqual(terms[semiannual.code], "6 أشهر")
-        self.assertEqual(terms[annual.code], "سنة كاملة")
-        for plan in (monthly, semiannual, annual):
-            self.assertContains(response, f'data-plan-code="{plan.code}"')
-        self.assertContains(response, 'name="landing-screen-count"')
-        self.assertContains(response, 'data-pricing-choice="0" aria-pressed="true"')
+        pricing_plans = response.context["pricing_plans"]
+        self.assertEqual(
+            [(p["landing_filter_label"], p["code"], Decimal(p["price"])) for p in pricing_plans],
+            [
+                ("شهر", "school-screen-1-monthly", Decimal("119")),
+                ("6 أشهر", "school-screen-1-semiannual", Decimal("680")),
+                ("سنة", "school-screen-1-annual", Decimal("1070")),
+            ],
+        )
+        for term in ("monthly", "semiannual", "annual"):
+            order_url = reverse("website:plan_order") + f"?plan=school-screen-1-{term}"
+            self.assertContains(response, f'href="{order_url}"')
+            self.assertContains(response, f'data-pricing-choice="{term}" aria-pressed="false"')
+        self.assertContains(response, 'data-pricing-term=', count=3)
+        self.assertNotContains(response, "عدد الشاشات")
+        self.assertNotContains(response, 'data-plan-code="school-screen-2-monthly"')
+        self.assertNotContains(response, 'data-plan-code="quarterly"')
 
-    def test_landing_starting_price_updates_and_disappears_when_plan_is_inactive(self):
+    def test_landing_starting_price_updates_and_follows_an_available_monthly_plan(self):
         monthly_plan = SubscriptionPlan.objects.get(code="school-screen-1-monthly")
         response = self.client.get(reverse("website:home"))
         self.assertContains(response, "<strong>119 ر.س</strong>", html=True)
@@ -242,31 +233,30 @@ class TrialSignupTests(TestCase):
         monthly_plan.is_active = False
         monthly_plan.save(update_fields=["is_active"])
         response = self.client.get(reverse("website:home"))
+        self.assertContains(response, "<strong>179 ر.س</strong>", html=True)
+
+        SubscriptionPlan.objects.filter(duration_days=30).update(is_active=False)
+        response = self.client.get(reverse("website:home"))
         self.assertNotContains(response, 'class="hero-price-amount"')
         self.assertContains(response, 'class="hero-price" href="#pricing"')
 
     def test_landing_pricing_reflects_dashboard_price_update_on_next_request(self):
-        plan = SubscriptionPlan.objects.create(
-            code="landing-live-price",
-            name="باقة السعر اللحظي",
-            price=8642,
-            duration_days=90,
-            max_users=6,
-            max_screens=2,
-            is_active=True,
-        )
+        plan = SubscriptionPlan.objects.get(code="school-screen-1-semiannual")
         first_response = self.client.get(reverse("website:home"))
-        self.assertContains(first_response, "8642")
+        self.assertContains(first_response, "<bdi>680</bdi>", html=True)
 
-        plan.price = 7654
-        plan.duration_days = 120
-        plan.save(update_fields=["price", "duration_days"])
-
+        plan.price = Decimal("654.25")
+        plan.save(update_fields=["price"])
         second_response = self.client.get(reverse("website:home"))
-        self.assertContains(second_response, "7654")
-        self.assertContains(second_response, "120 يوماً")
-        self.assertNotContains(second_response, "8642")
+        self.assertContains(second_response, 'data-price="654.25"')
+        self.assertNotContains(second_response, 'data-price="680"')
         self.assertIn("no-cache", second_response.headers.get("Cache-Control", ""))
+
+        plan.duration_days = 120
+        plan.save(update_fields=["duration_days"])
+        third_response = self.client.get(reverse("website:home"))
+        self.assertNotContains(third_response, 'data-plan-code="school-screen-1-semiannual"')
+        self.assertContains(third_response, 'data-plan-code="school-screen-2-semiannual"')
 
     def test_trial_signup_rejects_duplicate_mobile(self):
         first = self.client.post(reverse("website:trial_signup"), data=self._payload())
