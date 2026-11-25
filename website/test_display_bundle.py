@@ -497,9 +497,10 @@ class DisplayEndOfDayPanelTests(SimpleTestCase):
         self.assertIn("renderExcellence(excellenceRaw)", body)
 
     def test_standby_and_period_lists_clear_when_the_day_is_over(self):
-        for name in ("renderStandby", "renderPeriodClasses"):
-            with self.subTest(function=name):
-                self.assertIn("if (rt.dayOver) arr = [];", self._body(name))
+        standby = self._body("renderStandby")
+        self.assertIn("const visible = !rt.dayOver &&", standby)
+        self.assertIn("standbyGroups(visible && Array.isArray(items) ? items : [], nowMs())", standby)
+        self.assertIn("if (rt.dayOver) arr = [];", self._body("renderPeriodClasses"))
 
     def test_day_over_transition_clears_every_day_scoped_panel(self):
         """The local clock, not the next poll, must clear the board.

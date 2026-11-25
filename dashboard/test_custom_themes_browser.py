@@ -1,4 +1,5 @@
 import asyncio
+import re
 import unittest
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from schedule.models import DisplayTheme, SchoolSettings
 from subscriptions.models import SchoolSubscription
 
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import expect, sync_playwright
 except ImportError:
     sync_playwright = None
 
@@ -68,11 +69,13 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         nav.get_by_role("link", name="عرض مناسبة").click()
         screen = self.page.locator("#occasion-assignment select[name=screen]")
         screen.select_option(str(self.screen_id))
-        nav.get_by_role("link", name="المظهر اليومي").click()
-        self.assertEqual(self.page.locator(".theme-apply-form select").first.input_value(), str(self.screen_id))
+        daily_appearance = nav.get_by_role("link", name="المظهر اليومي")
+        expect(daily_appearance).to_have_attribute("href", re.compile(rf"[?&]screen={self.screen_id}(?:&|$)"))
+        daily_appearance.click()
+        expect(self.page.locator(".theme-apply-form select").first).to_have_value(str(self.screen_id))
         self.page.set_viewport_size({"width": 390, "height": 844})
         nav.get_by_role("link", name="عرض مناسبة").click()
-        self.assertEqual(screen.input_value(), str(self.screen_id))
+        expect(screen).to_have_value(str(self.screen_id))
         self.assertEqual(nav.locator("[aria-current=page]").inner_text(), "عرض مناسبة")
         self.assertLessEqual(self.page.evaluate("document.documentElement.scrollWidth"), 390)
         self.assertEqual(self.errors, [])
