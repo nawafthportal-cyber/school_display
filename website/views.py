@@ -41,6 +41,8 @@ from schedule.models import SchoolSettings
 from subscriptions.email_notifications import queue_email_verification
 from subscriptions.plan_catalog import plan_cards
 from .services import (
+    TRIAL_DAYS,
+    TRIAL_PLAN_CODE,
     TrialSignupError,
     activate_trial_if_eligible,
     check_trial_rate_limit,
@@ -536,25 +538,33 @@ def home(request):
                     plan["savings_text"] = (
                         f"توفر {savings:,.0f} ر.س مقارنة بـ{comparison_months} دفعات شهرية"
                     )
-        known_cycle_ids = {
-            plan["id"]
-            for plan in landing_monthly_plans + landing_annual_plans + landing_semiannual_plans
-        }
-        # Keep unusual dashboard-created durations visible instead of silently
-        # dropping them from the public catalog.
-        landing_annual_plans.extend(
-            plan for plan in paid_plans if plan["id"] not in known_cycle_ids
+        starting_plan = min(
+            (plan for plan in landing_monthly_plans if plan["max_screens"] == 1),
+            key=lambda plan: Decimal(plan["price"]),
+            default=None,
+        )
+        plans_by_screen_count = {}
+        for plan in sorted(paid_plans, key=lambda plan: plan["duration_days"]):
+            plan["landing_duration"] = plan["duration_label"]
+            if (
+                330 <= plan["duration_days"] <= 370
+                and plan["code"].startswith("school-screen-")
+                and plan["code"].endswith("-annual")
+            ):
+                plan["landing_duration"] = "عام دراسي"
+            plans_by_screen_count.setdefault(plan["max_screens"], []).append(plan)
+        pricing_groups = sorted(
+            plans_by_screen_count.items(),
+            key=lambda group: (group[0] is None, group[0] or 0),
         )
 
         landing_trial = next(
-            (plan for plan in landing_plans if plan["is_trial"]),
+            (plan for plan in landing_plans if plan["code"] == TRIAL_PLAN_CODE),
             {
                 "name": "تجربة مجانية",
                 "price": 0,
-                "duration_days": 14,
-                "duration_label": "14 يوماً",
-                "is_trial": True,
-                "is_free": True,
+                "duration_days": TRIAL_DAYS,
+                "duration_label": f"{TRIAL_DAYS} يوماً",
             },
         )
         return render(
@@ -566,10 +576,8 @@ def home(request):
                 "trial_signup_url": reverse("website:trial_signup"),
                 "plan_order_url": reverse("website:plan_order"),
                 "dashboard_url": reverse("dashboard:index"),
-                "landing_plans": landing_plans,
-                "landing_monthly_plans": landing_monthly_plans,
-                "landing_annual_plans": landing_annual_plans,
-                "landing_semiannual_plans": landing_semiannual_plans,
+                "pricing_groups": pricing_groups,
+                "starting_plan": starting_plan,
                 "landing_trial": landing_trial,
             },
         )

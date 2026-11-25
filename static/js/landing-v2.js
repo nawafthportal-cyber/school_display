@@ -30,45 +30,52 @@ document.addEventListener('DOMContentLoaded', () => {
         link.addEventListener('click', () => setMenu(false));
     });
 
-    document.querySelectorAll('[data-scroll]').forEach((button) => {
-        button.addEventListener('click', () => {
-            const target = document.querySelector(button.dataset.scroll);
-            target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-    });
-
     const showcase = document.querySelector('[data-product-showcase]');
     if (showcase) {
         const tabs = Array.from(showcase.querySelectorAll('[data-shot-target]'));
         const shots = Array.from(showcase.querySelectorAll('[data-shot]'));
 
-        tabs.forEach((tab) => {
-            tab.addEventListener('click', () => {
-                const target = tab.dataset.shotTarget;
-                tabs.forEach((item) => {
-                    const selected = item === tab;
-                    item.classList.toggle('active', selected);
-                    item.setAttribute('aria-selected', selected ? 'true' : 'false');
-                });
-                shots.forEach((shot) => {
-                    const selected = shot.dataset.shot === target;
-                    shot.hidden = !selected;
-                    shot.classList.toggle('active', selected);
-                });
+        function selectShot(target) {
+            tabs.forEach((tab) => {
+                const selected = tab.dataset.shotTarget === target;
+                tab.classList.toggle('active', selected);
+                tab.setAttribute('aria-selected', String(selected));
             });
+            shots.forEach((shot) => {
+                const selected = shot.dataset.shot === target;
+                shot.hidden = !selected;
+                shot.classList.toggle('active', selected);
+            });
+        }
+
+        tabs.forEach((tab) => {
+            tab.addEventListener('click', () => selectShot(tab.dataset.shotTarget));
         });
+        document.querySelector('[data-show-display]')?.addEventListener('click', () => selectShot('display'));
     }
 
     const lightbox = document.getElementById('imageLightbox');
     const lightboxImage = document.getElementById('lightboxImage');
     const lightboxCaption = document.getElementById('lightboxCaption');
+    const lightboxViewport = lightbox?.querySelector('.lightbox-viewport');
+    const lightboxSize = lightbox?.querySelector('[data-lightbox-size]');
     let lastLightboxTrigger = null;
+
+    lightboxSize?.addEventListener('click', () => {
+        const zoomed = lightboxViewport.classList.toggle('is-zoomed');
+        lightboxSize.setAttribute('aria-pressed', String(zoomed));
+        lightboxSize.textContent = zoomed ? 'عرض كامل الشاشة' : 'تكبير التفاصيل';
+    });
 
     function closeLightbox() {
         if (!lightbox) return;
         lightbox.classList.remove('active');
         lightbox.setAttribute('aria-hidden', 'true');
         lightbox.setAttribute('inert', '');
+        lightboxViewport.classList.remove('is-zoomed');
+        lightboxViewport.scrollTo(0, 0);
+        lightboxSize.setAttribute('aria-pressed', 'false');
+        lightboxSize.textContent = 'تكبير التفاصيل';
         body.classList.remove('modal-open');
         lastLightboxTrigger?.focus();
     }
@@ -95,76 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.target === lightbox) closeLightbox();
     });
 
-    const pricingCycleButtons = Array.from(document.querySelectorAll('[data-pricing-cycle]'));
-    const pricingPanels = Array.from(document.querySelectorAll('[data-pricing-panel]'));
-    const screenCountButtons = Array.from(document.querySelectorAll('[data-screen-count-option]'));
-    const pricingCards = Array.from(document.querySelectorAll('[data-screen-count]'));
-    const pricingLiveSummary = document.querySelector('[data-pricing-live-summary]');
-    const pricingSummaryTitle = document.querySelector('[data-pricing-summary-title]');
-    const pricingSummaryPrice = document.querySelector('[data-pricing-summary-price]');
-    const pricingSummaryPeriod = document.querySelector('[data-pricing-summary-period]');
-    const pricingSummaryBenefit = document.querySelector('[data-pricing-summary-benefit]');
-    const pricingSummaryScreens = document.querySelectorAll('[data-summary-screen]');
-    let selectedScreenCount = '1';
-    let selectedPricingCycle = 'monthly';
-
-    function selectedPricingCard() {
-        return document.querySelector(`[data-pricing-panel="${selectedPricingCycle}"] [data-screen-count="${selectedScreenCount}"]`);
-    }
-
-    function updatePricingSummary() {
-        const cycle = document.querySelector(`[data-pricing-cycle="${selectedPricingCycle}"]`);
-        const screen = document.querySelector(`[data-screen-count-option="${selectedScreenCount}"]`);
-        const card = selectedPricingCard();
-        const planButton = card?.querySelector('[data-price]');
-        const period = card?.querySelector('.price-period');
-
-        if (!pricingLiveSummary || !cycle || !screen) return;
-        pricingSummaryTitle.textContent = `${screen.dataset.screenLabel} · ${cycle.dataset.cycleTitle}`;
-        pricingSummaryBenefit.textContent = cycle.dataset.cycleBenefit;
-        if (planButton) pricingSummaryPrice.textContent = planButton.dataset.price.replace(/\.00$/, '');
-        if (period) pricingSummaryPeriod.textContent = period.textContent.trim();
-        pricingSummaryScreens.forEach((icon) => {
-            icon.classList.toggle('active', Number(icon.dataset.summaryScreen) <= Number(selectedScreenCount));
-        });
-    }
-
-    function updateVisiblePricingCard() {
-        pricingCards.forEach((card) => {
-            card.hidden = card.dataset.screenCount !== selectedScreenCount;
-        });
-        updatePricingSummary();
-    }
-
-    pricingCycleButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-            selectedPricingCycle = button.dataset.pricingCycle;
-            pricingCycleButtons.forEach((item) => {
-                const active = item === button;
-                item.classList.toggle('active', active);
-                item.setAttribute('aria-selected', active ? 'true' : 'false');
-            });
-            pricingPanels.forEach((panel) => {
-                panel.hidden = panel.dataset.pricingPanel !== selectedPricingCycle;
-            });
-            updateVisiblePricingCard();
-        });
-    });
-
-    screenCountButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-            selectedScreenCount = button.dataset.screenCountOption;
-            screenCountButtons.forEach((item) => {
-                const active = item === button;
-                item.classList.toggle('active', active);
-                item.setAttribute('aria-selected', active ? 'true' : 'false');
-            });
-            updateVisiblePricingCard();
-        });
-    });
-
-    updateVisiblePricingCard();
-
     const modal = document.getElementById('orderModal');
     const modalCard = modal?.querySelector('.modal-card');
     const orderForm = document.getElementById('orderForm');
@@ -183,8 +120,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyTrialUsername = document.getElementById('copyTrialUsername');
     const accountLoginChoice = document.getElementById('accountLoginChoice');
     const orderLoginLink = document.getElementById('orderLoginLink');
+    const orderPlanSummary = document.getElementById('orderPlanSummary');
+    const formConsentCopy = document.getElementById('formConsentCopy');
     let activeOrderIsTrial = true;
-    let activeOrderUrl = '';
     let lastModalTrigger = null;
 
     function setFormStep(stepNumber) {
@@ -222,23 +160,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function openOrderModal(plan, period, price, isTrial, planCode = '', orderUrl = '') {
+    function openOrderModal(button, isTrial) {
         if (!modal || !orderForm) return;
-        lastModalTrigger = document.activeElement;
+        const { plan, period, term, price, priceDisplay, planCode, orderUrl, userAuthenticated } = button.dataset;
+        if (!isTrial && userAuthenticated === 'true' && orderUrl) {
+            window.location.assign(orderUrl);
+            return;
+        }
+
+        lastModalTrigger = button;
         clearFormFeedback();
         setFormStep(1);
         activeOrderIsTrial = isTrial;
-        activeOrderUrl = orderUrl;
+        setSubmitting(submitOrderBtn.disabled);
         document.getElementById('p_plan_code').value = isTrial ? '' : planCode;
         document.getElementById('p_plan').value = plan;
-        document.getElementById('p_period').value = period;
+        document.getElementById('p_period').value = term || period;
         document.getElementById('p_price').value = price;
         setPasswordFieldsRequired(true);
 
         document.getElementById('modalTitle').textContent = isTrial ? 'طلب تجربة مجانية' : 'إنشاء حساب ومتابعة الباقة';
         document.getElementById('modalSubtitle').textContent = isTrial
-            ? 'أنشئ حساب المدرسة وابدأ التجربة الكاملة دون بطاقة بنكية.'
-            : `أنشئ حساب المدرسة للمتابعة إلى باقة ${plan}.`;
+            ? `شغّل شاشة واحدة مجانًا لمدة ${body.dataset.trialDays} يومًا دون بطاقة بنكية.`
+            : 'أنشئ حساب المدرسة، ثم أكّد بريدك واختر وسيلة الدفع من صفحة اشتراكك.';
+        orderPlanSummary.hidden = isTrial;
+        orderPlanSummary.textContent = isTrial ? '' : `${plan} · ${period}${term !== period ? ` (${term})` : ''} · ${priceDisplay}\u00a0ر.س`;
+        formConsentCopy.textContent = isTrial
+            ? 'بياناتك مخصصة للحساب والدعم فقط.'
+            : 'تراجع تفاصيل الباقة والسعر قبل الدفع.';
         accountLoginChoice.hidden = isTrial;
         if (!isTrial && orderLoginLink) {
             orderLoginLink.href = `${body.dataset.loginUrl}?next=${encodeURIComponent(orderUrl)}`;
@@ -258,23 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.setAttribute('inert', '');
         body.classList.remove('modal-open');
         lastModalTrigger?.focus();
-    }
-
-    function openPlanFromButton(button) {
-        const isTrial = button.dataset.isTrial === 'true';
-        const orderUrl = button.dataset.orderUrl || '';
-        if (!isTrial && button.dataset.userAuthenticated === 'true' && orderUrl) {
-            window.location.assign(orderUrl);
-            return;
-        }
-        openOrderModal(
-            button.dataset.plan || '',
-            button.dataset.period || '',
-            button.dataset.price || '0',
-            isTrial,
-            button.dataset.planCode || '',
-            orderUrl
-        );
     }
 
     function validateFirstStep() {
@@ -410,17 +342,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (event) => {
         const planButton = event.target.closest('[data-role="open-plan"]');
         if (planButton) {
-            openPlanFromButton(planButton);
+            openOrderModal(planButton, false);
             return;
         }
         const trialButton = event.target.closest('[data-role="open-trial"]');
         if (trialButton) {
-            openOrderModal(
-                trialButton.dataset.plan || '',
-                trialButton.dataset.period || '',
-                trialButton.dataset.price || '0',
-                true
-            );
+            openOrderModal(trialButton, true);
             return;
         }
         if (event.target.closest('[data-role="close-order-modal"]')) closeOrderModal();
