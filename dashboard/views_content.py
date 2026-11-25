@@ -4,9 +4,11 @@ supervision duty and emergency alerts.
 """
 
 from __future__ import annotations
-from core.occasion_customizations import cards_for_school, customizations_for_school
+from core.occasion_customizations import cards_for_school, customizations_for_school, resolve_occasion
 
 from django.db.models import Exists, OuterRef, Prefetch
+
+from core.display_presence import display_connection_state, presence_map
 
 from .view_helpers import *  # noqa: F401,F403  (shared view layer)
 
@@ -111,9 +113,14 @@ def ann_create(request):
         messages.error(request, "الرجاء تصحيح الأخطاء.")
     else:
         initial = {}
-        occasion = occasions.get((request.GET.get("template") or "").strip())
+        occasion = resolve_occasion((request.GET.get("template") or "").strip(), customizations_for_school(school.pk))
         if occasion is not None:
             starts_at = timezone.now().replace(second=0, microsecond=0)
+            if occasion.schedule and request.GET.get("upcoming") == "1":
+                today = timezone.localdate()
+                day = occasion.schedule.next_occurrence(today)
+                if day and day > today:
+                    starts_at = timezone.make_aware(datetime.combine(day, time.min))
             initial = {
                 "title": occasion.title,
                 "body": occasion.body,
@@ -122,6 +129,10 @@ def ann_create(request):
                 "starts_at": starts_at,
                 "expires_at": starts_at + timedelta(hours=occasion.duration_hours),
             }
+            if request.GET.get("screen"):
+                screen_id = request.GET["screen"]
+                targets = school.screens.filter(is_active=True, pk=screen_id) if screen_id.isascii() and screen_id.isdigit() and len(screen_id) <= 18 else school.screens.none()
+                initial.update(scope="screens", screens=list(targets.values_list("pk", flat=True)))
         form = AnnouncementForm(initial=initial, school=school)
     return render(
         request,
@@ -173,7 +184,7 @@ def _emergency_manageable_alerts(request, allowed_schools):
 
 @manager_or_system_permission_required("emergency_alerts.view")
 def emergency_alert_list(request):
-    from notices.models import EmergencyAlert
+    from notices.models import EmergencyAlert, EmergencyAlertReceipt
 
     allowed_schools = _emergency_allowed_schools(request)
     now = timezone.now()
@@ -185,6 +196,12 @@ def emergency_alert_list(request):
         .select_related("created_by", "cancelled_by")
         .distinct()
         .order_by("-created_at")
+        .prefetch_related(Prefetch(
+            "receipts",
+            queryset=EmergencyAlertReceipt.objects.filter(screen__school__in=allowed_schools)
+            .select_related("screen", "screen__school")
+            .order_by("displayed_at", "pk"),
+        ))
     )
     if is_system_staff_user(request.user):
         alerts = alerts.prefetch_related("schools", "screens")
@@ -229,10 +246,12 @@ def emergency_alert_create(request):
     if request.method == "POST":
         form = EmergencyAlertForm(request.POST, allowed_schools=allowed_schools)
         if form.is_valid():
-            alert = form.save(commit=False)
-            alert.created_by = request.user
-            alert.save()
-            form.save_m2m()
+            with transaction.atomic():
+                alert = form.save(commit=False)
+                alert.created_by = request.user
+                alert.limited_to_screens = form.cleaned_data["scope"] == "screens"
+                alert.save()
+                form.save_m2m()
             for school in alert.schools.all():
                 _invalidate_display_cache(school, force_bump=True)
             messages.success(request, "تم إرسال التنبيه الطارئ وتسجيل المرسل.")
@@ -240,12 +259,23 @@ def emergency_alert_create(request):
         messages.error(request, "تعذر إرسال التنبيه. راجع الحقول الموضحة.")
     else:
         form = EmergencyAlertForm(initial=initial, allowed_schools=allowed_schools)
+    screens = list(form.fields["screens"].queryset)
+    seen_at = presence_map(screens)
+    now = timezone.now()
     return render(
         request,
         "dashboard/emergency_alert_form.html",
         {
             "base_template": _shell_base_template(request),
             "form": form,
+            "emergency_screens": {
+                screen.pk: {
+                    "school": screen.school_id,
+                    "name": screen.name,
+                    "connected": display_connection_state(screen, seen_at[screen.pk], now=now) == "live",
+                }
+                for screen in screens
+            },
             "emergency_templates": {
                 "evacuation": {"title": "إخلاء فوري", "message": "يرجى إخلاء المبنى بهدوء والتوجه إلى نقاط التجمع المعتمدة."},
                 "fire": {"title": "تنبيه حريق", "message": "يرجى تنفيذ خطة الإخلاء فورًا وعدم استخدام المصاعد."},
@@ -302,11 +332,25 @@ def occasion_templates(request):
     school, response = get_active_school_or_redirect(request)
     if response:
         return response
+    from core.models import DisplayScreen
+    cards = cards_for_school(school.pk)
+    choices = [(key, label) for key, label in occasions.screen_choices() if key in ("auto", "off")]
+    choices.extend((card["key"], card["name"]) for card in cards)
+    screens = list(DisplayScreen.objects.filter(school=school).order_by("name"))
+    labels = dict(choices)
+    for screen in screens:
+        screen.occasion_label = labels.get(screen.occasion_theme, "")
+    selected_screen = next((s for s in screens if str(s.pk) == request.GET.get("screen")), None)
+    selected_key = request.GET.get("occasion", "")
+    if selected_key not in labels:
+        selected_key = selected_screen.occasion_theme if selected_screen else ""
     return render(
         request,
         "dashboard/occasion_templates.html",
         {
-            "occasion_cards": cards_for_school(school.pk),
+            "occasion_cards": sorted(cards, key=lambda item: not item["school_event"]),
+            "screens": screens, "selected_screen": selected_screen, "selected_key": selected_key,
+            "occasion_choices": choices, "preset_requested": request.GET.get("occasion") in labels,
             "upcoming_occasions": occasions.upcoming(timezone.localdate(), lead_days=60),
         },
     )

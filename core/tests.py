@@ -1004,11 +1004,11 @@ class RootAssetTests(SimpleTestCase):
         The worker previously matched cached assets with `{ignoreSearch: true}`,
         so a new release resolved to the previously cached file and screens ran
         the old bundle indefinitely. Version-agnostic lookup is now allowed in
-        exactly one place: the offline fallback inside `handleAsset`'s catch.
+        the offline fallback inside `handleAsset`'s catch.
         """
         source = self.client.get(reverse("sw_js")).content.decode("utf-8")
 
-        offline_branch = source.split("} catch (offline) {", 1)
+        offline_branch = source.split(".catch((offline) => {", 1)
         self.assertEqual(len(offline_branch), 2, "handleAsset lost its offline fallback branch")
 
         online_path = offline_branch[0]
@@ -1028,10 +1028,14 @@ class RootAssetTests(SimpleTestCase):
         """
         source = self.client.get(reverse("sw_js")).content.decode("utf-8")
 
-        self.assertIn("async function handleRangeRequest(request)", source)
-        self.assertIn("const cached = await cache.match(request.url);", source)
+        self.assertIn("function handleRangeRequest(request)", source)
+        self.assertIn("cache.match(request.url)", source)
         self.assertIn("'Content-Range'", source)
         self.assertIn("event.respondWith(handleRangeRequest(request));", source)
+
+    def test_worker_avoids_syntax_newer_than_the_supported_tv_engines(self):
+        source = self.client.get(reverse("sw_js")).content.decode("utf-8")
+        self.assertNotRegex(source, r"\basync\s+(?:function|\([^)]*\)\s*=>)|\bawait\s+\w")
 
     def test_service_worker_warms_the_first_display_page_and_payload_media(self):
         source = self.client.get(reverse("sw_js")).content.decode("utf-8")

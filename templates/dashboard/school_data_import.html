@@ -8,7 +8,7 @@
 
 {% block content %}
 <div class="dp-stack">
-  <a href="{% url 'dashboard:school_document_import' %}" class="dp-btn dp-btn--soft">استيراد ذكي للجدول</a>
+  {% include 'dashboard/_timetable_import_methods.html' with method='excel' only %}
 
   <section class="dp-steps">
     <div class="dp-step{% if not parsed %} is-current{% endif %}">

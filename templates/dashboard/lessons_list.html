@@ -4,9 +4,16 @@
 {% block page_title %}إدارة الجدول الدراسي العام{% endblock %}
 {% block page_description %}عرض وإدارة جميع الحصص المجدولة للمدرسة{% endblock %}
 
+{% block extra_css %}
+<style nonce="{{ csp_nonce }}">
+  .lesson-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .95rem; }
+  @media (max-width: 640px) { .lesson-filters { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
 {% block page_actions %}
   <div class="dp-toolbar__actions">
-    <a href="{% url 'dashboard:add_lesson' %}" class="dp-btn dp-btn--primary">
+    <a href="{% url 'dashboard:add_lesson' %}?next={{ request.get_full_path|urlencode:'' }}" class="dp-btn dp-btn--primary">
       <i class="fa-solid fa-plus" aria-hidden="true"></i>
       <span>إضافة حصة</span>
     </a>
@@ -17,7 +24,7 @@
 <div class="dp-stack">
 
   <form method="get" class="dp-surface dp-surface--pad">
-    <div class="dp-grid-2">
+    <div class="lesson-filters">
       <div class="dp-field">
         <label for="lessonSearch">بحث</label>
         <div class="dp-search">
@@ -36,13 +43,22 @@
           {% endfor %}
         </select>
       </div>
+      <div class="dp-field">
+        <label for="lessonClass">الفصل</label>
+        <select id="lessonClass" name="class_id">
+          <option value="">كل الفصول</option>
+          {% for school_class in classes %}
+            <option value="{{ school_class.pk }}" {% if selected_class_id == school_class.pk|stringformat:'s' %}selected{% endif %}>{{ school_class.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
     <div class="dp-toolbar__actions" style="margin-top:.9rem">
       <button type="submit" class="dp-btn dp-btn--soft">
         <i class="fa-solid fa-filter" aria-hidden="true"></i>
         <span>تطبيق الفلتر</span>
       </button>
-      {% if search or selected_day %}
+      {% if search or selected_day or selected_class_id %}
         <a href="{% url 'dashboard:lessons_list' %}" class="dp-btn dp-btn--ghost">مسح الفلتر</a>
       {% endif %}
     </div>
@@ -72,11 +88,12 @@
                 <td>{{ lesson.teacher.name|default:"—" }}</td>
                 <td>
                   <div class="dp-toolbar__actions">
-                    <a href="{% url 'dashboard:edit_lesson' lesson.id %}" class="dp-icon-btn" title="تعديل الحصة" aria-label="تعديل الحصة">
+                    <a href="{% url 'dashboard:edit_lesson' lesson.id %}?next={{ request.get_full_path|urlencode:'' }}" class="dp-icon-btn" title="تعديل الحصة" aria-label="تعديل الحصة">
                       <i class="fa-solid fa-pen" aria-hidden="true"></i>
                     </a>
                     <form method="post" action="{% url 'dashboard:delete_lesson' lesson.id %}">
                       {% csrf_token %}
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
                       <button type="submit" class="dp-icon-btn dp-icon-btn--danger" title="حذف الحصة" aria-label="حذف الحصة"
                               data-confirm="هل تريد حذف حصة {{ lesson.school_class.name }} — {{ lesson.get_weekday_display }} الحصة {{ lesson.period_index }}؟">
                         <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
@@ -90,18 +107,19 @@
         </table>
       </div>
     </section>
+    {% include 'dashboard/_pagination.html' with page=page page_range=page_range query=page_query label='ترقيم الحصص' only %}
   {% else %}
     <div class="dp-empty">
       <div class="dp-empty__icon"><i class="fa-regular fa-calendar-xmark" aria-hidden="true"></i></div>
-      <h3>{% if search or selected_day %}لا توجد حصص مطابقة{% else %}لا توجد حصص مجدولة{% endif %}</h3>
+      <h3>{% if search or selected_day or selected_class_id %}لا توجد حصص مطابقة{% else %}لا توجد حصص مجدولة{% endif %}</h3>
       <p>
-        {% if search or selected_day %}
-          جرّب توسيع البحث أو اختيار "كل الأيام".
+        {% if search or selected_day or selected_class_id %}
+          جرّب تغيير البحث أو اليوم أو الفصل.
         {% else %}
           أضف الحصص واحدة واحدة، أو استوردها دفعة واحدة من ملف Excel.
         {% endif %}
       </p>
-      {% if search or selected_day %}
+      {% if search or selected_day or selected_class_id %}
         <a href="{% url 'dashboard:lessons_list' %}" class="dp-btn dp-btn--ghost">مسح الفلتر</a>
       {% else %}
         <a href="{% url 'dashboard:add_lesson' %}" class="dp-btn dp-btn--primary">إضافة أول حصة</a>

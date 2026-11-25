@@ -1,11 +1,33 @@
 {% extends "dashboard/_base.html" %}
+{% load static %}
 
-{% block title %}قوالب المناسبات{% endblock %}
-{% block page_title %}قوالب المناسبات{% endblock %}
-{% block page_description %}محتوى وثيم كامل يتفعّل على شاشات المدرسة خلال وقت المناسبة{% endblock %}
+{% block title %}عرض مناسبة · مظهر الشاشات{% endblock %}
+{% block page_title %}مظهر الشاشات{% endblock %}
+{% block page_description %}اختر مناسبة لعرضها على شاشة محددة، أو حدّد لها وقت بداية ونهاية.{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/occasion-studio.css' %}"><link rel="stylesheet" href="{% static 'css/screen-live-preview.css' %}">{% endblock %}
+
+{% block extra_head %}<script src="{% static 'js/occasion-assignment.js' %}?v=20261125-nav"></script>{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto pb-12 occasion-page">
+  {% include "dashboard/_appearance_nav.html" with section="occasions" %}
+  {% include "dashboard/_live_screen_preview.html" %}
+  <section class="occasion-studio-heading">
+    <div><h2>مكتبة المناسبات</h2><p>صمّم مناسبة باسم المدرسة وألوانها، أو ابدأ بأحد القوالب الجاهزة.</p></div>
+    <a class="occasion-create" data-screen-link href="{% url 'dashboard:occasion_theme_create' %}{% if selected_screen %}?screen={{ selected_screen.pk }}{% endif %}">＋ تصميم مناسبة جديدة</a>
+  </section>
+  <section id="occasion-assignment" class="occasion-assignment" aria-labelledby="assignmentTitle">
+    <div><h2 id="assignmentTitle">عرض مناسبة على شاشة</h2><p>تبقى المناسبة مثبتة حتى تغيّر الاختيار. للعرض بوقت بداية ونهاية، اختر «جدولة» من بطاقة المناسبة.</p></div>
+    {% if screens %}
+    <form method="post" action="{% url 'dashboard:occasion_assign' %}" data-preset="{% if preset_requested %}1{% else %}0{% endif %}">{% csrf_token %}
+      <label>الشاشة<select name="screen" required><option value="">اختر الشاشة</option>{% for screen in screens %}<option value="{{ screen.pk }}" data-name="{{ screen.name }}" data-key="{{ screen.occasion_theme }}" data-label="{{ screen.occasion_label }}"{% if screen.is_active and screen.short_code %} data-preview="/s/{{ screen.short_code }}/?preview=1"{% endif %}{% if screen.pk == selected_screen.pk %} selected{% endif %}>{{ screen.name }}{% if not screen.is_active %} (معطلة){% endif %}</option>{% endfor %}</select></label>
+      <label>المناسبة أو وضع العرض<select name="occasion" required><option value="">اختر المناسبة</option>{% for key,label in occasion_choices %}<option value="{{ key }}"{% if key == selected_key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <button class="occasion-primary" type="submit">حفظ اختيار الشاشة</button>
+    </form>
+    <div class="occasion-assigned"{% if not selected_screen %} hidden{% endif %} aria-live="polite"><span>إعداد <span data-assigned-screen>{{ selected_screen.name }}</span> المحفوظ <strong>{{ selected_screen.occasion_label }}</strong></span>
+      <a data-live-preview-open data-preview-name="{{ selected_screen.name }}"{% if selected_screen.is_active and selected_screen.short_code %} href="/s/{{ selected_screen.short_code }}/?preview=1"{% else %} hidden{% endif %}>معاينة هذه الشاشة</a></div>
+    {% else %}<a href="{% url 'dashboard:screen_create' %}">إضافة شاشة للمدرسة</a>{% endif %}
+  </section>
 
   {% if upcoming_occasions %}
   <section class="occasion-upcoming" aria-labelledby="upcomingHeading">
@@ -20,7 +42,7 @@
           <small>{{ item.occurs_on|date:"j F Y" }}</small>
         </span>
         <span class="occasion-upcoming-countdown{% if item.days_left <= 3 %} is-near{% endif %}">{{ item.countdown_label }}</span>
-        <a href="{% url 'dashboard:ann_create' %}?template={{ item.occasion.key }}">تفعيل</a>
+        <a href="{% url 'dashboard:ann_create' %}?template={{ item.occasion.key }}&amp;upcoming=1">جدولة</a>
       </li>
       {% endfor %}
     </ul>
@@ -41,7 +63,7 @@
                 aria-hidden="true"
                 style="border-radius:{{ item.mark_shape }};transform:{{ item.mark_transform }}">{{ item.mark }}</span>
           <span class="occasion-preview-copy">
-            <small>ثيم {{ item.theme_name }}</small>
+            <small>{% if item.school_event %}مناسبة مدرسية{% else %}ثيم {{ item.theme_name }}{% endif %}</small>
             <strong>{{ item.title }}</strong>
             <em>{{ item.tagline }}</em>
           </span>
@@ -49,15 +71,13 @@
 
         <div class="occasion-card-body">
           <h2>{{ item.name }}</h2>
-          {% if item.is_custom %}<p>المناسبة: {{ item.original_name }} · تصميم خاص بالمدرسة</p>{% endif %}
-          <p>{{ item.body }}</p>
-          <div class="occasion-features">
-            <span>يغيّر مظهر الشاشة</span>
-            <span>{{ item.duration_hours }} ساعة</span>
-            <span>عودة تلقائية</span>
+          {% if item.original_name and item.is_custom %}<p>تصميم المدرسة لمناسبة {{ item.original_name }}</p>{% endif %}
+          {% if not item.school_event %}<p>{{ item.body }}</p>{% endif %}
+          <a data-screen-link href="?occasion={{ item.key }}{% if selected_screen %}&amp;screen={{ selected_screen.pk }}{% endif %}#occasion-assignment" aria-label="عرض {{ item.name }} على شاشة">عرض على شاشة</a>
+          <div class="occasion-card-tools">
+            <a data-screen-link href="{% url 'dashboard:occasion_theme_edit' item.key %}{% if selected_screen %}?screen={{ selected_screen.pk }}{% endif %}">تعديل التصميم</a>
+            <a data-screen-link href="{% url 'dashboard:ann_create' %}?template={{ item.key }}{% if selected_screen %}&amp;screen={{ selected_screen.pk }}{% endif %}">جدولة المناسبة</a>
           </div>
-          <a href="{% url 'dashboard:ann_create' %}?template={{ item.key }}">استخدام القالب والثيم</a>
-          <a href="{% url 'dashboard:occasion_theme_edit' item.key %}" style="margin-top:.5rem;background:#f1f5f9;color:#145a6a">تعديل اسم الثيم وتصميمه</a>
         </div>
       </article>
     {% endfor %}
@@ -203,7 +223,7 @@
   font-weight: 800;
 }
 
-.occasion-card-body { display: flex; flex: 1; flex-direction: column; padding: 1.15rem; }
+.occasion-card-body { display: flex; flex: 1; flex-direction: column; gap:.5rem; padding: 1.15rem; }
 .occasion-card h2 { margin: 0; color: #0f172a; font-size: 1rem; font-weight: 950; }
 .occasion-card p { margin: .45rem 0 0; color: var(--oc-muted); font-size: .78rem; font-weight: 600; line-height: 1.85; }
 .occasion-features { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .85rem; }
@@ -224,7 +244,7 @@
   margin-top: auto;
   padding: .7rem 1rem;
   border-radius: .75rem;
-  background: var(--occasion-accent);
+  background: #145a6a;
   color: #fff;
   font-size: .78rem;
   font-weight: 950;
@@ -241,3 +261,4 @@
 }
 </style>
 {% endblock %}
+{% block extra_js %}<script defer src="{% static 'js/screen-live-preview.js' %}"></script>{% endblock %}

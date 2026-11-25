@@ -2877,6 +2877,7 @@ def _merge_real_data_into_snapshot(request, snap: dict, settings_obj: SchoolSett
                 starts_at__lte=now,
             )
             .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+            .exclude(limited_to_screens=True, screens__isnull=True)
             .prefetch_related("screens")
             .order_by("-created_at")[:10]
         )
@@ -2960,7 +2961,10 @@ def _merge_real_data_into_snapshot(request, snap: dict, settings_obj: SchoolSett
     try:
         from standby.models import StandbyAssignment  # type: ignore
 
-        today = timezone.localdate()
+        try:
+            today = date.fromisoformat((snap.get("meta") or {}).get("date"))
+        except (TypeError, ValueError):
+            today = timezone.localdate()
         qs = StandbyAssignment.objects.filter(school=school, date=today).order_by("period_index", "id")
 
         items = []
@@ -3073,6 +3077,36 @@ def goodbye(request, token: str | None = None):
         logger.debug("goodbye beacon failed", exc_info=True)
 
     return JsonResponse({"ok": True})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def emergency_receipt(request, alert_id: int):
+    from notices.models import EmergencyAlert, EmergencyAlertReceipt
+
+    token = (request.headers.get("X-Display-Token") or "").strip()
+    device = (request.headers.get("X-Display-Device") or "").strip()
+    if not token or not device or request.headers.get("X-Display-Preview"):
+        return HttpResponse(status=404)
+    if len(token) > 256 or len(device) > 256 or alert_id > (1 << 63) - 1:
+        return HttpResponse(status=404)
+
+    screen = DisplayScreen.objects.filter(token=token, bound_device_id=device, is_active=True).only("id", "school_id").first()
+    if screen is None:
+        return HttpResponse(status=404)
+    now = timezone.now()
+    alert = (
+        EmergencyAlert.objects.filter(
+            pk=alert_id, schools=screen.school_id, is_active=True, cancelled_at__isnull=True, starts_at__lte=now,
+        )
+        .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+        .filter(Q(screens=screen) | Q(limited_to_screens=False, screens__isnull=True))
+        .first()
+    )
+    if alert is None:
+        return HttpResponse(status=404)
+    EmergencyAlertReceipt.objects.get_or_create(alert=alert, screen=screen)
+    return HttpResponse(status=204)
 
 
 def _call_build_day_snapshot(settings_obj: SchoolSettings) -> dict:

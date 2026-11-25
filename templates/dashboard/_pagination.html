@@ -10,17 +10,19 @@ out separately, with different markup and different wording for the same
     <span>عرض {{ page.start_index }}-{{ page.end_index }} من {{ page.paginator.count }}</span>
     <div class="dp-pagination__pages">
       {% if page.has_previous %}
-        <a href="?page={{ page.previous_page_number }}" rel="prev">السابق</a>
+        <a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page.previous_page_number }}" rel="prev">السابق</a>
       {% endif %}
-      {% for num in page.paginator.page_range %}
+      {% for num in page_range|default:page.paginator.page_range %}
         {% if num == page.number %}
           <strong aria-current="page">{{ num }}</strong>
+        {% elif num == page.paginator.ELLIPSIS %}
+          <span>{{ num }}</span>
         {% else %}
-          <a href="?page={{ num }}">{{ num }}</a>
+          <a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ num }}">{{ num }}</a>
         {% endif %}
       {% endfor %}
       {% if page.has_next %}
-        <a href="?page={{ page.next_page_number }}" rel="next">التالي</a>
+        <a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page.next_page_number }}" rel="next">التالي</a>
       {% endif %}
     </div>
   </nav>

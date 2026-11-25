@@ -9,6 +9,9 @@ day-scoped lists, the batch add on school data.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone as utc_timezone
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -86,6 +89,43 @@ class RedesignedDashboardPagesTests(TestCase):
         self.assertContains(response, "data-tt-day")
         self.assertContains(response, "data-tt-autosave=\"true\"")
         self.assertContains(response, "data-tt-autosave-toast")
+
+    def test_timetable_defaults_to_the_school_local_weekday(self):
+        SchoolClass.objects.create(settings=self.settings, name="أول/أ")
+        school_class = SchoolClass.objects.create(settings=self.settings, name="ثاني/أ")
+        daily_url = reverse("dashboard:timetable_day")
+        school_clock_time = datetime(2026, 11, 24, 21, 5, tzinfo=utc_timezone.utc)
+        with patch("dashboard.views_schedule.timezone", wraps=timezone) as school_clock:
+            school_clock.localdate.side_effect = lambda **kwargs: timezone.localdate(school_clock_time, **kwargs)
+            default = self.client.get(daily_url)
+            explicit = self.client.get(daily_url, {"weekday": 7, "class_id": school_class.pk})
+            returned = self.client.get(daily_url)
+            school_clock_time += timedelta(days=1)
+            following_day = self.client.get(daily_url)
+        self.assertEqual(default.context["weekday"], 3)
+        self.assertEqual(explicit.context["weekday"], 7)
+        self.assertEqual(returned.context["weekday"], 7)
+        self.assertEqual(returned.context["selected_class"], school_class)
+        self.assertEqual(following_day.context["weekday"], 4)
+        self.assertEqual(following_day.context["selected_class"], school_class)
+
+    def test_lesson_page_keeps_filters_when_leaving_edit(self):
+        school_class = SchoolClass.objects.create(settings=self.settings, name="ثاني/أ")
+        subject = Subject.objects.create(school=self.school, name="الرياضيات")
+        teacher = Teacher.objects.create(school=self.school, name="أ. سارة")
+        ClassLesson.objects.bulk_create([
+            ClassLesson(settings=self.settings, school_class=school_class, subject=subject, teacher=teacher,
+                        weekday=day, period_index=index)
+            for day in range(1, 5) for index in range(1, 8)
+        ])
+        list_url = reverse("dashboard:lessons_list")
+        response = self.client.get(list_url, {"class_id": school_class.pk, "page": 2})
+        page = response.context["page"]
+        self.assertEqual((page.number, len(page.object_list), page.paginator.count), (2, 3, 28))
+        self.assertContains(response, f"class_id={school_class.pk}&amp;page=1")
+        return_to = response.wsgi_request.get_full_path()
+        edit = self.client.get(reverse("dashboard:edit_lesson", args=[page.object_list[0].pk]), {"next": return_to})
+        self.assertEqual(edit.context["list_url"], return_to)
 
     def test_timetable_day_ajax_post_saves_without_redirect(self):
         day = DaySchedule.objects.create(settings=self.settings, weekday=7, periods_count=1)

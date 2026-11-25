@@ -17,7 +17,9 @@
     ["name", "tagline", "deep", "accent", "highlight", "soft", "pattern"].forEach(function (key) { theme[key] = form.elements[key].value; });
     values[original.key] = theme;
     renderer.apply(preview, original.key, values);
-    preview.querySelector("[data-occasion-name]").textContent = theme.name || "اسم الثيم";
+    var schoolTitle = preview.querySelector("[data-school-event-title]");
+    if (schoolTitle) schoolTitle.textContent = theme.name || "اسم المناسبة";
+    preview.querySelector("[data-occasion-name]").textContent = schoolTitle ? "مناسبة مدرسية" : (theme.name || "اسم الثيم");
     preview.querySelector("[data-occasion-tagline]").textContent = theme.tagline;
     var valid = contrast(theme.soft, theme.deep) >= 4.5 && contrast(theme.highlight, theme.deep) >= 3;
     status.dataset.valid = valid ? "1" : "0";
@@ -27,6 +29,13 @@
   }
   form.addEventListener("input", update);
   form.addEventListener("change", update);
+  form.querySelectorAll("[data-palette]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var palette = button.dataset.palette.split(" ");
+      ["deep", "accent", "highlight", "soft"].forEach(function (key, i) { form.elements[key].value = palette[i]; });
+      update();
+    });
+  });
   form.addEventListener("submit", function (event) { if ((!event.submitter || event.submitter.value !== "reset") && !update()) event.preventDefault(); });
   update();
 }());

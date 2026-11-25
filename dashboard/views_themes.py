@@ -1,10 +1,14 @@
+from uuid import uuid4
+
 from django.contrib import messages
 from django.db import IntegrityError, transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from core.display_themes import theme_payload
+from core.display_themes import effective_custom_theme, theme_payload
 from core.models import DisplayScreen
 from schedule.models import DisplayTheme, SchoolSettings
 from .access import get_active_school_or_redirect
@@ -16,10 +20,9 @@ from .views_screens import _refresh_school_displays
 
 @never_cache
 @manager_required
-def occasion_theme_edit(request, key):
+def occasion_theme_edit(request, key=None):
     from core import occasions
-    from core.occasion_customizations import customization_payload
-    from django.http import Http404
+    from core.occasion_customizations import SCHOOL_EVENT, SCHOOL_EVENT_KEY, customization_payload, resolve_occasion
     from core.models import School
     from schedule.models import SchoolOccasionTheme
     from .theme_forms import SchoolOccasionThemeForm
@@ -27,12 +30,27 @@ def occasion_theme_edit(request, key):
     school, response = get_active_school_or_redirect(request)
     if response:
         return response
+    screen_id = request.GET.get("screen", "")
+    selected_screen = None
+    if screen_id.isascii() and screen_id.isdigit() and len(screen_id) <= 18:
+        selected_screen = DisplayScreen.objects.filter(school=school, pk=screen_id).first()
+    target_query = f"&screen={selected_screen.pk}" if selected_screen else ""
+    creating = key is None
+    key = key or f"event_{uuid4().hex[:16]}"
+    instance = SchoolOccasionTheme.objects.filter(school=school, occasion_key=key).first()
+    school_event = bool(SCHOOL_EVENT_KEY.fullmatch(key))
     original = occasions.get(key)
-    if original is None:
-        raise Http404
-    instance = SchoolOccasionTheme.objects.filter(school=school, occasion_key=original.key).first()
+    if creating:
+        original = SCHOOL_EVENT
+    elif original is None:
+        payload = customization_payload(instance) if instance else None
+        if not school_event or not payload:
+            raise Http404
+        original = resolve_occasion(key, {key: payload})
     is_custom = instance is not None
     if request.method == "POST" and request.POST.get("action") == "reset":
+        if school_event:
+            raise Http404
         with transaction.atomic():
             SchoolOccasionTheme.objects.filter(school=school, occasion_key=original.key).delete()
             transaction.on_commit(lambda: _refresh_school_displays(school))
@@ -40,25 +58,64 @@ def occasion_theme_edit(request, key):
         return redirect("dashboard:occasion_theme_edit", key=original.key)
     if instance is None:
         instance = SchoolOccasionTheme(
-            school=school, occasion_key=original.key, name=original.theme_name, tagline=original.tagline,
+            school=school, occasion_key=key, name="" if creating else original.theme_name, tagline=original.tagline,
             deep=original.deep, accent=original.accent, highlight=original.highlight, soft=original.soft,
+            pattern="dots" if creating else "original",
         )
     form = SchoolOccasionThemeForm(request.POST if request.method == "POST" else None, instance=instance)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             School.objects.select_for_update().get(pk=school.pk)
             # Concurrent first saves still update one school/occasion row.
-            existing = SchoolOccasionTheme.objects.filter(school=school, occasion_key=original.key).first()
+            existing = SchoolOccasionTheme.objects.filter(school=school, occasion_key=key).first()
             if existing is not None:
                 form.instance.pk = existing.pk
-            form.save()
-            transaction.on_commit(lambda: _refresh_school_displays(school))
-        messages.success(request, "تم حفظ اسم الثيم وتصميمه وتحديث شاشات المدرسة التي تستخدم هذه المناسبة.")
-        return redirect("dashboard:occasion_theme_edit", key=original.key)
+            name_taken = school_event and (
+                any(item.name == form.cleaned_data["name"] for item in occasions.all_occasions())
+                or SchoolOccasionTheme.objects.filter(school=school, name=form.cleaned_data["name"]).exclude(occasion_key=key).exists()
+            )
+            if name_taken:
+                form.add_error("name", "توجد مناسبة بهذا الاسم. اختر اسمًا يميّز تصميمك.")
+            else:
+                form.save()
+                if not creating:
+                    transaction.on_commit(lambda: _refresh_school_displays(school))
+        if not form.errors and creating:
+            messages.success(request, "حُفظ تصميم المناسبة. اختر الشاشة التي تريد عرضها عليها أو جدْوِل موعدها.")
+            return redirect(reverse("dashboard:occasion_templates") + f"?occasion={key}{target_query}#occasion-assignment")
+        if not form.errors:
+            messages.success(request, "تم حفظ اسم الثيم وتصميمه وتحديث شاشات المدرسة التي تستخدم هذه المناسبة.")
+            return redirect(request.get_full_path())
     return render(request, "dashboard/occasion_theme_edit.html", {
-        "form": form, "occasion": original, "school": school, "is_custom": is_custom,
+        "form": form, "occasion": original, "school": school, "is_custom": is_custom and not school_event,
+        "creating": creating, "school_event": school_event, "selected_screen": selected_screen,
+        "original_pattern": SCHOOL_EVENT.pattern_css if school_event else original.pattern_css,
         "occasion_data": {**original.as_card_dict(), **(customization_payload(instance) or {})},
     })
+
+
+@manager_required
+@require_POST
+def occasion_assign(request):
+    from core.occasion_customizations import choices_for_school
+
+    school, response = get_active_school_or_redirect(request)
+    if response:
+        return response
+    screen_id = request.POST.get("screen", "")
+    key = request.POST.get("occasion", "")
+    if not screen_id.isascii() or not screen_id.isdigit() or len(screen_id) > 18:
+        raise Http404
+    labels = dict(choices_for_school(school.pk, DisplayScreen.OCCASION_THEME_CHOICES))
+    if key not in labels:
+        raise Http404
+    with transaction.atomic():
+        screen = get_object_or_404(DisplayScreen.objects.select_for_update(), school=school, pk=screen_id)
+        screen.occasion_theme = key
+        screen.save(update_fields=["occasion_theme"])
+        transaction.on_commit(lambda: _refresh_school_displays(school, target_screen=screen))
+    messages.success(request, f"حُفظ إعداد «{labels[key]}» لشاشة «{screen.name}».")
+    return redirect(reverse("dashboard:occasion_templates") + f"?screen={screen.pk}#occasion-assignment")
 
 
 @never_cache
@@ -68,9 +125,19 @@ def theme_list(request):
     if response:
         return response
     themes = list(DisplayTheme.objects.filter(school=school))
+    screens = list(DisplayScreen.objects.filter(school=school).select_related("custom_theme_override").order_by("name"))
+    settings = SchoolSettings.objects.filter(school=school).select_related("custom_theme").first()
+    by_theme = {theme.pk: [] for theme in themes}
+    for screen in screens:
+        effective = effective_custom_theme(settings, screen)
+        if effective and effective.pk in by_theme:
+            by_theme[effective.pk].append(screen)
+    for theme in themes:
+        theme.assigned_screens = by_theme[theme.pk]
     return render(request, "dashboard/theme_list.html", {
         "themes": themes, "theme_data": [theme_payload(theme) for theme in themes],
-        "screens": DisplayScreen.objects.filter(school=school).order_by("name"),
+        "selected_screen": next((screen for screen in screens if str(screen.pk) == request.GET.get("screen")), None),
+        "screens": screens, "default_theme_id": getattr(settings, "custom_theme_id", None),
         "school": school,
     })
 

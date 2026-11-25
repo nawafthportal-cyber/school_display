@@ -72,6 +72,7 @@
     var stateLabel = form.querySelector("[data-tt-state]");
     var resetButton = form.querySelector("[data-tt-reset]");
     var autosaveToast = document.querySelector("[data-tt-autosave-toast]");
+    var toastHome = autosaveToast && autosaveToast.parentNode;
     var autosaveTimer = null;
     var autosaveRequest = null;
     var autosaveDelay = 900;
@@ -129,6 +130,13 @@
       }
     }
 
+    function placeAutosaveStatus(row) {
+      if (!autosaveToast) return;
+      var slot = row && row.querySelector("[data-tt-row-status]");
+      if (slot) slot.appendChild(autosaveToast);
+      else if (toastHome !== autosaveToast.parentNode) toastHome.insertBefore(autosaveToast, form);
+    }
+
     function clearAutosaveTimer() {
       if (autosaveTimer) {
         window.clearTimeout(autosaveTimer);
@@ -154,6 +162,7 @@
       }
 
       stateLabel && (stateLabel.textContent = "سيتم الحفظ تلقائيًا خلال لحظات");
+      showAutosave("سيتم الحفظ تلقائيًا خلال لحظات", "saving", true);
       autosaveTimer = window.setTimeout(saveAutomatically, autosaveDelay);
     }
 
@@ -252,10 +261,11 @@
     form.addEventListener("change", function (event) {
       var target = event.target;
       if (!target || target.tagName !== "SELECT") return;
+      var row = target.closest("[data-tt-row]");
+      placeAutosaveStatus(row);
 
       // Picking a subject almost always means picking its teacher next.
       if (target.matches("[data-tt-subject]") && target.value) {
-        var row = target.closest("[data-tt-row]");
         var teacher = row && row.querySelector("[data-tt-teacher]");
         if (teacher && !teacher.value) teacher.focus();
       }
@@ -268,6 +278,7 @@
       if (!clear) return;
       var row = clear.closest("[data-tt-row]");
       if (!row) return;
+      placeAutosaveStatus(row);
       row.querySelectorAll("select").forEach(function (select) { select.value = ""; });
       render();
       scheduleAutosave();
@@ -276,6 +287,7 @@
     if (resetButton) {
       resetButton.addEventListener("click", function () {
         clearAutosaveTimer();
+        placeAutosaveStatus(null);
         rows.forEach(function (row, index) {
           var subject = row.querySelector("[data-tt-subject]");
           var teacher = row.querySelector("[data-tt-teacher]");

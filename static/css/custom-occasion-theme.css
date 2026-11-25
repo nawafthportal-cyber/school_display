@@ -1,4 +1,21 @@
 /* Overrides are scoped to a customized occasion; emergency colors remain independent. */
+body.display-board[data-custom-occasion-theme] {
+  /* A saved school theme sets these two tokens inline on the board. */
+  --board-surface: var(--occasion-deep) !important;
+  --board-surface-strong: var(--occasion-deep) !important;
+}
+.header-shell #occasionThemeBadge { max-width: min(38vw, 600px); }
+.header-shell #occasionThemeBadgeCopy strong {
+  color: var(--occasion-highlight); font-size: 21px; line-height: 1.28;
+  white-space: normal; overflow-wrap: anywhere;
+}
+.header-shell #occasionThemeBadgeCopy small { font-size: 14px; }
+body[data-board-shape="compact"] #occasionThemeBadgeCopy strong { font-size: 17px; }
+body[data-board-shape="portrait"] #occasionThemeBadge,
+body[data-board-shape="compact"] #occasionThemeBadge { max-width: 100%; }
+body[data-occasion-theme^="event_"] .occasion-theme-pattern {
+  background-image: var(--custom-occasion-pattern, radial-gradient(var(--occasion-highlight) 1.5px, transparent 1.5px));
+}
 body[data-occasion-theme][data-custom-occasion-theme] #fitRoot .glass-panel { background:var(--occasion-deep) !important; color:var(--occasion-soft); }
 body[data-occasion-theme][data-custom-occasion-theme] #fitRoot h1,
 body[data-occasion-theme][data-custom-occasion-theme] #fitRoot h2,

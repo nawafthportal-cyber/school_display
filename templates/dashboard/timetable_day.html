@@ -167,6 +167,9 @@
   .tt-autosave-toast.is-success { border-color: rgba(22, 163, 74, .3); color: #166534; }
   .tt-autosave-toast.is-warning { border-color: rgba(245, 158, 11, .38); color: #92400e; }
   .tt-autosave-toast.is-error { border-color: rgba(220, 38, 38, .34); color: #991b1b; }
+  .tt-row__save { grid-column: 1 / -1; }
+  .tt-row__save:not(:has(.is-visible)) { display: none; }
+  .tt-row__save .tt-autosave-toast { position: static; max-width: 100%; box-shadow: none; }
 
   @media (max-width: 900px) {
     .tt-row {
@@ -372,6 +375,7 @@
               <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
               اختر المادة والمعلم معًا، أو أفرغ الحقلين، قبل حفظ الجدول.
             </p>
+            <div class="tt-row__save" data-tt-row-status></div>
           </div>
         {% endfor %}
       </div>
@@ -380,7 +384,7 @@
       <div class="dp-actionbar">
         <div class="dp-actionbar__copy">
           <strong data-tt-state>لا توجد تغييرات</strong>
-          <span>يظهر التعديل على شاشة العرض مباشرة بعد الحفظ.</span>
+          <span>تُحفظ الحصة تلقائيًا بعد اختيار المادة والمعلم، ويظهر التعديل على شاشة العرض بعد الحفظ.</span>
         </div>
         <div class="dp-actionbar__buttons">
           <button type="button" class="dp-btn dp-btn--ghost" data-tt-reset>
@@ -389,7 +393,7 @@
           </button>
           <button type="submit" class="dp-btn dp-btn--primary">
             <i class="fa-regular fa-floppy-disk" aria-hidden="true"></i>
-            حفظ جدول {{ selected_class.name }}
+            حفظ الآن
           </button>
         </div>
       </div>
@@ -399,5 +403,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script defer src="{% static 'js/timetable-day.js' %}?v=2026-10-10-autosave"></script>
+<script defer src="{% static 'js/timetable-day.js' %}?v=2026-11-25-row-autosave"></script>
 {% endblock %}

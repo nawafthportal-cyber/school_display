@@ -5,7 +5,12 @@
 {% block page_title %}{{ display_scope_title|default:"إعدادات المدرسة" }}{% endblock %}
 {% block page_description %}{% if show_display_settings %}تخصيص هوية ورسائل وسرعة شاشة العرض{% else %}بيانات الحساب، الأمان، ومراقبة التشغيل{% endif %}{% endblock %}
 
+{% block extra_css %}
+{% if display_preview_url and show_display_settings %}<link rel="stylesheet" href="{% static 'css/screen-live-preview.css' %}?v=2026-11-25-device-preview-2">{% endif %}
+{% endblock %}
+
 {% block content %}
+{% if display_preview_url and show_display_settings %}{% include "dashboard/_live_screen_preview.html" %}{% endif %}
 <div class="max-w-6xl mx-auto pb-8 md:pb-12 dashboard-settings" data-initial-settings-tab="{{ initial_settings_tab|default:'appearance' }}">
     <section class="settings-hero" aria-labelledby="settingsHeroTitle">
         <div class="settings-hero-copy">
@@ -15,9 +20,9 @@
         </div>
         <div class="settings-hero-actions">
             {% if display_preview_url and show_display_settings %}
-                <a href="{{ display_preview_url }}" target="_blank" rel="noopener" class="settings-preview-btn">
+                <a href="{{ display_preview_url }}" target="_blank" rel="noopener" data-live-preview-open data-preview-name="{{ display_preview_name }}" class="settings-preview-btn">
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
-                    <span>معاينة العرض</span>
+                    <span>معاينة آخر نسخة محفوظة</span>
                 </a>
             {% endif %}
             <span class="settings-save-state" data-save-state aria-live="polite"><i></i> كل التغييرات محفوظة</span>
@@ -100,7 +105,7 @@
                 <section id="settings-panel-appearance" data-settings-tab-panel="appearance" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-appearance" tabindex="0">
                     <div class="settings-section-heading">
                         <div><span>الهوية البصرية</span><h3>كيف تظهر مدرستك على الشاشة؟</h3></div>
-                        <p>اختر الشعار واللون والمحتوى البارز. يمكنك فتح المعاينة قبل أو بعد الحفظ.</p>
+                        <p>اختر الشعار واللون والمحتوى البارز. احفظ التعديلات ثم افتح المعاينة لرؤية النتيجة.</p>
                     </div>
 
                     {% if is_screen_scope %}
@@ -172,9 +177,9 @@
                                 {% comment "Theme options definitions" %} {% endcomment %}
                                 <!-- Indigo -->
                                 <button type="button" class="w-12 h-12 md:w-14 md:h-14 rounded-2xl transition-all duration-200 focus:outline-none ring-offset-2 hover:scale-105 flex items-center justify-center relative shadow-sm"
-                                        data-theme="indigo" data-hex="#145A6A" style="background: #e0e7ff; color: #4338ca;" title="نيلي" aria-label="اختيار اللون النيلي" aria-pressed="false">
-                                    <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#145A6A] shadow-lg shadow-teal-800/40"></div>
-                                        <div class="absolute inset-0 rounded-2xl ring-2 ring-teal-700 opacity-0 scale-90 transition-all data-[selected=true]:opacity-100 data-[selected=true]:scale-100 pointer-events-none border-selection"></div>
+                                        data-theme="indigo" data-hex="#6366F1" style="background: #e0e7ff; color: #4338ca;" title="نيلي" aria-label="اختيار اللون النيلي" aria-pressed="false">
+                                    <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#6366F1] shadow-lg shadow-indigo-500/40"></div>
+                                        <div class="absolute inset-0 rounded-2xl ring-2 ring-indigo-500 opacity-0 scale-90 transition-all data-[selected=true]:opacity-100 data-[selected=true]:scale-100 pointer-events-none border-selection"></div>
                                 </button>
                                 
                                 <!-- Emerald -->
@@ -214,9 +219,9 @@
 
                                 <!-- Violet -->
                                 <button type="button" class="w-12 h-12 md:w-14 md:h-14 rounded-2xl transition-all duration-200 focus:outline-none ring-offset-2 hover:scale-105 flex items-center justify-center relative shadow-sm"
-                                        data-theme="violet" data-hex="#B48B57" style="background: #f3e8ff; color: #7e22ce;" title="بنفسجي" aria-label="اختيار اللون البنفسجي" aria-pressed="false">
-                                    <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#B48B57] shadow-lg shadow-amber-700/40"></div>
-                                        <div class="absolute inset-0 rounded-2xl ring-2 ring-amber-600 opacity-0 scale-90 transition-all data-[selected=true]:opacity-100 data-[selected=true]:scale-100 pointer-events-none border-selection"></div>
+                                        data-theme="violet" data-hex="#A855F7" style="background: #f3e8ff; color: #7e22ce;" title="بنفسجي" aria-label="اختيار اللون البنفسجي" aria-pressed="false">
+                                    <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#A855F7] shadow-lg shadow-violet-500/40"></div>
+                                        <div class="absolute inset-0 rounded-2xl ring-2 ring-violet-500 opacity-0 scale-90 transition-all data-[selected=true]:opacity-100 data-[selected=true]:scale-100 pointer-events-none border-selection"></div>
                                 </button>
                             </div>
                             
@@ -236,7 +241,7 @@
                               <label for="{{ form.custom_theme.id_for_label }}" class="mb-2 block text-sm font-bold text-slate-700">ثيم خاص من مكتبة المدرسة</label>
                               {{ form.custom_theme }}
                               {% if form.custom_theme.errors %}<div class="settings-field-error">{{ form.custom_theme.errors }}</div>{% endif %}
-                              <a href="{% url 'dashboard:theme_list' %}" class="mt-3 inline-block text-sm font-bold text-teal-800">إنشاء ثيم خاص وإدارة الثيمات ←</a>
+                              <a href="{% url 'dashboard:theme_list' %}{% if screen %}?screen={{ screen.pk }}{% endif %}" class="mt-3 inline-block text-sm font-bold text-teal-800">إدارة المظهر اليومي{% if screen %} لهذه الشاشة{% endif %} ←</a>
                               <p class="mt-2 text-xs text-slate-500">اختيار لون جاهز يلغي الثيم الخاص لهذا الإعداد.</p>
                             </div>
                         </div>
@@ -253,6 +258,8 @@
                         <div class="dashboard-control-surface rounded-xl border border-slate-200 bg-white p-4">
                             <label for="{{ form.occasion_theme.id_for_label }}" class="mb-2 block text-sm font-bold text-slate-700">{{ form.occasion_theme.label }}</label>
                             {{ form.occasion_theme }}
+                            <p class="mt-2 text-xs text-slate-600">«تلقائي» يتبع التنبيهات المجدولة. اختيار اسم مناسبة يثبّت تصميمها على هذه الشاشة، حتى مع إخفاء التنبيهات.</p>
+                            <a href="{% url 'dashboard:occasion_templates' %}?screen={{ screen.pk }}#occasion-assignment" class="mt-2 inline-block text-sm font-bold text-teal-800">عرض مناسبة على هذه الشاشة ←</a>
                             {% if form.occasion_theme.errors %}<div class="settings-field-error">{{ form.occasion_theme.errors }}</div>{% endif %}
                         </div>
                         <label class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
@@ -350,7 +357,7 @@
                 <section id="settings-panel-runtime" data-settings-tab-panel="runtime" class="settings-tab-panel hidden" role="tabpanel" aria-labelledby="settings-tab-runtime" tabindex="0">
                     <div class="settings-section-heading">
                         <div><span>{% if show_display_settings %}حركة المحتوى{% else %}متابعة التشغيل{% endif %}</span><h3>{% if show_display_settings %}وازن بين السرعة وسهولة القراءة{% else %}تنبيهات اتصال الشاشات وتقاريرها{% endif %}</h3></div>
-                        <p>{% if show_display_settings %}ابدأ بالقيم المقترحة، ثم راقب النتيجة من شاشة المعاينة قبل اعتمادها.{% else %}تحكم في وقت اكتشاف انقطاع الشاشة وإرسال التنبيهات وتقارير التشغيل.{% endif %}</p>
+                        <p>{% if show_display_settings %}اختر سرعة تمرير تناسب بُعد المشاهد عن الشاشة.{% else %}تحكم في وقت اكتشاف انقطاع الشاشة وإرسال التنبيهات وتقارير التشغيل.{% endif %}</p>
                     </div>
 
                     {% if is_screen_scope %}
@@ -393,7 +400,7 @@
                                         <button type="button" data-speed-target="{{ form.standby_scroll_speed.id_for_label }}" data-speed-value="1.2">سريع</button>
                                     </div>
                                     <p id="{{ form.standby_scroll_speed.id_for_label }}_helptext" class="runtime-hint">سرعة تحرك شريط الانتظار على الشاشة.</p>
-                                    <div id="standbyWarn" class="settings-field-error hidden">القيمة لا تقل عن 0.5</div>
+                                    <div id="standbyWarn" class="settings-field-error hidden">أدخل قيمة بين 0.05 و5.</div>
                                     {% if form.standby_scroll_speed.errors %}<div class="settings-field-error" role="alert">{% for error in form.standby_scroll_speed.errors %}{{ error }}{% endfor %}</div>{% endif %}
                                 </article>
 
@@ -409,7 +416,7 @@
                                         <button type="button" data-speed-target="{{ form.periods_scroll_speed.id_for_label }}" data-speed-value="1.0">سريع</button>
                                     </div>
                                     <p id="{{ form.periods_scroll_speed.id_for_label }}_helptext" class="runtime-hint">سرعة تحرك جدول الحصص على الشاشة.</p>
-                                    <div id="periodsWarn" class="settings-field-error hidden">القيمة لا تقل عن 0.5</div>
+                                    <div id="periodsWarn" class="settings-field-error hidden">أدخل قيمة بين 0.05 و5.</div>
                                     {% if form.periods_scroll_speed.errors %}<div class="settings-field-error" role="alert">{% for error in form.periods_scroll_speed.errors %}{{ error }}{% endfor %}</div>{% endif %}
                                 </article>
                             </div>
@@ -417,7 +424,7 @@
                             {% if display_preview_url %}
                             <p class="runtime-tip">
                                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
-                                احفظ ثم افتح <a href="{{ display_preview_url }}" target="_blank" rel="noopener">المعاينة</a> وشاهد النتيجة على شاشة حقيقية قبل اعتمادها.
+                                بعد حفظ السرعة، افتح <a href="{{ display_preview_url }}" target="_blank" rel="noopener" data-live-preview-open data-preview-name="{{ display_preview_name }}">المعاينة</a> لمتابعة حركة الجدول.
                             </p>
                             {% endif %}
                         </section>
@@ -596,7 +603,7 @@
               <div class="settings-actions">
                   <div class="settings-actions-copy"><strong>جاهز لتطبيق التعديلات؟</strong><span>{% if is_screen_scope %}سيصل التحديث إلى هذه الشاشة فقط.{% elif show_display_settings %}سيصل التحديث إلى جميع الشاشات التي تتبع الإعداد العام.{% else %}سيتم حفظ إعدادات الحساب والمدرسة.{% endif %}</span></div>
                   <div class="settings-actions-buttons">
-                    {% if display_preview_url %}<a href="{{ display_preview_url }}" target="_blank" rel="noopener" class="settings-secondary-action">فتح المعاينة</a>{% endif %}
+                    {% if display_preview_url %}<a href="{{ display_preview_url }}" target="_blank" rel="noopener" data-live-preview-open data-preview-name="{{ display_preview_name }}" class="settings-secondary-action">معاينة آخر نسخة محفوظة</a>{% endif %}
                     {% if is_screen_scope %}<button type="submit" name="action" value="reset_display_customization" formnovalidate class="settings-cancel-action" data-reset-customization>استخدام الإعداد العام</button>{% endif %}
                     <a href="{% if back_to_screens %}{% url 'dashboard:screen_list' %}{% else %}{% url 'dashboard:index' %}{% endif %}" class="settings-cancel-action">إلغاء</a>
                     <button type="submit" class="settings-submit-action" data-settings-submit>
@@ -701,7 +708,7 @@ document.addEventListener('DOMContentLoaded', function() {
     activateSettingsTab(initialTab);
 
     // Validation
-    function validateInput(el, min, max, warnEl) {
+    function validateInput(el, warnEl) {
         if(!el || el.disabled) return true;
         let val = parseFloat(el.value);
         if(isNaN(val)) return true; // Let backend handle empty if needed, or required attr
@@ -711,8 +718,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if(warnEl) warnEl.classList.add('hidden');
 
         let isValid = true;
-        if (min !== null && val < min) isValid = false;
-        if (max !== null && val > max) isValid = false;
+        if (el.min && val < Number(el.min)) isValid = false;
+        if (el.max && val > Number(el.max)) isValid = false;
 
         if (!isValid) {
             el.classList.add('border-rose-300', 'bg-rose-50', 'text-rose-600', 'focus:border-rose-500', 'focus:ring-rose-500/20');
@@ -724,21 +731,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Apply strict attributes
     if(standbyEl) {
-        standbyEl.setAttribute('min', '0.5');
         standbyEl.setAttribute('step', '0.1');
-        standbyEl.addEventListener('input', () => validateInput(standbyEl, 0.5, null, standbyWarn));
+        standbyEl.addEventListener('input', () => validateInput(standbyEl, standbyWarn));
     }
     if(periodsEl) {
-        periodsEl.setAttribute('min', '0.5');
         periodsEl.setAttribute('step', '0.1');
-        periodsEl.addEventListener('input', () => validateInput(periodsEl, 0.5, null, periodsWarn));
+        periodsEl.addEventListener('input', () => validateInput(periodsEl, periodsWarn));
     }
 
     // Theme Logic
-    const THEME_PRESETS = {
-        indigo: '#145A6A', emerald: '#22C55E', rose: '#EC4899', 
-        cyan: '#06B6D4', amber: '#EAB308', orange: '#F97316', violet: '#B48B57'
-    };
+    const THEME_PRESETS = {};
+    document.querySelectorAll('#displayThemePalette [data-theme]').forEach(button => {
+        THEME_PRESETS[button.dataset.theme] = button.dataset.hex;
+    });
 
     function setActiveTheme(themeName) {
          // Update radios
@@ -905,8 +910,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ── وراثة إعداد جميع الشاشات ──
-    // تعطيل بصري فقط: تبقى الحقول مُرسَلة حتى يستعيد المدير قيمه فورًا عند
-    // إلغاء الوراثة، والخادم هو من يقرر تجاهلها ويفرّغ حقول التخصيص.
     const inheritInputs = Array.prototype.slice.call(
         document.querySelectorAll('[data-inherit-input]')
     );
@@ -915,7 +918,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const inherited = input.checked;
         document.querySelectorAll('[data-inherit-group="' + group + '"]').forEach((el) => {
             el.classList.toggle('is-inherited', inherited);
-            el.setAttribute('aria-hidden', inherited ? 'true' : 'false');
+            el.querySelectorAll('input, select, textarea, button').forEach((control) => {
+                if (inherited && !control.disabled) {
+                    control.disabled = true;
+                    control.dataset.disabledByInheritance = 'true';
+                } else if (!inherited && control.dataset.disabledByInheritance) {
+                    control.disabled = false;
+                    delete control.dataset.disabledByInheritance;
+                }
+            });
         });
     }
     inheritInputs.forEach((input) => {
@@ -1045,8 +1056,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 return;
             }
-            const valid1 = validateInput(standbyEl, 0.5, null, standbyWarn);
-            const valid2 = validateInput(periodsEl, 0.5, null, periodsWarn);
+            const valid1 = validateInput(standbyEl, standbyWarn);
+            const valid2 = validateInput(periodsEl, periodsWarn);
 
             if(!valid1 || !valid2) {
                 e.preventDefault();
@@ -1613,4 +1624,8 @@ document.addEventListener('DOMContentLoaded', function() {
     .settings-submit-action { transition: none; }
 }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+{% if display_preview_url and show_display_settings %}<script defer src="{% static 'js/screen-live-preview.js' %}?v=2026-11-25-device-preview-2"></script>{% endif %}
 {% endblock %}

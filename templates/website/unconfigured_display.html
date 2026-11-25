@@ -1,5 +1,7 @@
 {% load static %}
 {% static 'img/landing-demo/screen-during-class.webp' as display_class_image %}
+{% static 'img/landing-demo/screen-during-break.webp' as display_break_image %}
+{% static 'img/landing-demo/school-dashboard.webp' as dashboard_image %}
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -18,15 +20,13 @@
     <meta property="og:url" content="https://school-display.com/">
     <meta property="og:image" content="https://school-display.com{{ display_class_image }}">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="theme-color" content="#062b31">
+    <meta name="theme-color" content="#102d29">
 
     <link rel="icon" type="image/png" sizes="1024x1024" href="/favicon.png?v=20260723-logo1">
     <link rel="apple-touch-icon" href="/favicon.png?v=20260723-logo1">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Changa:wght@600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/fonts.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="{% static 'css/landing-v2.css' %}?v=20261125-1">
+    <link rel="stylesheet" href="{% static 'css/landing-v2.css' %}?v=20261125-2">
 
     <script type="application/ld+json">
     {
@@ -51,303 +51,243 @@
 
     <header class="site-header" id="header">
         <div class="nav-shell container">
-            <a class="brand" href="#top" aria-label="لوحة العرض الذكية - الرئيسية">
-                <span class="brand-mark"><i class="fa-solid fa-layer-group"></i></span>
-                <span class="brand-copy"><strong>لوحة العرض الذكية</strong><small>تشغيل شاشات المدارس</small></span>
+            <a class="brand" href="#top" aria-label="لوحة العرض الذكية، الرئيسية">
+                <span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-display"></i></span>
+                <span>لوحة العرض الذكية</span>
             </a>
-
             <nav class="desktop-nav" aria-label="التنقل الرئيسي">
-                <a href="#product-gallery">المنتج</a>
-                <a href="#operations">الإمكانات</a>
-                <a href="#journey">بدء التشغيل</a>
+                <a href="#video">الفيديو التعريفي</a>
+                <a href="#operations">فوائد للمدارس</a>
+                <a href="#journey">طريقة التشغيل</a>
                 <a href="#pricing">الباقات</a>
             </nav>
-
             <div class="nav-actions">
-                {% if login_url %}<a class="button button-quiet login-link" href="{{ login_url }}"><i class="fa-solid fa-arrow-right-to-bracket"></i><span>دخول النظام</span></a>{% endif %}
-                <button type="button" class="button button-primary nav-trial" data-role="open-trial" data-plan="{{ landing_trial.name }}" data-period="{{ landing_trial.duration_label }}" data-price="{{ landing_trial.price|floatformat:'-2' }}">
-                    ابدأ التجربة
-                </button>
+                {% if login_url %}<a class="login-link" href="{{ login_url }}">دخول النظام</a>{% endif %}
+                <a class="mobile-pricing-link" href="#pricing">الباقات</a>
+                <button type="button" class="button button-primary nav-trial" data-role="open-trial" data-plan="{{ landing_trial.name }}" data-period="{{ landing_trial.duration_label }}" data-price="{{ landing_trial.price|floatformat:'-2' }}">ابدأ التجربة</button>
                 <button type="button" class="icon-button menu-toggle" aria-label="فتح القائمة" aria-expanded="false" aria-controls="mobileMenu" data-menu-toggle>
-                    <i class="fa-solid fa-bars"></i>
+                    <i class="fa-solid fa-bars" aria-hidden="true"></i>
                 </button>
             </div>
         </div>
-
-        <nav class="mobile-menu" id="mobileMenu" aria-label="تنقل الجوال" hidden>
-            <a href="#product-gallery">شاهد المنتج <i class="fa-solid fa-arrow-left"></i></a>
-            <a href="#operations">الإمكانات <i class="fa-solid fa-arrow-left"></i></a>
-            <a href="#journey">بدء التشغيل <i class="fa-solid fa-arrow-left"></i></a>
-            <a href="#pricing">الباقات <i class="fa-solid fa-arrow-left"></i></a>
-            {% if login_url %}<a href="{{ login_url }}">دخول النظام <i class="fa-solid fa-arrow-left"></i></a>{% endif %}
+        <nav class="mobile-menu container" id="mobileMenu" aria-label="تنقل الجوال" hidden>
+            <a href="#video">الفيديو التعريفي</a>
+            <a href="#operations">فوائد للمدارس</a>
+            <a href="#journey">طريقة التشغيل</a>
+            <a href="#pricing">الباقات والأسعار</a>
+            {% if login_url %}<a href="{{ login_url }}">دخول النظام</a>{% endif %}
         </nav>
     </header>
 
     <main id="mainContent">
         <section class="hero" id="top" aria-labelledby="heroTitle">
-            <div class="hero-content container">
+            <div class="container hero-grid">
                 <div class="hero-copy">
-                    <h1 id="heroTitle">جدول الحصص والإعلانات على شاشات مدرستك</h1>
-                    <p>شغّل تلفاز المدخل أو الممرات من لوحة إدارة واحدة. تظهر الحصة الحالية والتالية والانتظار والإعلانات في وقتها.</p>
+                    <h1 id="heroTitle">شغّل شاشات مدرستك <em>من لوحة واحدة</em></h1>
+                    <p>اعرض جدول الحصص والانتظار والمناوبات والإعلانات على تلفاز المدرسة، وأدر محتوى كل شاشة من الجوال أو الحاسب.</p>
                     <a class="hero-price" href="#pricing">
-                        {% if starting_plan %}
-                        <span class="hero-price-amount">من <strong>{{ starting_plan.price|floatformat:"-2g" }} ر.س</strong> شهريًا لشاشة واحدة</span>
-                        {% endif %}
+                        {% if starting_plan %}<span class="hero-price-amount">من <strong>{{ starting_plan.price|floatformat:"-2g" }} ر.س</strong> شهريًا لشاشة واحدة</span>{% endif %}
                         <span class="hero-price-link">عرض الباقات <i class="fa-solid fa-arrow-down" aria-hidden="true"></i></span>
                     </a>
                 </div>
 
-                <figure class="hero-preview" id="screen-preview">
-                    <button type="button" class="hero-display-image" data-zoom-image aria-label="تكبير لقطة شاشة المدرسة أثناء الدوام">
-                        <img src="{{ display_class_image }}" width="1440" height="810" fetchpriority="high"
-                             alt="شاشة العرض أثناء الحصة الثانية، وتظهر الوقت المتبقي والحصة التالية وجدول الفصول والانتظار والإعلانات">
-                    </button>
+                <figure class="hero-preview">
+                    <div class="screen-frame">
+                        <button type="button" class="screen-image" data-zoom-image aria-label="تكبير لقطة شاشة المدرسة أثناء الدوام">
+                            <img src="{{ display_class_image }}" width="1440" height="810" fetchpriority="high"
+                                 alt="شاشة العرض أثناء الحصة الثانية، وفيها الوقت المتبقي والحصة التالية والانتظار والإعلانات">
+                        </button>
+                    </div>
                     <figcaption>
-                        <span><i class="fa-solid fa-tv" aria-hidden="true"></i> شاشة العرض أثناء الدوام</span>
+                        <span><i class="fa-solid fa-display" aria-hidden="true"></i> شاشة المدرسة أثناء الدوام</span>
                         <span>بيانات تجريبية</span>
                     </figcaption>
                 </figure>
 
-                <div class="hero-actions-group">
-                    <div class="hero-actions">
+                <div class="hero-actions">
+                    <div class="hero-buttons">
                         <button type="button" class="button button-gold" id="heroTrialCta" data-role="open-trial" data-plan="{{ landing_trial.name }}" data-period="{{ landing_trial.duration_label }}" data-price="{{ landing_trial.price|floatformat:'-2' }}">
                             جرّب مجانًا {{ landing_trial.duration_days }} يومًا
                         </button>
-                        <a class="button button-glass" id="screenPreviewLink" href="#product-gallery" data-show-display>
-                            <i class="fa-solid fa-tv" aria-hidden="true"></i> شاهد شاشة المدرسة
-                        </a>
+                        <a class="button button-glass" id="heroVideoLink" href="#video"><i class="fa-solid fa-play" aria-hidden="true"></i> شاهد الفيديو</a>
                     </div>
-                    <p class="hero-trial-note">التجربة تشمل تشغيل شاشة واحدة، بلا بطاقة بنكية.</p>
+                    <p><i class="fa-solid fa-check" aria-hidden="true"></i> تجربة على شاشة واحدة بلا بطاقة بنكية</p>
                 </div>
             </div>
         </section>
 
-        <section class="proof-strip" aria-label="قيمة المنتج">
-            <div class="container proof-grid">
-                <div><strong>{{ landing_trial.duration_days }} يوماً</strong><span>تجربة كاملة</span></div>
-                <div><strong>دقائق</strong><span>لتشغيل أول شاشة</span></div>
-                <div><strong>كل شاشة لها محتواها</strong><span>تخصيص مستقل لكل موقع</span></div>
-                <div><strong>آخر بيانات محفوظة</strong><span>عند انقطاع الاتصال</span></div>
+        <section class="section video-section" id="video" aria-labelledby="videoTitle">
+            <div class="container video-layout">
+                <header class="video-copy">
+                    <p class="section-kicker">الفيديو التعريفي · دقيقة و39 ثانية</p>
+                    <h2 id="videoTitle">شاهد كيف تعمل المنصة في يوم دراسي</h2>
+                    <p>تابع كيف تُحدّث الإدارة الجدول، وتنشر إعلانًا أو تكريمًا، ثم تربط التلفاز من الجوال وتتابع ما يظهر على الشاشة.</p>
+                </header>
+                <div class="video-stage">
+                    <video id="schoolOverviewVideo" controls playsinline preload="none" width="1920" height="1080"
+                           poster="{% static 'img/landing-demo/school-display-overview-poster.webp' %}" aria-label="الفيديو التعريفي للوحة العرض الذكية">
+                        <source src="{% static 'videos/school-display-overview.mp4' %}" type="video/mp4">
+                        <track kind="captions" src="{% static 'videos/school-display-overview-ar.vtt' %}" srclang="ar" label="العربية">
+                        <a href="{% static 'videos/school-display-overview.mp4' %}">افتح الفيديو في صفحة مستقلة</a>
+                    </video>
+                    <button type="button" class="video-play" data-video-play aria-label="تشغيل الفيديو التعريفي" hidden>
+                        <i class="fa-solid fa-play" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="video-chapters" data-video-chapters hidden aria-label="مشاهد من الفيديو">
+                    <button type="button" data-video-seek="0">شاشات المدرسة</button>
+                    <button type="button" data-video-seek="13.433">الإعلانات</button>
+                    <button type="button" data-video-seek="53.033">الجدول والانتظار</button>
+                    <button type="button" data-video-seek="72.9">ربط التلفاز</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="section benefits-section" id="operations" aria-labelledby="benefitsTitle">
+            <div class="container">
+                <header class="section-head">
+                    <h2 id="benefitsTitle">كيف تستفيد المدرسة؟</h2>
+                    <p>تنظّم الإدارة المحتوى مرة واحدة، وتصل المعلومة إلى المعلم والطالب في المكان والوقت المناسبين.</p>
+                </header>
+                <div class="benefits-grid">
+                    <article class="benefit">
+                        <span class="benefit-icon" aria-hidden="true"><i class="fa-solid fa-calendar-days"></i></span>
+                        <h3>جدول يواكب وقت الدوام</h3>
+                        <p>استورد جدول الحصص من Excel واعرض الحصة الحالية والتالية والانتظار والمناوبات تلقائيًا حسب توقيت المدرسة.</p>
+                    </article>
+                    <article class="benefit">
+                        <span class="benefit-icon" aria-hidden="true"><i class="fa-solid fa-bullhorn"></i></span>
+                        <h3>إعلان واحد يصل للشاشات المطلوبة</h3>
+                        <p>انشر إعلانًا، اعرض تكريمًا، أو أرسل تنبيهًا طارئًا لشاشة واحدة أو لكل الشاشات من لوحة الإدارة.</p>
+                    </article>
+                    <article class="benefit">
+                        <span class="benefit-icon" aria-hidden="true"><i class="fa-solid fa-tv"></i></span>
+                        <h3>محتوى مناسب لكل موقع</h3>
+                        <p>اعرض الانتظار في غرفة المعلمين والإعلانات في المدخل. تابع اتصال كل شاشة ويستمر عرض آخر محتوى محفوظ عند انقطاع الاتصال.</p>
+                    </article>
+                </div>
             </div>
         </section>
 
         <section class="section product-section" id="product-gallery" aria-labelledby="galleryTitle">
             <div class="container">
-                <header class="section-heading heading-split">
-                    <div>
-                        <span class="section-kicker">المنتج كما هو</span>
-                        <h2 id="galleryTitle">من جدول اليوم إلى شاشة المدرسة، أمامك بوضوح.</h2>
-                    </div>
-                    <p>شاهد ما يظهر على التلفاز أثناء الحصة والفسحة، وتعرّف على لوحة الإدارة التي تتحكم في المحتوى.</p>
+                <header class="section-head">
+                    <h2 id="galleryTitle">من لوحة الإدارة إلى تلفاز المدرسة</h2>
+                    <p>لقطات من واجهة العرض ولوحة الإدارة ببيانات مدرسية تجريبية. اضغط على الصورة لتكبيرها.</p>
                 </header>
-
                 <div class="product-showcase" data-product-showcase>
-                    <div class="showcase-tabs" role="tablist" aria-label="لقطات المنتج">
-                        <button type="button" class="showcase-tab active" role="tab" aria-selected="true" data-shot-target="display"><i class="fa-solid fa-tv"></i><span>أثناء الحصة</span></button>
-                        <button type="button" class="showcase-tab" role="tab" aria-selected="false" data-shot-target="break"><i class="fa-solid fa-clock"></i><span>أثناء الفسحة</span></button>
-                        <button type="button" class="showcase-tab" role="tab" aria-selected="false" data-shot-target="overview"><i class="fa-solid fa-gauge-high"></i><span>لوحة التحكم</span></button>
-                        <button type="button" class="showcase-tab" role="tab" aria-selected="false" data-shot-target="timetable"><i class="fa-solid fa-table-list"></i><span>الجدول اليومي</span></button>
-                        <button type="button" class="showcase-tab" role="tab" aria-selected="false" data-shot-target="timing"><i class="fa-solid fa-clock"></i><span>توقيت الحصص</span></button>
-                        <button type="button" class="showcase-tab" role="tab" aria-selected="false" data-shot-target="emergency"><i class="fa-solid fa-triangle-exclamation"></i><span>الطوارئ</span></button>
-                        <button type="button" class="showcase-tab" role="tab" aria-selected="false" data-shot-target="occasions"><i class="fa-solid fa-gift"></i><span>المناسبات</span></button>
+                    <div class="showcase-tabs" role="tablist" aria-label="معاينات المنصة" hidden>
+                        <button type="button" class="showcase-tab active" id="tab-display" role="tab" aria-controls="shot-display" aria-selected="true" data-shot-target="display"><i class="fa-solid fa-display" aria-hidden="true"></i> أثناء الحصة</button>
+                        <button type="button" class="showcase-tab" id="tab-break" role="tab" aria-controls="shot-break" aria-selected="false" data-shot-target="break" tabindex="-1"><i class="fa-solid fa-clock" aria-hidden="true"></i> أثناء الفسحة</button>
+                        <button type="button" class="showcase-tab" id="tab-dashboard" role="tab" aria-controls="shot-dashboard" aria-selected="false" data-shot-target="dashboard" tabindex="-1"><i class="fa-solid fa-sliders" aria-hidden="true"></i> لوحة الإدارة</button>
                     </div>
-
-                    <div class="showcase-stage">
-                        <figure class="showcase-shot active" data-shot="display">
-                            <button type="button" class="shot-image shot-image-display" data-zoom-image aria-label="تكبير لقطة شاشة العرض أثناء الحصة">
-                                <img src="{{ display_class_image }}" width="1440" height="810" alt="شاشة المدرسة تعرض الحصة الحالية والوقت المتبقي ومسار اليوم" loading="lazy">
-                                <span class="zoom-hint"><i class="fa-solid fa-expand" aria-hidden="true"></i> تكبير</span>
-                            </button>
-                            <figcaption><strong>الحصة الآن، وما بعدها</strong><span>تظهر الحصة والوقت المتبقي والحصة التالية، مع جدول الفصول والانتظار والإعلانات.</span></figcaption>
-                        </figure>
-                        <figure class="showcase-shot" data-shot="break" hidden>
-                            <button type="button" class="shot-image shot-image-display" data-zoom-image aria-label="تكبير لقطة شاشة العرض أثناء الفسحة">
-                                <img src="{% static 'img/landing-demo/screen-during-break.webp' %}" width="1440" height="810" alt="شاشة المدرسة تعرض وقت الفسحة المتبقي والحصة التالية" loading="lazy">
-                                <span class="zoom-hint"><i class="fa-solid fa-expand" aria-hidden="true"></i> تكبير</span>
-                            </button>
-                            <figcaption><strong>الفسحة على الشاشة</strong><span>تنتقل الشاشة إلى عرض وقت الفسحة والحصة التالية بحسب توقيت المدرسة.</span></figcaption>
-                        </figure>
-                        <figure class="showcase-shot" data-shot="overview" hidden>
-                            <button type="button" class="shot-image" data-zoom-image aria-label="تكبير لقطة لوحة التحكم">
-                                <img src="{% static 'img/landing-demo/dashboard-overview.png' %}" alt="لوحة التحكم الرئيسية تعرض حالة الشاشات واختصارات العمل" loading="lazy">
-                                <span class="zoom-hint"><i class="fa-solid fa-expand"></i> تكبير</span>
-                            </button>
-                            <figcaption><strong>مركز تشغيل المدرسة</strong><span>حالة الشاشات، نشاط اليوم والمهام اليومية في نظرة واحدة.</span></figcaption>
-                        </figure>
-                        <figure class="showcase-shot" data-shot="timetable" hidden>
-                            <button type="button" class="shot-image" data-zoom-image aria-label="تكبير لقطة الجدول اليومي">
-                                <img src="{% static 'img/landing-demo/daily-timetable.png' %}" alt="الجدول اليومي للفصول مع الحصص والمواد والمعلمين" loading="lazy">
-                                <span class="zoom-hint"><i class="fa-solid fa-expand"></i> تكبير</span>
-                            </button>
-                            <figcaption><strong>جدول يومي مباشر</strong><span>تعديل الحصص والمعلمين ينعكس فوراً على شاشة العرض.</span></figcaption>
-                        </figure>
-                        <figure class="showcase-shot" data-shot="timing" hidden>
-                            <button type="button" class="shot-image" data-zoom-image aria-label="تكبير لقطة توقيت الحصص">
-                                <img src="{% static 'img/landing-demo/period-timing.png' %}" alt="إعداد أيام الدراسة وأوقات الحصص والفسح" loading="lazy">
-                                <span class="zoom-hint"><i class="fa-solid fa-expand"></i> تكبير</span>
-                            </button>
-                            <figcaption><strong>توقيت أسبوعك الدراسي</strong><span>اضبط الحصص والفسح والإجازات مرة واحدة.</span></figcaption>
-                        </figure>
-                        <figure class="showcase-shot" data-shot="emergency" hidden>
-                            <button type="button" class="shot-image" data-zoom-image aria-label="تكبير لقطة تنبيهات الطوارئ">
-                                <img src="{% static 'img/landing-demo/emergency-alerts.png' %}" alt="صفحة إرسال وإدارة تنبيهات الطوارئ" loading="lazy">
-                                <span class="zoom-hint"><i class="fa-solid fa-expand"></i> تكبير</span>
-                            </button>
-                            <figcaption><strong>تنبيهات طوارئ تتصدر الشاشة فوراً</strong><span>رسالة موحدة تصل إلى الشاشات المحددة خلال ثوانٍ.</span></figcaption>
-                        </figure>
-                        <figure class="showcase-shot" data-shot="occasions" hidden>
-                            <button type="button" class="shot-image" data-zoom-image aria-label="تكبير لقطة قوالب المناسبات">
-                                <img src="{% static 'img/landing-demo/occasion-templates.png' %}" alt="قوالب المناسبات المدرسية والوطنية الجاهزة" loading="lazy">
-                                <span class="zoom-hint"><i class="fa-solid fa-expand"></i> تكبير</span>
-                            </button>
-                            <figcaption><strong>مناسبات جاهزة بوقت محدد</strong><span>قوالب مدرسية ووطنية تظهر وتعود للجدول تلقائياً.</span></figcaption>
-                        </figure>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="section pricing-section" id="pricing" aria-labelledby="pricingTitle">
-            <div class="container">
-                <header class="section-heading heading-centered">
-                    <h2 id="pricingTitle">الباقات والأسعار</h2>
-                    <p>اختر عدد الشاشات وقارن إجمالي السعر لكل مدة. كل المزايا مشمولة.</p>
-                </header>
-
-                <div class="pricing-groups">
-                    {% for screen_count, plans in pricing_groups %}
-                    <details class="pricing-group" name="landing-screen-count" {% if forloop.first %}open{% endif %}>
-                        <summary class="pricing-group-title">
-                            <i class="fa-solid fa-tv" aria-hidden="true"></i>
-                            <strong>{% if screen_count == 1 %}شاشة واحدة{% elif screen_count == 2 %}شاشتان{% elif screen_count is None %}شاشات غير محدودة{% elif screen_count <= 10 %}{{ screen_count }} شاشات{% else %}{{ screen_count }} شاشة{% endif %}</strong>
-                            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
-                        </summary>
-                        {% include "website/_pricing_cards.html" %}
-                    </details>
-                    {% empty %}
-                    <div class="pricing-empty">
-                        <h3>سيتم نشر الباقات قريبًا</h3>
-                        <p>للاستفسار عن الأسعار، تواصل معنا عبر واتساب.</p>
-                        <a class="button button-primary" href="https://wa.me/966537720207" target="_blank" rel="noreferrer">تواصل عبر واتساب</a>
-                    </div>
-                    {% endfor %}
-                </div>
-                <p class="pricing-footnote"><i class="fa-solid fa-headset" aria-hidden="true"></i> إدارة المحتوى — 299 ر.س شهريًا لخدمة اختيارية.</p>
-            </div>
-        </section>
-
-        <section class="section operations-section" id="operations" aria-labelledby="operationsTitle">
-            <div class="container">
-                <header class="section-heading heading-centered">
-                    <span class="section-kicker">تشغيل يوم المدرسة</span>
-                    <h2 id="operationsTitle">المحتوى المناسب، على الشاشة المناسبة.</h2>
-                    <p>ثلاثة مسارات أساسية تغطي ما يحتاجه فريق المدرسة يومياً، دون تشتيت أو إعدادات معقدة.</p>
-                </header>
-
-                <div class="operations-grid">
-                    <article class="operation-card">
-                        <div class="operation-media"><img src="{% static 'img/landing-demo/daily-timetable.png' %}" alt="إدارة الجدول اليومي" loading="lazy"></div>
-                        <div class="operation-copy">
-                            <span class="operation-index">01</span>
-                            <h3>الجدول الحي والانتظار</h3>
-                            <p>الحصة الجارية والقادمة، تغطية انتظار المعلمين والمناوبات تظهر في وقت الدوام فقط.</p>
-                            <span class="feature-note"><i class="fa-solid fa-file-excel"></i> استيراد الجدول من Excel</span>
-                        </div>
-                    </article>
-                    <article class="operation-card">
-                        <div class="operation-media media-alert"><img src="{% static 'img/landing-demo/emergency-alerts.png' %}" alt="إرسال تنبيه طارئ" loading="lazy"></div>
-                        <div class="operation-copy">
-                            <span class="operation-index">02</span>
-                            <h3>رسائل فورية عند الحاجة</h3>
-                            <p>تنبيه طارئ، إعلان أو تكريم يصل إلى شاشة واحدة أو جميع شاشات المدرسة.</p>
-                            <span class="feature-note"><i class="fa-solid fa-bolt"></i> أولوية فورية للمحتوى العاجل</span>
-                        </div>
-                    </article>
-                    <article class="operation-card">
-                        <div class="operation-media media-dashboard"><img src="{% static 'img/landing-demo/dashboard-overview.png' %}" alt="متابعة اتصال الشاشات" loading="lazy"></div>
-                        <div class="operation-copy">
-                            <span class="operation-index">03</span>
-                            <h3>متابعة التشغيل بثقة</h3>
-                            <p>اعرف حالة كل شاشة وآخر اتصال، وواصل العرض بآخر نسخة محفوظة عند ضعف الشبكة.</p>
-                            <span class="feature-note"><i class="fa-solid fa-shield-halved"></i> مراقبة واتصال آمن</span>
-                        </div>
-                    </article>
-                </div>
-
-                <div class="value-band">
-                    <div><span class="section-kicker light">قيمة واضحة لكل دور</span><h2>كل مسؤول يرى فائدة مباشرة في يومه</h2></div>
-                    <div class="value-points">
-                        <span><i class="fa-solid fa-user-tie"></i><strong>الإدارة</strong> تعرف ما يظهر الآن</span>
-                        <span><i class="fa-solid fa-chalkboard-user"></i><strong>المعلم</strong> يرى جدوله وانتظاره</span>
-                        <span><i class="fa-solid fa-user-graduate"></i><strong>الطالب</strong> تصل إليه المعلومة في وقتها</span>
-                    </div>
+                    <figure class="showcase-shot active" id="shot-display" role="tabpanel" aria-labelledby="tab-display" data-shot="display">
+                        <button type="button" class="shot-image" data-zoom-image aria-label="تكبير لقطة شاشة العرض أثناء الحصة">
+                            <img src="{{ display_class_image }}" width="1440" height="810" loading="lazy" alt="شاشة العرض أثناء الحصة الحالية مع العداد والجدول والإعلانات">
+                        </button>
+                        <figcaption><strong>أثناء الحصة</strong><span>الوقت المتبقي والحصة التالية وجدول الفصول والانتظار والإعلانات.</span></figcaption>
+                    </figure>
+                    <figure class="showcase-shot" id="shot-break" role="tabpanel" aria-labelledby="tab-break" data-shot="break" hidden>
+                        <button type="button" class="shot-image" data-zoom-image aria-label="تكبير لقطة شاشة العرض أثناء الفسحة">
+                            <img src="{{ display_break_image }}" width="1440" height="810" loading="lazy" alt="شاشة العرض وفيها عداد الفسحة والحصة التالية">
+                        </button>
+                        <figcaption><strong>أثناء الفسحة</strong><span>تعرض الشاشة عداد الفسحة والحصة التالية تلقائيًا.</span></figcaption>
+                    </figure>
+                    <figure class="showcase-shot" id="shot-dashboard" role="tabpanel" aria-labelledby="tab-dashboard" data-shot="dashboard" hidden>
+                        <button type="button" class="shot-image" data-zoom-image aria-label="تكبير لقطة لوحة إدارة المدرسة">
+                            <img src="{{ dashboard_image }}" width="1440" height="810" loading="lazy" alt="لوحة إدارة المدرسة وفيها حالة شاشات العرض والإجراءات اليومية">
+                        </button>
+                        <figcaption><strong>لوحة الإدارة</strong><span>تابع الشاشات والجداول والإعلانات من حساب المدرسة.</span></figcaption>
+                    </figure>
                 </div>
             </div>
         </section>
 
         <section class="section journey-section" id="journey" aria-labelledby="journeyTitle">
-            <div class="container journey-layout">
-                <header class="section-heading journey-heading">
-                    <span class="section-kicker">بدء بسيط</span>
-                    <h2 id="journeyTitle">أول شاشة تعمل اليوم، والبقية عندما تحتاج.</h2>
-                    <p>تحتاج إلى تلفاز بمتصفح مناسب أو شاشة متصلة بجهاز تشغيل، واتصال بالإنترنت.</p>
-                    <button type="button" class="button button-primary" data-role="open-trial" data-plan="{{ landing_trial.name }}" data-period="{{ landing_trial.duration_label }}" data-price="{{ landing_trial.price|floatformat:'-2' }}">ابدأ التجربة الآن <i class="fa-solid fa-arrow-left"></i></button>
+            <div class="container">
+                <header class="section-head">
+                    <h2 id="journeyTitle">كيف تبدأ تشغيل أول شاشة؟</h2>
+                    <p>يكفي تلفاز بمتصفح مناسب أو شاشة متصلة بجهاز تشغيل، واتصال بالإنترنت.</p>
                 </header>
                 <ol class="journey-steps">
-                    <li><span>01</span><div><h3>أنشئ حساب المدرسة</h3><p>بيانات أساسية فقط، دون بطاقة بنكية.</p></div></li>
-                    <li><span>02</span><div><h3>أدخل جدولك ومحتواك</h3><p>استيراد سريع أو إعداد يدوي بإرشاد واضح.</p></div></li>
-                    <li><span>03</span><div><h3>اربط التلفاز من جوالك</h3><p>افتح <a href="{% url 'website:tv_pairing' %}">صفحة ربط التلفاز</a> من متصفح التلفاز، وامسح رمز QR بكاميرا الجوال واختر شاشتك من حساب المدرسة.</p></div></li>
+                    <li><span aria-hidden="true">1</span><div><h3>جهّز حساب المدرسة</h3><p>ابدأ التجربة وأضف بيانات المدرسة. يمكنك إدخال الجدول يدويًا أو استيراده من Excel.</p></div></li>
+                    <li><span aria-hidden="true">2</span><div><h3>اربط التلفاز بالجوال</h3><p>افتح <a href="{% url 'website:tv_pairing' %}">صفحة ربط التلفاز</a> على الشاشة، ثم امسح رمز QR واختر الشاشة من حسابك.</p></div></li>
+                    <li><span aria-hidden="true">3</span><div><h3>اختر ما يظهر على الشاشة</h3><p>حدّد المحتوى لكل موقع وتابع اتصال الشاشات من لوحة الإدارة.</p></div></li>
                 </ol>
+            </div>
+        </section>
+
+        <section class="section pricing-section" id="pricing" aria-labelledby="pricingTitle">
+            <div class="container">
+                <header class="section-head">
+                    <h2 id="pricingTitle">الباقات والأسعار</h2>
+                    <p>كل المزايا مشمولة. اختر عدد الشاشات لمقارنة إجمالي السعر لكل مدة.</p>
+                </header>
+                {% if pricing_groups %}
+                <div class="pricing-picker" data-pricing-picker hidden>
+                    <strong id="screenCountLabel">عدد الشاشات</strong>
+                    <div class="pricing-options" role="group" aria-labelledby="screenCountLabel">
+                        {% for screen_count, plans in pricing_groups %}
+                        <button type="button" data-pricing-choice="{{ forloop.counter0 }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="pricing-screen-{{ forloop.counter0 }}"
+                                aria-label="{% if screen_count is None %}شاشات غير محدودة{% else %}عدد الشاشات {{ screen_count }}{% endif %}">{% if screen_count is None %}غير محدودة{% else %}{{ screen_count }}{% endif %}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="pricing-groups" data-pricing-groups>
+                    {% for screen_count, plans in pricing_groups %}
+                    <details class="pricing-group" id="pricing-screen-{{ forloop.counter0 }}" name="landing-screen-count" {% if forloop.first %}open{% endif %}>
+                        <summary class="pricing-group-title">
+                            <strong>{% if screen_count == 1 %}شاشة واحدة{% elif screen_count == 2 %}شاشتان{% elif screen_count is None %}شاشات غير محدودة{% elif screen_count <= 10 %}{{ screen_count }} شاشات{% else %}{{ screen_count }} شاشة{% endif %}</strong>
+                            <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                        </summary>
+                        {% include "website/_pricing_cards.html" %}
+                    </details>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="pricing-empty">
+                    <p>سيتم نشر الباقات قريبًا.</p>
+                    <a class="button button-primary" href="https://wa.me/966537720207" target="_blank" rel="noreferrer">استفسر عن الأسعار</a>
+                </div>
+                {% endif %}
+                <p class="pricing-note">إدارة المحتوى — 299 ر.س شهريًا لخدمة اختيارية.</p>
             </div>
         </section>
 
         <section class="section faq-section" id="faq" aria-labelledby="faqTitle">
             <div class="container faq-layout">
-                <header class="section-heading faq-heading">
-                    <span class="section-kicker">قبل أول شاشة</span>
-                    <h2 id="faqTitle">إجابات مباشرة، بلا تعقيد.</h2>
-                    <p>ما يحتاجه فريق المدرسة لاتخاذ قرار واضح والبدء بثقة.</p>
-                    <a class="button button-quiet" href="https://wa.me/966537720207" target="_blank" rel="noreferrer"><i class="fa-brands fa-whatsapp"></i> اسألنا مباشرة</a>
+                <header class="section-head">
+                    <h2 id="faqTitle">أسئلة قبل البدء</h2>
+                    <a class="text-link" href="https://wa.me/966537720207" target="_blank" rel="noreferrer"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> تواصل معنا على واتساب</a>
                 </header>
                 <div class="faq-list">
-                    <details open><summary>هل يمكن تخصيص محتوى كل شاشة بشكل مستقل؟ <i class="fa-solid fa-plus"></i></summary><p>نعم. لكل شاشة إعداداتها ومحتواها، مع إمكانية تطبيق إعداد موحد على مجموعة شاشات.</p></details>
-                    <details><summary>ماذا يظهر قبل بداية الدوام وبعد نهايته؟ <i class="fa-solid fa-plus"></i></summary><p>لا تظهر الحصص الجارية أو الانتظار أو الإشراف والمناوبة ولوحة الشرف خارج وقت الدوام. تنتقل الشاشة إلى المحتوى العام الذي تحدده المدرسة.</p></details>
-                    <details><summary>هل نحتاج تلفازاً أو جهازاً خاصاً؟ <i class="fa-solid fa-plus"></i></summary><p>لا. يعمل النظام على المتصفح في الشاشة أو الجهاز المتصل بها، ويمكن استخدام الشاشات الموجودة حاليًا.</p></details>
-                    <details><summary>هل يستمر العرض عند انقطاع الإنترنت؟ <i class="fa-solid fa-plus"></i></summary><p>تستمر الشاشة في عرض آخر بيانات محفوظة، ثم تتزامن تلقائياً عند عودة الاتصال.</p></details>
-                    <details><summary>هل التجربة تشمل جميع المزايا؟ <i class="fa-solid fa-plus"></i></summary><p>نعم. يمكنك تشغيل شاشة واحدة لمدة {{ landing_trial.duration_days }} يومًا دون بطاقة بنكية، ثم اختيار باقة من حساب المدرسة لمواصلة العرض.</p></details>
-                    <details><summary>هل يمكنني زيادة عدد الشاشات لاحقًا؟ <i class="fa-solid fa-plus"></i></summary><p>نعم، يمكنك إضافة شاشات من صفحة «اشتراكي» في لوحة الإدارة بحسب الخيارات المتاحة لاشتراكك.</p></details>
-                    <details><summary>أين أدفع وأجد فاتورتي؟ <i class="fa-solid fa-plus"></i></summary><p>بعد إنشاء الحساب، اختر الباقة في صفحة «اشتراكي» وراجع السعر ووسائل الدفع المتاحة. أكّد بريدك الإلكتروني قبل الدفع الإلكتروني ليصلك إشعار الفاتورة.</p></details>
+                    <details><summary>هل تعمل المنصة على تلفاز المدرسة الحالي؟</summary><p>نعم، إذا كان التلفاز يدعم متصفحًا مناسبًا. ويمكن تشغيلها على شاشة متصلة بحاسب أو جهاز تشغيل.</p></details>
+                    <details><summary>هل يمكن تخصيص محتوى كل شاشة بشكل مستقل؟</summary><p>نعم. يمكنك تخصيص كل شاشة أو تطبيق إعداد موحّد على مجموعة شاشات.</p></details>
+                    <details><summary>ماذا يحدث إذا انقطع الإنترنت؟</summary><p>تستمر الشاشة في عرض آخر محتوى محفوظ وتتزامن مع التحديثات عند عودة الاتصال.</p></details>
+                    <details><summary>ماذا تشمل التجربة المجانية؟</summary><p>تشمل تشغيل شاشة واحدة لمدة {{ landing_trial.duration_days }} يومًا بلا بطاقة بنكية. يمكنك بعدها اختيار باقة ومتابعة الاشتراك من حساب المدرسة.</p></details>
+                    <details><summary>كيف أدفع وأحصل على الفاتورة؟</summary><p>اختر الباقة من صفحة «اشتراكي» في لوحة الإدارة. أكّد بريدك الإلكتروني قبل الدفع الإلكتروني لتصلك الفاتورة.</p></details>
                 </div>
             </div>
         </section>
 
         <section class="final-cta" aria-labelledby="finalCtaTitle">
             <div class="container final-cta-inner">
-                <div><span>شاشتك موجودة. المحتوى جاهز.</span><h2 id="finalCtaTitle">شغّل أول شاشة مدرسية اليوم.</h2></div>
-                <div class="final-actions">
-                    <button type="button" class="button button-gold" data-role="open-trial" data-plan="{{ landing_trial.name }}" data-period="{{ landing_trial.duration_label }}" data-price="{{ landing_trial.price|floatformat:'-2' }}">ابدأ التجربة المجانية <i class="fa-solid fa-arrow-left"></i></button>
-                    <a class="button button-glass" href="https://wa.me/966537720207" target="_blank" rel="noreferrer"><i class="fa-brands fa-whatsapp"></i> تواصل واتساب</a>
-                </div>
+                <div><h2 id="finalCtaTitle">جرّبها على شاشة مدرستك</h2><p>{{ landing_trial.duration_days }} يومًا مجانًا لشاشة واحدة، بلا بطاقة بنكية.</p></div>
+                <button type="button" class="button button-gold" data-role="open-trial" data-plan="{{ landing_trial.name }}" data-period="{{ landing_trial.duration_label }}" data-price="{{ landing_trial.price|floatformat:'-2' }}">ابدأ التجربة المجانية <i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
             </div>
         </section>
     </main>
 
     <footer class="site-footer">
-        <div class="container footer-grid">
-            <div class="footer-brand">
-                <span class="brand-mark"><i class="fa-solid fa-layer-group"></i></span>
-                <div><strong>لوحة العرض الذكية</strong><p>تشغيل يوم المدرسة على كل شاشة.</p></div>
+        <div class="container footer-inner">
+            <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><i class="fa-solid fa-display"></i></span><span>لوحة العرض الذكية</span></a>
+            <nav aria-label="روابط الصفحة"><a href="#video">الفيديو</a><a href="#pricing">الباقات</a><a href="#faq">الأسئلة</a></nav>
+            <div class="footer-contact">
+                <a href="mailto:support@mail.school-display.com">البريد الإلكتروني</a>
+                <a href="https://wa.me/966537720207" target="_blank" rel="noreferrer">واتساب</a>
             </div>
-            <nav aria-label="روابط التذييل"><a href="#product-gallery">المنتج</a><a href="#operations">الإمكانات</a><a href="#pricing">الباقات</a><a href="#faq">الأسئلة</a></nav>
-            <div class="footer-contact"><a href="mailto:support@mail.school-display.com">support@mail.school-display.com</a><a href="https://wa.me/966537720207" target="_blank" rel="noreferrer">+966 53 772 0207</a></div>
         </div>
-        <div class="container copyright">© 2026 لوحة العرض الذكية. جميع الحقوق محفوظة.</div>
     </footer>
-
-    <div class="mobile-cta" aria-label="بدء التجربة">
-        <div><strong>{{ landing_trial.duration_days }} يوماً مجاناً</strong><small>شاشة واحدة، بلا بطاقة</small></div>
-        <button type="button" class="button button-primary" data-role="open-trial" data-plan="{{ landing_trial.name }}" data-period="{{ landing_trial.duration_label }}" data-price="{{ landing_trial.price|floatformat:'-2' }}">ابدأ</button>
-    </div>
 
     <div class="image-lightbox" id="imageLightbox" aria-hidden="true" inert>
         <div class="lightbox-shell" role="dialog" aria-modal="true" aria-label="معاينة صورة المنتج">
@@ -364,7 +304,6 @@
         <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalSubtitle orderPlanSummary" tabindex="-1">
             <button type="button" class="icon-button modal-close" data-role="close-order-modal" aria-label="إغلاق النموذج"><i class="fa-solid fa-xmark"></i></button>
             <header class="modal-header">
-                <span class="section-kicker">ابدأ بخطوة واضحة</span>
                 <h2 id="modalTitle">طلب تجربة مجانية</h2>
                 <p id="modalSubtitle">شغّل شاشة واحدة مجانًا لمدة {{ landing_trial.duration_days }} يومًا دون بطاقة بنكية.</p>
             </header>
@@ -414,6 +353,6 @@
         </div>
     </div>
 
-    <script src="{% static 'js/landing-v2.js' %}?v=20261125-1" defer></script>
+    <script src="{% static 'js/landing-v2.js' %}?v=20261125-2" defer></script>
 </body>
 </html>

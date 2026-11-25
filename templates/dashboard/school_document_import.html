@@ -6,6 +6,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/document-import.css' %}"><link rel="stylesheet" href="{% static 'css/import-changes.css' %}">{% endblock %}
 {% block content %}
 <div class="dp-stack di" data-document-import data-max-rows="{{ max_rows }}">
+  {% include 'dashboard/_timetable_import_methods.html' with method='smart' only %}
   <section class="dp-steps" aria-label="مراحل الاستيراد">
     <div class="dp-step{% if not draft %} is-current{% endif %}"><span class="dp-step__n">١</span><strong>ارفع الملف</strong><p>Excel أو صورة واضحة أو PDF لجدول المدرسة.</p></div>
     <div class="dp-step{% if draft %} is-current{% endif %}"><span class="dp-step__n">٢</span><strong>راجع وصحح</strong><p>تأكد من الأسماء، والأيام، وأوقات الحصص.</p></div>
@@ -14,7 +15,7 @@
   <noscript><div class="di-notice">فعّل JavaScript في المتصفح لتعديل الجدول والتحقق منه.</div></noscript>
 
   {% if not configured %}
-    <div class="di-notice" role="status">ميزة الاستيراد الذكي غير مفعلة حاليًا. تواصل مع مسؤول المنصة لتفعيلها. يمكنك استخدام <a href="{% url 'dashboard:school_data_import' %}">قالب Excel الجاهز</a>.</div>
+    <div class="di-notice" role="status">الاستيراد الذكي غير متاح حاليًا. يمكنك استخدام طريقة قالب Excel أعلاه.</div>
   {% endif %}
 
   {% if job %}
@@ -47,7 +48,6 @@
         <p class="di-help">عند القراءة تُرسل قيم خلايا Excel أو صور صفحات الملف إلى OpenAI لتحليلها. تُقرأ نتائج المعادلات المحفوظة دون تشغيل الماكرو. لا تُحفظ بيانات في المدرسة حتى تعتمد المعاينة.</p>
         <div class="di-actions">
           <button type="submit" class="dp-btn dp-btn--primary" {% if not configured %}disabled{% endif %}><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><span data-extract-label>قراءة الملف واستخراج البيانات</span></button>
-          <a href="{% url 'dashboard:school_data_import' %}" class="dp-btn dp-btn--soft">قالب Excel الجاهز</a>
         </div>
         <p class="di-help" role="status" aria-live="polite" data-extract-status hidden>جارٍ تجهيز الملف وقراءة محتواه… سيظهر تقدّم القراءة للجدول الكبير.</p>
       </form>

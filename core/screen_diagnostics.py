@@ -355,5 +355,5 @@ def classify_outage(
         "cause": CAUSE_NETWORK_DROP if school_offline_count <= 1 else CAUSE_UNKNOWN,
         "confidence": CONFIDENCE_LIKELY,
         "scope": SCOPE_SCREEN,
-        "detail": "انقطع الاتصال دون إشارة وداع من الجهاز، وبقية شاشات المدرسة تعمل.",
+        "detail": "لم تصل إشارة إغلاق من الجهاز قبل انقطاع اتصاله.",
     }

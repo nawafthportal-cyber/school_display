@@ -20,17 +20,17 @@
   <link rel="stylesheet" href="{% static 'css/fonts.css' %}?v=2026-08-05-perf1">
 
   <link rel="stylesheet" href="{% static 'css/tailwind.generated.css' %}?v=2026-04-15b">
-  <link rel="stylesheet" href="{% static 'css/display-controls.css' %}?v=2026-09-09-bell1">
+  <link rel="stylesheet" href="{% static 'css/display-controls.css' %}?v=2026-11-25-tv-offline">
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=2026-02-08-standby-chip-contrast-v2">
-  <link rel="stylesheet" href="{% static 'css/display-board.css' %}?v=2026-10-10-responsive1">
-  <link rel="stylesheet" href="{% static 'css/custom-occasion-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/display-board.css' %}?v=2026-11-25-cards-2">
+  <link rel="stylesheet" href="{% static 'css/custom-occasion-theme.css' %}?v=2026-11-25-occasions-3">
   {% comment %}
     احتياطيات المتصفحات القديمة (Tizen 3/4، webOS 4). كل قواعدها داخل
     ‎@supports not(...)‎ فلا يطبّق منها المتصفح الحديث شيئًا، وموضعها بعد
     display-board.css شرط لتفوز على التصريحات التي تعجز عن تحليلها.
     تُولَّد بأمر: python manage.py build_legacy_css
   {% endcomment %}
-  <link rel="stylesheet" href="{% static 'css/display-legacy.css' %}?v=2026-10-10-responsive1">
+  <link rel="stylesheet" href="{% static 'css/display-legacy.css' %}?v=2026-11-25-cards-2">
   <link rel="stylesheet" href="{% static 'css/custom-display-theme.css' %}?v=2026-11-06-1">
 
   {% comment %}
@@ -113,6 +113,8 @@
   data-ws-live-status-check="{% if ws_live_status_check_sec %}{{ ws_live_status_check_sec }}{% else %}45{% endif %}"
   data-standby="{% if standby_scroll_speed %}{{ standby_scroll_speed|unlocalize }}{% else %}0.8{% endif %}"
   data-periods-speed="{% if periods_scroll_speed %}{{ periods_scroll_speed|unlocalize }}{% else %}0.5{% endif %}"
+  data-screen-standby-speed="{{ screen.standby_scroll_speed_override|default_if_none:''|unlocalize }}"
+  data-screen-periods-speed="{{ screen.periods_scroll_speed_override|default_if_none:''|unlocalize }}"
     style="{% if display_accent_color %}--accent-main: {{ display_accent_color }};{% endif %}"
 >
   <div class="bg-mesh"></div>
@@ -222,47 +224,22 @@
         </button>
 
         <!-- Auto-fit root: viewport container (NOT transformed) -->
-        {% if preview_mode %}
-        {% comment %}
-          معاينة للمدير: تُطمئنه أن ما يراه هو الشاشة نفسها، وتوضّح أن هذه
-          النافذة لا تحجز الشاشة عن التلفاز.
-        {% endcomment %}
-        <div class="display-preview-badge" role="status">
-          <span class="display-preview-badge__dot" aria-hidden="true"></span>
-          <span class="display-preview-badge__copy">
-            <strong>وضع المعاينة</strong>
-            <small>هذه النافذة لا تشغل الشاشة على التلفاز</small>
-          </span>
-        </div>
-        {% endif %}
-
         <div id="fitRoot" class="h-full w-full">
     <div id="occasionThemeDecor" class="u-hidden" aria-hidden="true">
       <div class="occasion-theme-pattern"></div>
       <span id="occasionThemeSymbolOne" class="occasion-theme-symbol occasion-theme-symbol--one"></span>
       <span id="occasionThemeSymbolTwo" class="occasion-theme-symbol occasion-theme-symbol--two"></span>
     </div>
-    <div id="occasionThemeBadge" class="u-hidden" role="status" aria-live="polite">
-      <span id="occasionThemeBadgeIcon"></span>
-      <span id="occasionThemeBadgeCopy">
-        <small>ثيم المناسبة</small>
-        <strong id="occasionThemeBadgeLabel"></strong>
-      </span>
-    </div>
-
     <!-- Auto-fit stage: transformed/scaled to fit the viewport -->
     <div id="fitStage" class="">
 
   <!-- Header -->
   <header class="flex-none p-5 pb-0">
     <div class="glass-panel rounded-2xl p-4 relative overflow-hidden header-shell">
-        <!-- Glow effect -->
-        <div class="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-white/5 to-transparent pointer-events-none"></div>
-
         <div class="header-brand flex items-center gap-6 relative z-10 min-w-0">
             <!-- Logo -->
-            <div class="w-16 h-16 rounded-xl bg-white/10 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
-                <img id="schoolLogo" data-fallback-src="{% static 'img/UntiTtled-1.png' %}" src="{% if logo_url %}{{ logo_url }}{% else %}{% static 'img/UntiTtled-1.png' %}{% endif %}" class="w-full h-full object-contain p-1" alt="Logo">
+            <div class="masthead-logo w-16 h-16 rounded-xl bg-white/10 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
+                <img id="schoolLogo" data-fallback-src="{% static 'img/UntiTtled-1.png' %}" src="{% if logo_url %}{{ logo_url }}{% else %}{% static 'img/UntiTtled-1.png' %}{% endif %}" class="w-full h-full object-contain p-1" alt="شعار المدرسة">
             </div>
 
             <div class="header-brand-meta flex flex-col min-w-0">
@@ -274,19 +251,31 @@
                     <span class="header-date-dot w-1 h-1 rounded-full bg-slate-500"></span>
                     <span id="dateHijri" class="opacity-90"></span>
                 </div>
+                {% if preview_mode and not preview_embedded %}
+                <span class="display-preview-badge">وضع المعاينة · للقراءة فقط</span>
+                {% endif %}
             </div>
         </div>
 
-        <div class="header-live-status" aria-live="polite">
-            <span class="header-live-status__pulse" aria-hidden="true"></span>
-            <span class="header-live-status__copy">
-                <small>حالة الشاشة</small>
-                <strong id="boardStatusText">متصلة وجاهزة</strong>
-            </span>
+        <div class="masthead-status">
+            <div id="occasionThemeBadge" class="u-hidden" role="status" aria-live="polite">
+                <span id="occasionThemeBadgeIcon"></span>
+                <span id="occasionThemeBadgeCopy">
+                    <small>ثيم المناسبة</small>
+                    <strong id="occasionThemeBadgeLabel"></strong>
+                </span>
+            </div>
+            <div class="header-live-status" aria-live="polite">
+                <span class="header-live-status__pulse" aria-hidden="true"></span>
+                <span class="header-live-status__copy">
+                    <small>اليوم الدراسي</small>
+                    <strong id="boardStatusText">جارٍ تحميل الجدول</strong>
+                </span>
+            </div>
         </div>
 
         <div class="header-clock text-right pl-4 shrink-0">
-            <div class="header-clock-label text-[10px] font-bold uppercase tracking-widest mb-0.5" style="color: var(--accent-sub, #93c5fd);">التوقيت المحلي</div>
+            <div class="header-clock-label">التوقيت المحلي</div>
             <div id="clock" class="text-5xl font-mono font-bold text-white tracking-widest leading-none drop-shadow-lg" style="font-variant-numeric: tabular-nums;">--:--</div>
         </div>
     </div>
@@ -298,30 +287,9 @@
     <!-- Main Column (Right) -->
     <section id="boardMainColumn" class="col-span-12 lg:col-span-8 flex flex-col gap-5 min-h-0">
         
-        <!-- Alert Card -->
-        <div class="glass-panel rounded-2xl p-0 flex flex-col overflow-hidden u-hidden" id="alertContainer" role="status" aria-live="polite" aria-atomic="true"> <!-- JS toggles hidden class -->
-             <!-- Recreating structure for JS targetting: alertTitle, alertDetails -->
-             <div class="border-b border-white/5 bg-red-500/10 p-3 px-5 flex items-center gap-3">
-                <span class="animate-pulse w-2 h-2 rounded-full bg-red-500"></span>
-                <div id="alertTitle" class="font-bold text-red-200 text-lg">جاري التحميل...</div>
-             </div>
-             <div class="p-4 px-6">
-                <div id="alertDetails" class="text-xl leading-relaxed text-white">...</div>
-             </div>
-        </div>
-        <!-- Alert Container Placeholder (The JS expects specific structure, I will keep the ids but styling is handled by JS inserting text usually) 
-             Wait, existing HTML had alertTitle inside alertContainer. 
-             If JS toggles #alertContainer visibility, I should make sure it starts visible if needed or respects 'hidden' class. 
-             The JS code: toggleHidden($('alertContainer'), false/true);
-             So I should put the ID on the wrapper div.
-        -->
-        
         <!-- Hero Card -->
         <div id="heroCard" class="hero-card glass-panel rounded-3xl flex-1 flex flex-col relative overflow-hidden group">
-            <!-- Animated Background Mesh -->
-            <div class="hero-card__ambient absolute inset-0 opacity-50" style="background: linear-gradient(to bottom right, var(--mesh1), transparent, var(--mesh2));"></div>
-            <div class="hero-card__orb hero-card__orb--one" aria-hidden="true"></div>
-            <div class="hero-card__orb hero-card__orb--two" aria-hidden="true"></div>
+            <div class="hero-card__ambient" aria-hidden="true"></div>
 
             <div id="occasionHero" class="occasion-hero u-hidden" role="status" aria-live="polite">
                 <div class="occasion-hero__copy">
@@ -349,23 +317,27 @@
                 </defs>
             </svg>
             
-            <div class="relative z-10 flex-1 p-8 flex flex-col gap-6">
+            <div class="hero-content relative z-10 flex-1 p-8 flex flex-col gap-6">
                 <!-- Top Row: Badge & Progress -->
-                <div class="flex flex-wrap justify-between items-start gap-6">
+                <div class="hero-heading flex flex-wrap justify-between items-start gap-6">
                     <div class="space-y-4 flex-1">
-                        <div class="flex items-center gap-4 flex-wrap">
+                        <div class="hero-kicker flex items-center gap-4 flex-wrap">
                             <span id="badgeKind" class="px-4 py-2 rounded-full bg-white/10 border border-white/10 text-xs font-bold uppercase tracking-wider backdrop-blur-md" style="color: var(--accent-sub, #a5b4fc);">--</span>
-                            <span id="heroRange" class="text-slate-400 num-font text-sm tracking-wide">--:--</span>
                         </div>
                         
                         <h2 id="heroTitle" class="text-5xl md:text-6xl font-black text-white leading-tight py-1">
                             جاري التحميل...
                         </h2>
+                        <span id="heroRange" class="text-slate-400 num-font text-sm tracking-wide">--:--</span>
+                        <div class="timeline-next u-hidden">
+                            <span>التالي</span>
+                            <strong id="nextLabel"></strong>
+                        </div>
                     </div>
 
-                    <!-- Luxury Progress Circle -->
-                    <div class="relative flex-none" style="width: clamp(96px, 10vw, 140px); height: clamp(96px, 10vw, 140px);">
-                        <svg class="w-full h-full" viewBox="0 0 120 120">
+                    <!-- Remaining time -->
+                    <div class="hero-dial relative flex-none">
+                        <svg class="w-full h-full" viewBox="0 0 120 120" aria-hidden="true">
                             <!-- Background Glow -->
                             <circle cx="60" cy="60" r="54" class="stroke-slate-800/50" stroke-width="12" fill="none" opacity="0.3"></circle>
                             <!-- Background Track -->
@@ -385,8 +357,8 @@
                 </div>
 
                 <!-- Current Activity List -->
-                <div class="mt-auto">
-                    <div class="text-xs font-bold uppercase tracking-widest mb-3 flex items-center gap-2" style="color: var(--accent-sub, #93c5fd);">
+                <div class="hero-summary mt-auto" id="heroSummary">
+                    <div class="hero-summary-label text-xs font-bold uppercase mb-3 flex items-center gap-2" style="color: var(--accent-sub, #93c5fd);">
                         <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.6)]"></div>
                         <span id="activityLabel">النشاط الحالي</span>
                     </div>
@@ -399,11 +371,7 @@
             <!-- Bottom: Timeline / Mini Schedule -->
             <div id="dayTimelinePanel" class="day-timeline-panel border-t border-white/5 bg-black/20 p-5 backdrop-blur-md">
                  <div class="flex items-center justify-between mb-4">
-                     <span class="text-sm font-bold text-slate-400">مسار اليوم</span>
-                     <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5">
-                        <span class="text-[10px] text-slate-500 uppercase">التالي</span>
-                        <span id="nextLabel" class="text-xs font-bold text-white truncate max-w-[150px]">--</span>
-                     </div>
+                     <span class="text-sm font-bold text-slate-400">مسار اليوم <small id="timelinePages" class="u-hidden" dir="ltr"></small></span>
                  </div>
 
                  <!-- Horizontal Scroll/List Container -->
@@ -418,6 +386,17 @@
             </div>
         </div>
 
+        <!-- Alert Card -->
+        <div class="glass-panel rounded-2xl p-0 flex flex-col overflow-hidden u-hidden" id="alertContainer" role="status" aria-live="polite" aria-atomic="true">
+             <div class="border-b border-white/5 bg-red-500/10 p-3 px-5 flex items-center gap-3">
+                <span class="notice-mark" aria-hidden="true"></span>
+                <div id="alertTitle" class="font-bold text-red-200 text-lg">جاري التحميل...</div>
+             </div>
+             <div class="p-4 px-6">
+                <div id="alertDetails" class="text-xl leading-relaxed text-white">...</div>
+             </div>
+        </div>
+
         <!-- Featured Panel Slot (Excellence / Duty) -->
         <!-- Excellence Board (Honor) -->
         <div id="exCard" class="glass-panel rounded-2xl p-1 flex overflow-hidden min-h-[220px]">
@@ -428,10 +407,9 @@
                         <path d="M12 2l2.15 4.36 4.81.7-3.48 3.39.82 4.79L12 13.66 7.7 15.24l.82-4.79L5.04 7.06l4.81-.7L12 2z"></path>
                     </svg>
                 </div>
-                <div class="honor-title">لوحة الشرف</div>
-                <div class="honor-subtitle">تكريم الطلاب والمعلمين المتميزين</div>
+                <h2 class="honor-title">لوحة الشرف</h2>
                 
-                <div class="honor-counter">
+                <div class="honor-counter" dir="ltr">
                     <span id="exIndex" class="font-mono text-amber-400 font-bold">0</span>
                     <span class="text-slate-600">/</span>
                     <span id="exTotal" class="font-mono text-slate-400">0</span>
@@ -445,52 +423,17 @@
              </div>
         </div>
 
-        <!-- Duty / Supervision Board (Luxury Redesign) -->
-        <div id="dutyCard" class="relative rounded-3xl overflow-hidden min-h-[220px] max-h-[300px] u-hidden flex border border-white/10 shadow-2xl bg-slate-900/60 backdrop-blur-2xl group">
-             <!-- Decorative background mesh for the whole card -->
-             <div class="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-800/80 z-0"></div>
-             
-             <!-- Side Info -->
-             <div class="relative w-80 p-8 flex flex-col justify-center z-10 border-l border-white/5 bg-gradient-to-b from-white/5 to-transparent">
-                <!-- Dynamic Glow -->
-                <div class="absolute -top-20 -right-20 w-40 h-40 bg-purple-500/30 blur-[60px] rounded-full pointer-events-none"></div>
-                <div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
-
-                <div class="flex items-center gap-4 mb-4">
-                    <div class="w-16 h-16 rounded-2xl p-[1px] shadow-lg" style="background: linear-gradient(135deg, var(--accent-main, #6366f1), var(--accent-sub, #a5b4fc)); box-shadow: 0 0 15px var(--mesh1, rgba(99,102,241,0.3));">
-                        <div class="w-full h-full rounded-2xl bg-black/20 backdrop-blur-sm flex items-center justify-center text-3xl">
-                            🛡️
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-3xl font-black text-white leading-none">الإشراف</h2>
-                    </div>
+        <section id="dutyCard" class="glass-panel u-hidden" aria-labelledby="dutyHeading">
+            <header class="duty-heading">
+                <h2 id="dutyHeading">الإشراف والمناوبة</h2>
+                <span class="duty-count">عدد التكليفات <b id="dutyTotal" class="num-font">0</b></span>
+            </header>
+            <div id="dutySlot">
+                <div class="list-viewport">
+                    <div id="dutyTrack" class="track" aria-label="قائمة الإشراف والمناوبة"></div>
                 </div>
-                
-                <h2 class="text-3xl font-black text-white/50 leading-none mb-6">والمناوبة</h2>
-
-                <div class="flex items-center gap-3">
-                    <div class="px-4 py-2 rounded-lg bg-black/40 border border-white/10 flex items-center gap-2 backdrop-blur-sm">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span class="text-slate-400 text-sm font-medium">عدد التكليفات:</span>
-                        <span id="dutyTotal" class="font-mono text-xl text-white font-bold">0</span>
-                    </div>
-                </div>
-             </div>
-
-             <!-- Main Content Slot -->
-             <div id="dutySlot" class="flex-1 relative overflow-hidden min-h-0 z-10">
-                 <!-- Inner Shadow -->
-                 <div class="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-black/20 to-transparent pointer-events-none z-20"></div>
-
-                 <!-- Viewport -->
-                 <div class="absolute inset-0 overflow-hidden list-viewport">
-                     <div id="dutyTrack" class="track flex flex-col gap-3 p-6 pr-0" role="list" aria-label="قائمة الإشراف والمناوبة">
-                         <div class="text-slate-500 animate-pulse font-medium px-4">جاري التحميل...</div>
-                     </div>
-                 </div>
-             </div>
-        </div>
+            </div>
+        </section>
 
     </section>
 
@@ -510,7 +453,7 @@
             <div class="flex-1 relative overflow-hidden min-h-0">
                 <!-- Viewport for scroller. JS appends items to #periodClassesTrack -->
                 <div class="absolute inset-0 overflow-hidden list-viewport"> 
-                    <div id="periodClassesTrack" class="track flex flex-col gap-2 p-3" role="list" aria-label="قائمة الحصص الجارية"></div>
+                    <div id="periodClassesTrack" class="track lesson-track" role="region" aria-label="قائمة الحصص الجارية"></div>
                 </div>
             </div>
         </div>
@@ -527,7 +470,7 @@
             
             <div class="flex-1 relative overflow-hidden min-h-0">
                 <div class="absolute inset-0 overflow-hidden standby-viewport">
-                    <div id="standbyTrack" class="track flex flex-col gap-2 p-3" role="list" aria-label="قائمة حصص الانتظار"></div>
+                    <div id="standbyTrack" class="track lesson-track" role="region" aria-label="قائمة حصص الانتظار"></div>
                 </div>
             </div>
         </div>
@@ -565,14 +508,14 @@
 
     {{ custom_display_theme|json_script:"customDisplayTheme" }}
     {{ occasion_customizations|json_script:"schoolOccasionThemes" }}
-    <script defer src="{% static 'js/occasion-theme.js' %}"></script>
+    <script defer src="{% static 'js/occasion-theme.js' %}?v=2026-11-25-occasions"></script>
     <script defer src="{% static 'js/display-theme.js' %}?v=2026-11-06-1"></script>
-    <script defer src="{% static 'js/display-controls.js' %}?v=2026-09-09-bell1"></script>
+  <script defer src="{% static 'js/display-controls.js' %}?v=2026-11-25-tv-offline"></script>
     {% if display_use_minified_js %}
-    <script defer src="{% static 'js/display.min.js' %}?v=2026-11-06-admin1"></script>
+    <script defer src="{% static 'js/display.min.js' %}?v=45d5b1af"></script>
     {% else %}
-    <script defer src="{% static 'js/display.js' %}?v=2026-11-06-admin1"></script>
+    <script defer src="{% static 'js/display.js' %}?v=45d5b1af"></script>
     {% endif %}
-    <script defer src="{% static 'js/display-sw-register.js' %}?v=2026-09-09-bell1"></script>
+  <script defer src="{% static 'js/display-sw-register.js' %}?v=2026-11-25-tv-offline"></script>
 </body>
 </html>

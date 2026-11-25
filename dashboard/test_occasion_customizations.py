@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core import occasions
-from core.models import School, SubscriptionPlan, UserProfile
+from core.models import DisplayScreen, School, SubscriptionPlan, UserProfile
 from core.occasion_customizations import cards_for_school, customizations_for_school
 from notices.models import Announcement
 from schedule.api_serializers import SchoolSettingsSerializer
@@ -41,6 +41,63 @@ class OccasionCustomizationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["form"]["name"].value(), "أخضر الوطن")
         self.assertEqual(response.context["form"]["pattern"].value(), "original")
+
+    def test_school_event_can_be_pinned_scheduled_and_returned_to_auto(self):
+        entrance = DisplayScreen.objects.create(school=self.school, name="المدخل")
+        second = DisplayScreen.objects.create(school=self.school, name="المسرح")
+        create = reverse("dashboard:occasion_theme_create") + f"?screen={entrance.pk}"
+        response = self.client.post(create, self.payload(name="معرض العلوم"))
+        event = SchoolOccasionTheme.objects.get(school=self.school)
+        key = event.occasion_key
+        self.assertRegex(key, r"^event_[0-9a-f]{16}$")
+        self.assertIn(f"occasion={key}&screen={entrance.pk}", response.url)
+        assign = reverse("dashboard:occasion_assign")
+        with self.captureOnCommitCallbacks(execute=True):
+            self.assertEqual(self.client.post(assign, {"screen": entrance.pk, "occasion": key}).status_code, 302)
+        entrance.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual((entrance.occasion_theme, second.occasion_theme), (key, "auto"))
+        self.assertContains(self.client.get(reverse("dashboard:screen_edit", args=[entrance.pk])), f'value="{key}" selected')
+        board = self.client.get(f"/s/{entrance.short_code}/?preview=1")
+        self.assertContains(board, f'data-screen-occasion-theme="{key}"')
+        self.assertEqual(board.context["occasion_customizations"][key]["name"], event.name)
+        schedule = reverse("dashboard:ann_create")
+        form = self.client.get(schedule, {"template": key, "screen": second.pk}).context["form"]
+        self.assertEqual(form.initial["title"], event.name)
+        self.assertEqual(form.initial["screens"], [second.pk])
+        self.assertIn((key, event.name), list(form.fields["occasion_theme"].choices))
+        self.assertEqual(self.client.post(schedule, {
+            "scope": "screens", "screens": [second.pk], "title": event.name, "occasion_theme": key,
+            "level": "info", "starts_at": "2026-11-25T08:00", "is_active": "on",
+        }).status_code, 302)
+        self.assertEqual(list(Announcement.objects.get(occasion_theme=key).screens.all()), [second])
+        self.client.post(assign, {"screen": entrance.pk, "occasion": "auto"})
+        entrance.refresh_from_db()
+        self.assertEqual(entrance.occasion_theme, "auto")
+
+    def test_foreign_screens_and_events_cannot_be_used_in_school_designs(self):
+        foreign_key = "event_0123456789abcdef"
+        SchoolOccasionTheme.objects.create(school=self.other, occasion_key=foreign_key, **self.payload())
+        own = DisplayScreen.objects.create(school=self.school, name="المدخل")
+        foreign = DisplayScreen.objects.create(school=self.other, name="شاشة أخرى")
+        assign = reverse("dashboard:occasion_assign")
+        self.assertEqual(self.client.get(assign).status_code, 405)
+        for screen, key in ((own, foreign_key), (foreign, "national_day"), (own, "unknown")):
+            self.assertEqual(self.client.post(assign, {"screen": screen.pk, "occasion": key}).status_code, 404)
+        self.assertEqual(self.client.get(reverse("dashboard:occasion_theme_edit", args=[foreign_key])).status_code, 404)
+        self.assertNotContains(self.client.get(reverse("dashboard:occasion_templates")), foreign_key)
+        self.assertFalse(DisplayScreen.objects.exclude(occasion_theme="auto").exists())
+
+    def test_custom_edits_keep_the_event_key_and_duplicate_names_are_rejected(self):
+        create = reverse("dashboard:occasion_theme_create")
+        self.client.post(create, self.payload(name="معرض العلوم"))
+        event = SchoolOccasionTheme.objects.get(school=self.school)
+        self.assertIn("name", self.client.post(create, self.payload(name=event.name)).context["form"].errors)
+        edit = reverse("dashboard:occasion_theme_edit", args=[event.occasion_key])
+        self.assertRedirects(self.client.post(edit, self.payload(name="أسبوع العلوم")), edit)
+        self.assertEqual(self.client.post(edit, {"action": "reset"}).status_code, 404)
+        event.refresh_from_db()
+        self.assertEqual(event.name, "أسبوع العلوم")
 
     def test_name_colors_and_pattern_save_once_and_appear_in_selector(self):
         for name in ("هوية أولى", "هويتنا النهائية"):

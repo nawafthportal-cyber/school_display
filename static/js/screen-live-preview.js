@@ -7,6 +7,8 @@
 
     var frame = dialog.querySelector("[data-live-preview-frame]");
     var stage = dialog.querySelector("[data-live-preview-stage]");
+    var canvas = dialog.querySelector(".live-preview-canvas");
+    var format = dialog.querySelector("[data-live-preview-format]");
     var title = dialog.querySelector("#livePreviewTitle");
     var screenStatus = dialog.querySelector("[data-live-preview-screen-status]");
     var externalLink = dialog.querySelector("[data-live-preview-external]");
@@ -16,6 +18,26 @@
     var fullscreenButton = dialog.querySelector("[data-live-preview-fullscreen]");
     var currentUrl = "";
     var connectionState = "loading";
+
+    function fitPreview() {
+      if (!dialog.open || !canvas.clientWidth) return;
+      var pixels = format.value.split("x").map(Number);
+      frame.style.width = pixels[0] + "px";
+      frame.style.height = pixels[1] + "px";
+      frame.style.transform = "scale(" + canvas.getBoundingClientRect().width / pixels[0] + ")";
+    }
+
+    function applyFormat() {
+      var pixels = format.value.split("x").map(Number);
+      canvas.style.setProperty("--preview-aspect", String(pixels[0] / pixels[1]));
+      fitPreview();
+    }
+
+    format.addEventListener("change", applyFormat);
+    if (window.ResizeObserver) {
+      new ResizeObserver(fitPreview).observe(canvas);
+    }
+    window.addEventListener("resize", fitPreview);
 
     function setConnectionState(state) {
       connectionState = state;
@@ -44,16 +66,19 @@
     }
 
     function openPreview(trigger) {
-      currentUrl = trigger.getAttribute("data-preview-url") || trigger.getAttribute("href") || "";
-      if (!currentUrl) return;
+      var url = new URL(trigger.href);
+      externalLink.href = url.href;
+      url.searchParams.set("embed", "1");
+      currentUrl = url.href;
 
       title.textContent = trigger.getAttribute("data-preview-name") || "شاشة العرض";
-      screenStatus.textContent = trigger.getAttribute("data-preview-status") || "جاهزة للمعاينة";
-      externalLink.setAttribute("href", currentUrl);
+      screenStatus.textContent = trigger.getAttribute("data-preview-status") || "";
+      screenStatus.parentNode.hidden = !screenStatus.textContent;
       frame.setAttribute("title", "المعاينة الحية — " + title.textContent);
       stage.classList.add("is-loading");
       setConnectionState("loading");
       showDialog();
+      applyFormat();
       frame.setAttribute("src", currentUrl);
     }
 
@@ -65,6 +90,7 @@
         dialog.close();
       } else {
         dialog.removeAttribute("open");
+        unloadPreview();
       }
     }
 
@@ -78,6 +104,7 @@
 
     document.querySelectorAll("[data-live-preview-open]").forEach(function (trigger) {
       trigger.addEventListener("click", function (event) {
+        if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
         openPreview(trigger);
       });
@@ -102,10 +129,7 @@
       if (!currentUrl) return;
       stage.classList.add("is-loading");
       setConnectionState("loading");
-      frame.removeAttribute("src");
-      window.setTimeout(function () {
-        if (currentUrl) frame.setAttribute("src", currentUrl);
-      }, 80);
+      frame.src = currentUrl;
     });
 
     fullscreenButton.addEventListener("click", function () {
@@ -117,8 +141,11 @@
     });
 
     document.addEventListener("fullscreenchange", function () {
+      fitPreview();
       var label = fullscreenButton.querySelector("span");
-      if (label) label.textContent = document.fullscreenElement ? "إنهاء ملء الشاشة" : "ملء الشاشة";
+      var text = document.fullscreenElement ? "إنهاء ملء الشاشة" : "ملء الشاشة";
+      if (label) label.textContent = text;
+      fullscreenButton.setAttribute("aria-label", text);
       fullscreenButton.setAttribute(
         "title",
         document.fullscreenElement ? "إنهاء وضع ملء الشاشة" : "عرض المعاينة بملء الشاشة"

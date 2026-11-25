@@ -70,6 +70,7 @@
                 <div class="dp-checklist">{{ form.screens }}</div>
                 {% for error in form.screens.errors %}<div class="dp-field__error">{{ error }}</div>{% endfor %}
               </div>
+              <p class="dp-field__hint" data-emergency-destinations role="status"></p>
             </div>
           </div>
         </div>
@@ -79,12 +80,13 @@
     <div class="dp-actionbar">
       <div class="dp-actionbar__copy">
         <strong>إرسال فوري</strong>
-        <span>يظهر التنبيه على الشاشات المحددة خلال ثوانٍ من الإرسال.</span>
+        <span>يظهر التنبيه عند وصوله إلى الشاشة، ويسجّل النظام وقت العرض.</span>
       </div>
       <div class="dp-actionbar__buttons">
         <a href="{% url 'dashboard:emergency_alert_list' %}" class="dp-btn dp-btn--ghost">إلغاء</a>
-        <button type="submit" class="dp-btn dp-btn--emergency"
-                data-confirm="تأكيد إرسال التنبيه الطارئ الآن؟ سيغطي شاشات المدارس المحددة فورًا.">
+        <button type="submit" class="dp-btn dp-btn--emergency" data-emergency-send
+                data-confirm-title="تأكيد إرسال الطوارئ" data-confirm-action="إرسال التنبيه الطارئ"
+                data-confirm="هل تريد إرسال التنبيه إلى الوجهات المحددة؟">
           <i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i>
           <span>إرسال التنبيه الآن</span>
         </button>
@@ -93,6 +95,7 @@
   </form>
 </div>
 {{ emergency_templates|json_script:"emergencyTemplates" }}
+{{ emergency_screens|json_script:"emergencyScreens" }}
 
 {% comment %}
 This page is served inside two different shells — the school dashboard for a
@@ -106,20 +109,39 @@ which both shells define.
 document.addEventListener('DOMContentLoaded', function () {
   var scope = document.getElementById('{{ form.scope.id_for_label }}');
   var targets = document.getElementById('screenTargets');
+  var send = document.querySelector('[data-emergency-send]');
+  var summary = document.querySelector('[data-emergency-destinations]');
+  var screens = JSON.parse(document.getElementById('emergencyScreens').textContent);
+  var schoolChoices = Array.from(send.form.querySelectorAll('input[name="schools"]'));
+  var screenChoices = Array.from(targets.querySelectorAll('input[name="screens"]'));
 
-  // Picking individual screens is only meaningful once the scope says so.
-  function syncScope() { targets.hidden = scope.value !== 'screens'; }
-  scope.addEventListener('change', syncScope);
-  syncScope();
-
-  document.querySelectorAll('#screenTargets input[type="checkbox"]').forEach(function (item) {
-    item.addEventListener('change', function () {
-      if (item.checked) {
-        scope.value = 'screens';
-        syncScope();
-      }
+  function syncDestinations() {
+    var selectedSchools = schoolChoices.filter(function (item) { return item.checked; });
+    var schoolIDs = selectedSchools.map(function (item) { return Number(item.value); });
+    var individual = scope.value === 'screens';
+    targets.hidden = !individual;
+    screenChoices.forEach(function (item) {
+      var allowed = schoolIDs.indexOf(screens[item.value].school) !== -1;
+      item.closest('label').parentElement.hidden = !allowed;
+      item.disabled = !individual || !allowed;
     });
-  });
+    var selected = individual
+      ? screenChoices.filter(function (item) { return item.checked && !item.disabled; }).map(function (item) { return screens[item.value]; })
+      : Object.keys(screens).map(function (key) { return screens[key]; }).filter(function (item) { return schoolIDs.indexOf(item.school) !== -1; });
+    var schoolNames = selectedSchools.map(function (item) { return item.closest('label').textContent.trim(); });
+    var connected = selected.filter(function (item) { return item.connected; }).length;
+    send.disabled = !schoolNames.length || (individual && !selected.length);
+    if (send.disabled) {
+      summary.textContent = schoolNames.length ? 'اختر شاشة واحدة على الأقل.' : 'اختر مدرسة واحدة على الأقل.';
+      return;
+    }
+    var scopeText = individual ? selected.map(function (item) { return item.name; }).join('، ') : 'جميع الشاشات المشغّلة في المدارس المحددة';
+    var countText = 'الشاشات المستهدفة حاليًا ' + selected.length + '، المتصلة حسب آخر قراءة ' + connected + '.';
+    summary.textContent = countText;
+    send.setAttribute('data-confirm', 'المدارس: ' + schoolNames.join('، ') + '. الشاشات: ' + scopeText + '. ' + countText);
+  }
+  send.form.addEventListener('change', syncDestinations);
+  syncDestinations();
 
   var templates = JSON.parse(document.getElementById('emergencyTemplates').textContent);
   var kind = document.getElementById('{{ form.kind.id_for_label }}');

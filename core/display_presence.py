@@ -195,6 +195,16 @@ def display_is_live(screen, *, now: datetime | None = None, require_bound: bool 
         return False
 
 
+def display_connection_state(screen, seen_at: datetime | None, *, now: datetime) -> str:
+    if not screen.is_active:
+        return "disabled"
+    if not (screen.bound_device_id or "").strip():
+        return "waiting"
+    if seen_at is None:
+        return "pending"
+    return "live" if (now - seen_at).total_seconds() <= display_live_threshold_seconds() else "offline"
+
+
 def live_display_count(screens: Iterable, *, now: datetime | None = None) -> int:
     now = now or timezone.now()
     return sum(1 for screen in screens if display_is_live(screen, now=now))

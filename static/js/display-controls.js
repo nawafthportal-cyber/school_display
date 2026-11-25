@@ -23,16 +23,20 @@
   }
 
   function showOldBrowserWarning() {
-    if (!window.Promise || !window.fetch || !window.WebSocket) {
+    var supportsDisplay = false;
+    try {
+      supportsDisplay = !!(window.Promise && window.fetch && new URL(window.location.href).searchParams);
+    } catch (error) {}
+    if (!supportsDisplay) {
       var warning = document.createElement("div");
       warning.id = "old-browser-banner";
       warning.className = "old-browser-banner";
       var title = document.createElement("p");
       title.className = "old-browser-banner__title";
-      title.textContent = "المتصفح قديم جداً";
+      title.textContent = "متصفح هذا الجهاز لا يدعم شاشة العرض";
       var details = document.createElement("p");
       details.className = "old-browser-banner__details";
-      details.textContent = "هذا الجهاز لا يدعم واجهة العرض الذكية. يُوصى بتحديث المتصفح أو استخدام Chromium 80+ أو Chrome 80+.";
+      details.textContent = "حدّث متصفح التلفاز أو افتح رابط الشاشة في متصفح حديث على مشغّل متصل بالتلفاز عبر HDMI.";
       warning.appendChild(title);
       warning.appendChild(details);
       document.body.appendChild(warning);

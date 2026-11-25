@@ -1,4 +1,5 @@
 import asyncio
+import re
 import unittest
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from schedule.models import DisplayTheme, SchoolSettings
 from subscriptions.models import SchoolSubscription
 
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import expect, sync_playwright
 except ImportError:
     sync_playwright = None
 
@@ -60,11 +61,55 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         self.browser.close()
         self.playwright.stop()
 
+    def test_appearance_navigation_preserves_the_selected_screen(self):
+        self.page.goto(self.live_server_url + "/dashboard/screens/")
+        self.page.get_by_role("main").get_by_role("link", name="مظهر الشاشات", exact=True).click()
+        nav = self.page.get_by_role("navigation", name="أقسام مظهر الشاشات")
+        self.assertEqual(nav.locator("[aria-current=page]").inner_text(), "المظهر اليومي")
+        nav.get_by_role("link", name="عرض مناسبة").click()
+        screen = self.page.locator("#occasion-assignment select[name=screen]")
+        screen.select_option(str(self.screen_id))
+        daily_appearance = nav.get_by_role("link", name="المظهر اليومي")
+        expect(daily_appearance).to_have_attribute("href", re.compile(rf"[?&]screen={self.screen_id}(?:&|$)"))
+        daily_appearance.click()
+        expect(self.page.locator(".theme-apply-form select").first).to_have_value(str(self.screen_id))
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        nav.get_by_role("link", name="عرض مناسبة").click()
+        expect(screen).to_have_value(str(self.screen_id))
+        self.assertEqual(nav.locator("[aria-current=page]").inner_text(), "عرض مناسبة")
+        self.assertLessEqual(self.page.evaluate("document.documentElement.scrollWidth"), 390)
+        self.assertEqual(self.errors, [])
+
+    def test_preview_renders_each_device_at_its_native_viewport(self):
+        self.page.goto(self.live_server_url + "/dashboard/screens/")
+        self.page.locator("[data-live-preview-open]").first.click()
+        selector = self.page.get_by_role("combobox", name="مقاس العرض")
+        embedded = self.page.frame_locator("[data-live-preview-frame]")
+        for width, height, shape in [(1920, 1080, "landscape"), (1024, 768, "landscape"),
+                                     (1080, 1920, "portrait"), (3440, 1440, "wide")]:
+            selector.select_option(f"{width}x{height}")
+            embedded.locator(f'body[data-board-shape="{shape}"]').wait_for()
+            self.assertEqual(embedded.locator("body").evaluate("el => [innerWidth, innerHeight]"), [width, height])
+            sizes = self.page.locator(".live-preview-canvas").evaluate("""el => {
+                const r = el.getBoundingClientRect(), f = el.querySelector('iframe').getBoundingClientRect();
+                return [Math.abs(r.x - f.x), Math.abs(r.y - f.y), Math.abs(r.width - f.width), Math.abs(r.height - f.height)];
+            }""")
+            self.assertLess(max(sizes), 1)
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        selector.select_option("1080x1920")
+        self.assertTrue(selector.is_visible())
+        self.assertLessEqual(self.page.locator("#livePreviewDialog").evaluate("el => el.scrollWidth"), 390)
+        self.assertEqual(self.errors, [])
+
     def test_editor_updates_preview_and_applies_saved_theme(self):
         self.page.goto(self.live_server_url + "/dashboard/themes/new/")
         self.page.wait_for_load_state("networkidle")
         self.page.fill('[name="name"]', "ثيم مدرستنا")
+        for key in ["emerald", "rose", "cyan", "amber", "orange", "violet", "indigo"]:
+            self.page.select_option('[name="base_theme"]', key)
+            self.assertTrue(self.page.locator("#saveThemeButton").is_enabled(), key)
         self.page.select_option('[name="base_theme"]', "emerald")
+        self.assertEqual(self.page.input_value('[name="card_color"]'), "#163d32")
         self.page.fill('[name="card_color"]', "#15362c")
         self.page.select_option('[name="font"]', "arial")
         self.page.fill('[name="card_radius"]', "12")
@@ -144,6 +189,7 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(self.page.locator("#heroCard").evaluate("n=>getComputedStyle(n).backgroundColor"), "rgb(255, 255, 255)")
         self.assertEqual(self.page.locator("#heroTitle").evaluate("n=>getComputedStyle(n).webkitTextFillColor"), "rgb(20, 90, 106)")
         self.assertEqual(self.page.locator("#clock").evaluate("n=>getComputedStyle(n).webkitTextFillColor"), "rgb(15, 23, 42)")
+        self.assertEqual(self.page.locator("#dayTimelinePanel").evaluate("n=>getComputedStyle(n).backgroundColor"), "rgb(255, 255, 255)")
         self.assertEqual(self.errors, [])
 
     def test_mobile_occasion_editor_fits_and_blocks_unreadable_colors(self):

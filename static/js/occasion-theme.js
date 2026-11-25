@@ -18,7 +18,8 @@
   }
   function meta(key, overrides, original) {
     var value = selected(key, overrides);
-    return value ? Object.assign({}, original, {label: value.name, tagline: value.tagline}) : original;
+    var identity = original || (value && value.identity);
+    return value && identity ? Object.assign({}, identity, {label: value.name, tagline: value.tagline}) : identity;
   }
   function apply(target, key, overrides) {
     if (!target) return;

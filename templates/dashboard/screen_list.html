@@ -6,15 +6,39 @@
 {% block page_description %}راقب الاتصال والانقطاعات ونسبة التشغيل وتحكم في كل شاشة من مكان واحد{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/screen-live-preview.css' %}?v=2026-08-21-live1">
+  <link rel="stylesheet" href="{% static 'css/screen-live-preview.css' %}?v=2026-11-25-device-preview-2">
   <link rel="stylesheet" href="{% static 'css/screen-pairing-tutorial.css' %}?v=20261106-1">
 {% endblock %}
 
 {% block content %}
-<a href="{% url 'dashboard:theme_list' %}" class="mb-4 inline-flex rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-800">الثيمات الخاصة — أنشئ هوية لمدرستك</a>
 <div class="max-w-7xl mx-auto pb-8 md:pb-12">
 
-  {% include "dashboard/_screen_pairing_tutorial.html" %}
+  <section class="screen-summary-strip mb-4" aria-label="ملخص الشاشات">
+    <div class="screen-summary-item screen-summary-connection{% if screens_offline_count %} has-offline{% endif %}">
+      <span>شاشات متصلة الآن</span>
+      <strong>{{ screens_live_count }} من {{ screens_count }}</strong>
+    </div>
+    <div class="screen-summary-item">
+      <span>منقطعة وتحتاج متابعة</span>
+      <strong class="{% if screens_offline_count %}is-danger{% endif %}">{{ screens_offline_count }}</strong>
+    </div>
+    <div class="screen-summary-item">
+      <span>بانتظار التشغيل أو الربط</span>
+      <strong>{{ screens_waiting_count }}</strong>
+    </div>
+    <div class="screen-summary-item">
+      <span>معطلة من اللوحة</span>
+      <strong>{{ screens_disabled_count }}</strong>
+    </div>
+    <div class="screen-summary-item">
+      <span>إجمالي الشاشات</span>
+      <strong>{{ screens_count }}{% if screen_limit is not None %} <small>من {{ screen_limit }}</small>{% endif %}</strong>
+    </div>
+    <div class="screen-summary-item">
+      <span>متوسط التشغيل خلال 7 أيام</span>
+      <strong>{% if screens_uptime_7d is not None %}{{ screens_uptime_7d }}<small>%</small>{% else %}—{% endif %}</strong>
+    </div>
+  </section>
 
   <section class="screen-command-panel mb-4">
     <div class="min-w-0">
@@ -31,6 +55,7 @@
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a9 9 0 1 0 0 18h1.4a1.6 1.6 0 0 0 .2-3.2h-.7a1.9 1.9 0 0 1-1.9-1.9v-.2a1.9 1.9 0 0 1 1.9-1.9H16A5 5 0 0 0 21 9c0-3.3-4-6-9-6Z"/></svg>
         <span>تخصيص جميع الشاشات</span>
       </a>
+      <a href="{% url 'dashboard:theme_list' %}" class="screen-secondary-action">مظهر الشاشات</a>
       <a href="{{ request.get_full_path }}" class="screen-secondary-action" aria-label="تحديث حالة الشاشات الآن">
         <i class="fa-solid fa-rotate" aria-hidden="true"></i>
         <span>تحديث الحالة</span>
@@ -51,35 +76,11 @@
     </div>
   </section>
 
-  <section class="screen-summary-strip mb-4" aria-label="ملخص الشاشات">
-    <div class="screen-summary-item">
-      <span>إجمالي الشاشات</span>
-      <strong>{{ screens_count|default:"0" }} <small>/ {% if screen_limit is None %}∞{% else %}{{ screen_limit }}{% endif %}</small></strong>
-    </div>
-    <div class="screen-summary-item">
-      <span>متصلة الآن</span>
-      <strong>{{ screens_live_count|default:"0" }}</strong>
-    </div>
-    <div class="screen-summary-item">
-      <span>منقطعة وتحتاج متابعة</span>
-      <strong class="{% if screens_offline_count %}is-danger{% endif %}">{{ screens_offline_count|default:"0" }}</strong>
-    </div>
-    <div class="screen-summary-item">
-      <span>بانتظار التشغيل أو الربط</span>
-      <strong>{{ screens_waiting_count|default:"0" }}</strong>
-    </div>
-    <div class="screen-summary-item">
-      <span>متوسط التشغيل خلال 7 أيام</span>
-      <strong>{% if screens_uptime_7d is not None %}{{ screens_uptime_7d }}<small>%</small>{% else %}—{% endif %}</strong>
-    </div>
-  </section>
-
   <section class="screen-monitor-health mb-4" aria-labelledby="screen-monitor-health-title">
     <div class="screen-monitor-health__status {% if monitor_worker_live %}is-healthy{% else %}is-warning{% endif %}">
       <span class="screen-monitor-health__icon" aria-hidden="true"><i class="fa-solid fa-satellite-dish"></i></span>
       <div>
-        <span class="screen-monitor-health__eyebrow">خدمة المراقبة</span>
-        <h3 id="screen-monitor-health-title">{% if monitor_worker_live %}تعمل بصورة طبيعية{% else %}لم يصل نبض حديث من خدمة المراقبة{% endif %}</h3>
+        <h3 id="screen-monitor-health-title">{% if monitor_worker_live %}خدمة المراقبة تعمل بصورة طبيعية{% else %}لم يصل اتصال حديث من خدمة المراقبة{% endif %}</h3>
         <p>آخر فحص: {{ monitor_heartbeat_display }} — حد اكتشاف الانقطاع: {{ monitoring_threshold_minutes }} دقائق</p>
       </div>
     </div>
@@ -91,6 +92,8 @@
       <a href="{% url 'dashboard:settings' %}#runtime-monitor-title" class="screen-secondary-action">إعدادات المراقبة</a>
     </div>
   </section>
+
+  {% include "dashboard/_screen_pairing_tutorial.html" %}
 
   <details class="screen-help-panel mb-4">
     <summary>
@@ -134,7 +137,7 @@
                 </div>
                 <div class="min-w-0">
                   <strong>{{ screen.name }}</strong>
-                  <span>{% if screen.is_active %}فعالة{% else %}متوقفة{% endif %} • {% if screen.dashboard_follows_school_display %}تتبع إعداد جميع الشاشات{% else %}تخصيص مستقل{% endif %}</span>
+                  <span>{% if screen.is_active %}مفعّلة من اللوحة{% else %}معطّلة من اللوحة{% endif %} · {% if screen.dashboard_follows_school_display %}تتبع إعداد جميع الشاشات{% else %}تخصيص مستقل{% endif %}</span>
                 </div>
               </div>
 
@@ -148,9 +151,16 @@
             </div>
 
             <div class="screen-card-meta">
+              <div><span>الثيم الأساسي</span><strong>{{ screen.dashboard_theme_name }}</strong></div>
+              <div><span>إعداد المناسبة</span><a class="font-bold text-teal-800 underline" href="{% url 'dashboard:occasion_templates' %}?screen={{ screen.pk }}#occasion-assignment">{{ screen.dashboard_occasion_name }}</a></div>
               <div>
-                <span>آخر نشاط مسجل</span>
-                <strong title="{{ screen.dashboard_last_seen_full }}">{{ screen.dashboard_last_seen_display }}</strong>
+                <span>{{ screen.dashboard_last_activity_label }}</span>
+                {% if screen.dashboard_last_seen_display == screen.dashboard_last_seen_full %}
+                  <strong dir="ltr">{{ screen.dashboard_last_seen_full }}</strong>
+                {% else %}
+                  <strong>{{ screen.dashboard_last_seen_display }}</strong>
+                  {% if screen.dashboard_last_seen_full %}<time dir="ltr" datetime="{{ screen.dashboard_last_activity_at|date:'c' }}">{{ screen.dashboard_last_seen_full }}</time>{% endif %}
+                {% endif %}
               </div>
               <div>
                 <span>ارتباط الجهاز</span>
@@ -170,12 +180,15 @@
               </div>
             </div>
 
-            {% if screen.dashboard_open_outage %}
+            {% if screen.dashboard_status_key == "offline" %}
               <div class="screen-outage-alert" role="status">
                 <span class="screen-outage-alert__icon" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></span>
                 <div>
-                  <strong>انقطاع مفتوح منذ {{ screen.dashboard_outage_duration }}</strong>
-                  <p>السبب المرجح: {{ screen.dashboard_outage_cause }}{% if screen.dashboard_outage_detail %} — {{ screen.dashboard_outage_detail }}{% endif %}</p>
+                  <strong>تحقّق من تشغيل التلفاز واتصاله بالإنترنت</strong>
+                  <p>افتح رابط العرض على التلفاز، ثم حدّث الحالة من هذه الصفحة.</p>
+                  {% if screen.dashboard_open_outage %}
+                    <p>مدة الانقطاع المفتوح {{ screen.dashboard_outage_duration }}. التشخيص عند الرصد: {{ screen.dashboard_outage_cause }}.</p>
+                  {% endif %}
                 </div>
               </div>
             {% endif %}
@@ -206,7 +219,6 @@
                       href="{{ short_url }}?preview=1"
                       class="screen-link-open"
                       data-live-preview-open
-                      data-preview-url="{{ short_url }}?preview=1"
                       data-preview-name="{{ screen.name|escape }}"
                       data-preview-status="{{ screen.dashboard_status_label|escape }}"
                       title="فتح معاينة حية دون التأثير على التلفاز"
@@ -292,7 +304,7 @@
     <div class="screen-section-heading">
       <div>
         <h3 id="recent-screen-incidents-title">سجل الانقطاعات الأخير</h3>
-        <p>آخر ثمانية أحداث مسجلة مع السبب والمدة وحالة الاستعادة.</p>
+        <p>آخر ثمانية أحداث مسجلة مع التشخيص وقت الرصد والمدة وحالة الاستعادة.</p>
       </div>
       <span class="screen-section-count">{{ recent_incidents|length }} حدث</span>
     </div>
@@ -303,7 +315,7 @@
             <span class="screen-incident__state" aria-hidden="true"></span>
             <div class="screen-incident__main">
               <strong>{{ incident.screen.name }}</strong>
-              <span>{{ incident.dashboard_cause }}{% if incident.cause_detail %} — {{ incident.cause_detail }}{% endif %}</span>
+              <span>التشخيص عند الرصد: {{ incident.dashboard_cause }}{% if incident.cause_detail %} — {{ incident.cause_detail }}{% endif %}</span>
             </div>
             <div class="screen-incident__meta">
               <span>{{ incident.dashboard_started_at }}</span>
@@ -324,81 +336,7 @@
   </section>
 </div>
 
-<dialog class="live-preview-dialog" id="livePreviewDialog" aria-labelledby="livePreviewTitle" aria-describedby="livePreviewDescription">
-  <section class="live-preview-shell">
-    <header class="live-preview-header">
-      <div class="live-preview-heading">
-        <span class="live-preview-screen-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2.5"/><path d="M8 21h8M12 17v4"/></svg>
-        </span>
-        <div class="min-w-0">
-          <div class="live-preview-eyebrow">
-            <span class="live-preview-pulse" aria-hidden="true"></span>
-            <span>معاينة حية</span>
-          </div>
-          <h2 id="livePreviewTitle">شاشة العرض</h2>
-          <p id="livePreviewDescription">تتحدث تلقائيًا عند تغيير المحتوى من لوحة التحكم</p>
-        </div>
-      </div>
-
-      <div class="live-preview-tools" aria-label="أدوات المعاينة">
-        <button type="button" class="live-preview-tool" data-live-preview-refresh title="تحديث المعاينة الآن">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>
-          <span>تحديث</span>
-        </button>
-        <button type="button" class="live-preview-tool" data-live-preview-fullscreen title="عرض المعاينة بملء الشاشة">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-          <span>ملء الشاشة</span>
-        </button>
-        <a class="live-preview-tool" data-live-preview-external href="#" target="_blank" rel="noopener" title="فتح المعاينة في نافذة مستقلة">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M14 3h7v7M10 14 21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
-          <span>نافذة مستقلة</span>
-        </a>
-        <button type="button" class="live-preview-close" data-live-preview-close aria-label="إغلاق المعاينة">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
-        </button>
-      </div>
-    </header>
-
-    <div class="live-preview-safety" role="note">
-      <span class="live-preview-shield" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 4.5 6v5.3c0 4.5 3 8.5 7.5 9.7 4.5-1.2 7.5-5.2 7.5-9.7V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg>
-      </span>
-      <div>
-        <strong>للاطلاع فقط — الشاشة الفعلية تواصل عملها دون أي تأثير</strong>
-        <span>لا تنشئ هذه المعاينة ارتباطًا جديدًا، ولا تغيّر حالة الجهاز، ولا تُحتسب كشاشة متصلة.</span>
-      </div>
-      <span class="live-preview-screen-status" data-live-preview-screen-status></span>
-    </div>
-
-    <div class="live-preview-stage is-loading" data-live-preview-stage>
-      <div class="live-preview-loading" data-live-preview-loading role="status">
-        <span class="live-preview-loader" aria-hidden="true"></span>
-        <strong>جارٍ تجهيز البث الحي…</strong>
-        <small>نحمّل نفس المحتوى الظاهر على شاشة المدرسة</small>
-      </div>
-      <iframe
-        data-live-preview-frame
-        title="المعاينة الحية لشاشة العرض"
-        allow="fullscreen"
-        allowfullscreen
-        referrerpolicy="same-origin"
-      ></iframe>
-    </div>
-
-    <footer class="live-preview-footer">
-      <div class="live-preview-connection is-loading" data-live-preview-connection role="status" aria-live="polite">
-        <span aria-hidden="true"></span>
-        <strong data-live-preview-connection-title>جارٍ الاتصال بالعرض…</strong>
-        <small data-live-preview-connection-detail>ستظهر الشاشة بعد لحظات</small>
-      </div>
-      <div class="live-preview-format">
-        <span>نسبة العرض الأصلية</span>
-        <strong dir="ltr">16:9</strong>
-      </div>
-    </footer>
-  </section>
-</dialog>
+{% include "dashboard/_live_screen_preview.html" %}
 
 <dialog class="pairing-guide-dialog" id="pairingGuideDialog" aria-labelledby="pairingGuideTitle" aria-describedby="pairingGuideDescription">
   <div class="pairing-guide-card">
@@ -507,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let guideWasSeen = false;
     try { guideWasSeen = window.sessionStorage.getItem(pairingGuideStorageKey) === '1'; } catch (error) {}
-    if (!guideWasSeen) window.setTimeout(openPairingGuide, 450);
+    if (!guideWasSeen && {% if screens %}false{% else %}true{% endif %}) window.setTimeout(openPairingGuide, 450);
   }
 
   window.showToast = function() {
@@ -849,7 +787,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .screen-summary-strip {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   overflow: hidden;
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -889,6 +827,14 @@ document.addEventListener('DOMContentLoaded', function() {
   color: #be123c;
 }
 
+.screen-summary-connection {
+  background: #f0fdfa;
+}
+
+.screen-summary-connection.has-offline {
+  background: #fff1f2;
+}
+
 .screen-monitor-health {
   display: flex;
   align-items: center;
@@ -923,13 +869,6 @@ document.addEventListener('DOMContentLoaded', function() {
   color: #047857;
   background: #ecfdf5;
   border-color: #a7f3d0;
-}
-
-.screen-monitor-health__eyebrow {
-  display: block;
-  color: #64748b;
-  font-size: 0.68rem;
-  font-weight: 850;
 }
 
 .screen-monitor-health h3 {
@@ -1184,6 +1123,13 @@ document.addEventListener('DOMContentLoaded', function() {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   padding: 0.7rem 0.8rem;
+}
+
+.screen-card-meta time {
+  display: block;
+  color: #64748b;
+  font-size: 0.7rem;
+  text-align: right;
 }
 
 .screen-card-meta span {
@@ -1613,6 +1559,6 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endblock %}
 
 {% block extra_js %}
-  <script defer src="{% static 'js/screen-live-preview.js' %}?v=2026-08-21-live1"></script>
+  <script defer src="{% static 'js/screen-live-preview.js' %}?v=2026-11-25-device-preview-2"></script>
   <script defer src="{% static 'js/screen-pairing-tutorial.js' %}?v=20261106-1"></script>
 {% endblock %}

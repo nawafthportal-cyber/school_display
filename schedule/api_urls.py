@@ -23,6 +23,7 @@ urlpatterns = [
     # Farewell beacon — lets an outage alert name its cause
     path("goodbye/", api_views.goodbye, name="goodbye"),
     path("goodbye/<str:token>/", api_views.goodbye, name="goodbye_token"),
+    path("emergency-receipt/<int:alert_id>/", api_views.emergency_receipt, name="emergency_receipt"),
 
     # Health (keep original if simple)
     path("ping/", api_views.ping, name="ping"),

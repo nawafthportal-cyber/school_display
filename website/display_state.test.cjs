@@ -34,8 +34,11 @@ function harness() {
     rt: { activeStateType: 'period', activePeriodIndex: 1, activeFromHM: '08:00', activeToHM: '09:00' },
     countdownSeconds: 1800, hasActiveCountdown: true, progressRange: { start: 1, end: 2 },
     dom: { heroTitle: {}, heroRange: {}, badgeKind: {} },
-    DISPLAY_COPY: { beforeBadge: 'Before', beforeTitle: 'Before school' },
-    getAfterDayOverCopy: () => ({ title: 'Day complete', badge: 'Complete' }),
+    DISPLAY_COPY: {
+      beforeBadge: 'Before', beforeTitle: 'Before school',
+      afterBadge: 'Complete', afterTitle: 'Day complete',
+      afterHolidayBadge: 'Holiday', afterHolidayTitle: 'Have a good holiday',
+    },
     formatPeriodTitle: block => 'Period ' + block.index,
     fmtTimeRange: (from, to) => from + '-' + to,
     setTextIfChanged: (element, value) => { element.textContent = value; },
@@ -43,12 +46,14 @@ function harness() {
     setNamedTimer: (name, callback, delay) => timers.set(name, { callback, delay }),
     playBellSound: () => { ui.bells++; },
     renderPeriodClasses: rows => { ui.rows = Array.from(rows); },
-    applyBoardStatePresentation() {}, renderStandby() {}, renderFeaturedPanel() {},
+    screenFlag: (_name, fallback) => fallback,
+    applyBoardStatePresentation() {}, renderStandby: rows => { ui.standby = ctx.standbyGroups(rows, clock); }, renderFeaturedPanel() {},
     renderMiniSchedule() {}, renderCurrentChips() {}, renderNextLabel() {}, _log() {},
   };
   vm.createContext(ctx);
   [
-    'normalizeDisplayStateType', 'getStateReason', 'getPeriodIndex',
+    'normalizeDisplayStateType', 'getStateReason', 'getPeriodIndex', 'standbyGroups', 'dayEngineReferencePeriodIndex',
+    'getAfterDayOverCopy', 'getNextSchoolDayMessage',
     '_offlineWallClock', '_localDateKey', '_serverDayStartMsForBase', 'hmToMs',
     '_snapshotScheduleDate', '_snapshotBlocksLocalSchedule',
     'dayEngineLoad', 'dayEngineFindNow', 'dayEngineClear', 'dayEngineSyncToLocalNow',
@@ -57,7 +62,7 @@ function harness() {
     'checkStateTransitionBell', 'tickBoundaryBell', 'scheduleNextBoundaryBell',
     '_clearPeriodClassesCache', '_hasPeriodClassesMap', '_normalizePeriodClassRow',
     '_cachePeriodClassesForIndex', '_getCachedPeriodClassesForIndex',
-    'ingestPeriodClassesFromPayload', 'pickRuntimePeriodClasses',
+    'ingestPeriodClassesFromPayload', 'currentStandbyByClass', 'pickRuntimePeriodClasses', 'renderPeriodLists',
   ].forEach(name => vm.runInContext(productionFunction(name), ctx, { filename: filename + ':' + name }));
   return { ctx, timers, ui, setTime: value => { clock = Date.parse(value); } };
 }
@@ -78,6 +83,53 @@ function snapshot() {
     period_classes: [row(1)],
   };
 }
+
+test('end-of-day copy distinguishes tomorrow, a break and an unknown next day', () => {
+  const { ctx } = harness();
+  const next = { days_ahead: 1, weekday_label: 'الثلاثاء', date: '2026-10-13', first_start: '2026-10-13T07:00:00+02:00' };
+  const payload = { meta: { next_school_day: next } };
+  ctx.lastPayloadForFiltering = payload;
+  assert.equal(ctx.getAfterDayOverCopy().title, 'Day complete');
+  assert.match(ctx.getNextSchoolDayMessage(payload), /الثلاثاء.*2026-10-13.*07:00/);
+  payload._offlineDayShifted = true;
+  next.first_start = '2026-10-13T04:00:00Z';
+  assert.match(ctx.getNextSchoolDayMessage(payload), /07:00/);
+  next.days_ahead = 3;
+  assert.equal(ctx.getAfterDayOverCopy().badge, 'Holiday');
+  payload.meta.next_school_day = null;
+  assert.equal(ctx.getAfterDayOverCopy().title, 'انتهى دوام اليوم');
+  assert.equal(ctx.getNextSchoolDayMessage(payload), '');
+});
+
+test('current period shows the latest substitute and restores the scheduled teacher when removed', () => {
+  const { ctx, ui } = harness();
+  const payload = snapshot();
+  payload.standby = [
+    { period_index: 1, class_name: 'Class 1', teacher_name: 'Old assignment' },
+    { period_index: 1, class_name: 'Class 1', teacher_name: 'Substitute' },
+    { period_index: 1, class_name: 'Class without lesson', teacher_name: 'Another substitute' },
+    { period_index: 2, class_name: 'Class 2', teacher_name: 'Future substitute' },
+  ];
+
+  ctx.renderPeriodLists(payload);
+  const rows = ui.rows;
+  assert.deepEqual(Array.from(rows, item => item.teacher_name), ['Substitute']);
+  assert.deepEqual(Array.from(ui.standby.current, row => row.teacher_name), ['Substitute', 'Another substitute']);
+  assert.deepEqual(Array.from(ui.standby.later, row => row.teacher_name), ['Future substitute']);
+  assert.equal(rows[0].subject_name, 'Math');
+  assert.equal(rows[0].is_standby, true);
+  assert.equal(payload.period_classes_map['1'][0].teacher_name, 'Teacher 1');
+
+  ctx.rt.activePeriodIndex = 2;
+  ctx.rt.activeStateType = 'break';
+  ctx.renderPeriodLists(payload);
+  assert.equal(ui.standby.current.length, 0);
+  assert.deepEqual(Array.from(ui.standby.later, row => row.teacher_name), ['Future substitute']);
+  ctx.rt.activeStateType = 'period';
+  assert.equal(ctx.pickRuntimePeriodClasses(payload)[0].teacher_name, 'Future substitute');
+  payload.standby = [];
+  assert.equal(ctx.pickRuntimePeriodClasses(payload)[0].teacher_name, 'Teacher 2');
+});
 
 test('authoritative empty timetable cancels old schedule, countdown and pending bell', () => {
   const { ctx, timers, ui, setTime } = harness();
@@ -295,6 +347,7 @@ function alertClockHarness() {
     annSource: [], annList: [], annPages: [], annLayoutKey: '', annPtr: 0, last: { annSig: '' },
     occasionCustomizations: {},
     emergencySource: [], emergencySelected: null, emergencySignature: '', emergencyPages: [], emergencyLayoutKey: '',
+    IS_PREVIEW: true,
     document: { body: { getAttribute: () => '1' }, getElementById: id => nodes[id] || null },
     dom: { alertContainer: banner },
     safeText: value => String(value || ''), clamp: (n, a, b) => Math.max(a, Math.min(b, n)),
@@ -316,7 +369,7 @@ function alertClockHarness() {
     refreshEmergencyLayout() {},
   };
   vm.createContext(ctx);
-  ['nowMs', 'applyServerNowMs', 'annSignature', 'renderAnnouncements', 'renderEmergencyAlerts']
+  ['nowMs', 'applyServerNowMs', 'annSignature', 'renderAnnouncements', 'confirmEmergencyPresentation', 'renderEmergencyAlerts']
     .forEach(name => vm.runInContext(productionFunction(name), ctx, { filename: filename + ':' + name }));
   function loadWindow(starts, expires) {
     const item = { id: 1, title: 'Timed message', starts_at: starts, expires_at: expires };

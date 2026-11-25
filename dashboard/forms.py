@@ -211,8 +211,8 @@ class SchoolSettingsForm(forms.ModelForm):
             "theme": forms.Select(),
 
             # ✅ حد أدنى 0.5 + خطوة 0.1 (قيم عملية للعرض)
-            "standby_scroll_speed": forms.NumberInput(attrs={"min": 0.5, "max": 5.0, "step": 0.1}),
-            "periods_scroll_speed": forms.NumberInput(attrs={"min": 0.5, "max": 5.0, "step": 0.1}),
+            "standby_scroll_speed": forms.NumberInput(attrs={"min": "0.05", "max": "5", "step": "any"}),
+            "periods_scroll_speed": forms.NumberInput(attrs={"min": "0.05", "max": "5", "step": "any"}),
             "bell_sound": forms.Select(),
 
             # The settings screen uses the visual theme palette as the source
@@ -250,16 +250,6 @@ class SchoolSettingsForm(forms.ModelForm):
             profile = UserProfile.objects.filter(user=self.request_user).only("mobile").first()
             self.fields["mobile"].initial = (getattr(profile, "mobile", "") or "").strip()
 
-        # تأكيد attrs حتى لو تغيّرت الـ widgets أو تم override من مكان آخر
-        for fname in ["standby_scroll_speed", "periods_scroll_speed"]:
-            if fname in self.fields:
-                self.fields[fname].widget.attrs.update({"min": "0.5", "max": "5.0", "step": "0.1"})
-                # تنبيه قيم مفيدة للمستخدم
-                if fname == "standby_scroll_speed":
-                    self.fields[fname].help_text = "الحد الأدنى 0.5. قيم مقترحة: 0.5 – 1.2. كلما زادت القيمة زادت السرعة."
-                else:
-                    self.fields[fname].help_text = "الحد الأدنى 0.5. قيم مقترحة: 0.5 – 1.0. كلما زادت القيمة زادت السرعة."
-
         if "display_accent_color" in self.fields:
             self.fields["display_accent_color"].help_text = (
                 "اختياري: اختر لونًا رئيسياً لشاشة العرض. اتركه فارغًا لاستخدام ألوان الثيم."
@@ -286,33 +276,6 @@ class SchoolSettingsForm(forms.ModelForm):
         elif self.form_mode == "display":
             for field_name in self.ACCOUNT_FIELDS:
                 self.fields.pop(field_name, None)
-
-    # =========================
-    # ✅ Server-side validation
-    # =========================
-    def clean_standby_scroll_speed(self):
-        v = self.cleaned_data.get("standby_scroll_speed")
-        if v is None:
-            return v
-        try:
-            v_f = float(v)
-        except (TypeError, ValueError):
-            raise forms.ValidationError("الرجاء إدخال رقم صحيح لسرعة تمرير الانتظار.")
-        if v_f < 0.5:
-            raise forms.ValidationError("الحد الأدنى لسرعة تمرير الانتظار هو 0.5.")
-        return v_f
-
-    def clean_periods_scroll_speed(self):
-        v = self.cleaned_data.get("periods_scroll_speed")
-        if v is None:
-            return v
-        try:
-            v_f = float(v)
-        except (TypeError, ValueError):
-            raise forms.ValidationError("الرجاء إدخال رقم صحيح لسرعة تمرير جدول الحصص.")
-        if v_f < 0.5:
-            raise forms.ValidationError("الحد الأدنى لسرعة تمرير جدول الحصص هو 0.5.")
-        return v_f
 
     def clean_email(self):
         return (self.cleaned_data.get("email") or "").strip().casefold()
@@ -483,16 +446,16 @@ class ScreenDisplayCustomizationForm(forms.ModelForm):
     standby_scroll_speed = forms.FloatField(
         label="سرعة تمرير الانتظار",
         required=False,
-        min_value=0.5,
+        min_value=0.05,
         max_value=5.0,
-        widget=forms.NumberInput(attrs={"min": "0.5", "max": "5", "step": "0.1"}),
+        widget=forms.NumberInput(attrs={"step": "any"}),
     )
     periods_scroll_speed = forms.FloatField(
         label="سرعة تمرير جدول الحصص",
         required=False,
-        min_value=0.5,
+        min_value=0.05,
         max_value=5.0,
-        widget=forms.NumberInput(attrs={"min": "0.5", "max": "5", "step": "0.1"}),
+        widget=forms.NumberInput(attrs={"step": "any"}),
     )
     display_before_title = forms.CharField(max_length=150, required=False, label="عنوان ما قبل الدوام")
     display_before_badge = forms.CharField(max_length=40, required=False, label="شارة ما قبل الدوام")
@@ -554,12 +517,8 @@ class ScreenDisplayCustomizationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         screen = self.instance
         self.fields["custom_theme"].queryset = DisplayTheme.objects.filter(school_id=school_settings.school_id)
-        from core.occasion_customizations import customizations_for_school
-        occasion_customizations = customizations_for_school(school_settings.school_id)
-        self.fields["occasion_theme"].choices = [
-            (key, occasion_customizations.get(key, {}).get("name", label))
-            for key, label in self.fields["occasion_theme"].choices
-        ]
+        from core.occasion_customizations import choices_for_school
+        self.fields["occasion_theme"].choices = choices_for_school(school_settings.school_id, DisplayScreen.OCCASION_THEME_CHOICES)
         self.initial["custom_theme"] = screen.custom_theme_override_id or (
             school_settings.custom_theme_id if not screen.theme_override else None
         )
@@ -992,12 +951,9 @@ class AnnouncementForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.school = school
         if school is not None:
-            from core.occasion_customizations import customizations_for_school
-            customizations = customizations_for_school(school.pk)
-            self.fields["occasion_theme"].choices = [
-                (key, customizations.get(key, {}).get("name", label))
-                for key, label in self.fields["occasion_theme"].choices
-            ]
+            from core.occasion_customizations import choices_for_school
+            self.instance.school = school
+            self.fields["occasion_theme"].choices = choices_for_school(school.pk, Announcement.OCCASION_THEME_CHOICES)
         if school is not None:
             # الشاشات المعطلة (يدويًا أو تلقائيًا عند تجاوز حد الباقة) تبقى
             # معروضة إن كان التنبيه يستهدفها بالفعل. بدون ذلك يختفي استهدافها

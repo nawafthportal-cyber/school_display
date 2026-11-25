@@ -13,3 +13,6 @@
 #occasionThemeForm .dp-actionbar { position:static; }
 @media(max-width:480px) { .occasion-editor-colors { gap:.65rem; } .occasion-editor-preview { min-height:20rem; } }
 .occasion-theme-workspace { padding-bottom:6rem; }
+.occasion-palettes { display:flex; flex-wrap:wrap; gap:.65rem; margin-bottom:1.2rem; }
+.occasion-palettes button { display:inline-flex; align-items:center; gap:.5rem; padding:.6rem .9rem; border:1px solid #bfcecf; border-radius:2rem; color:#26444e; font-weight:750; }
+.occasion-palettes button::before { content:""; width:1rem; height:1rem; border-radius:50%; background:var(--swatch); }

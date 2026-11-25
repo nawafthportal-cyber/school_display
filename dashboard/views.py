@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from core.display_presence import display_connection_state, presence_map
+
 from .view_helpers import *  # noqa: F401,F403  (shared view layer)
 
 from .views_system import (  # noqa: F401  (re-exported for urls.py and callers)
@@ -172,141 +174,52 @@ def index(request):
     except (ZoneInfoNotFoundError, ValueError):
         school_timezone = ZoneInfo("Asia/Riyadh")
     today = timezone.localdate(now, school_timezone)
-    screens_qs = DisplayScreen.objects.filter(school=school).order_by("id")
-    screens = list(screens_qs)
-    live_screens_count = live_display_count(screens, now=now)
-    active_screens_count = sum(1 for screen in screens if bool(getattr(screen, "is_active", False)))
-
-    primary_screen = next(
-        (screen for screen in screens if bool(getattr(screen, "is_active", False))),
-        screens[0] if screens else None,
-    )
-    primary_screen_is_live = bool(primary_screen and display_is_live(primary_screen, now=now))
-    primary_screen_is_bound = bool(
-        primary_screen and (getattr(primary_screen, "bound_device_id", "") or "").strip()
-    )
-    primary_screen_last_seen = latest_display_presence(primary_screen) if primary_screen else None
-
-    if primary_screen is None:
-        screen_hub = {
-            "exists": False,
-            "is_fleet": False,
-            "status": "لا توجد شاشة بعد",
-            "tone": "new",
-            "detail": "أنشئ شاشة واحدة لتحصل على رابط تشغيل جاهز للتلفاز أو الشاشة الذكية.",
-            "primary_label": "أنشئ أول شاشة",
-            "primary_url": reverse("dashboard:screen_list"),
-            "short_code": "",
-        }
-    elif len(screens) > 1:
-        # مدرسة بعدة شاشات: البطل يلخّص الأسطول بدل أن يتحدث بلسان شاشة واحدة.
-        offline_count = max(active_screens_count - live_screens_count, 0)
-        unbound_count = sum(
-            1
-            for screen in screens
-            if bool(getattr(screen, "is_active", False))
-            and not (getattr(screen, "bound_device_id", "") or "").strip()
-        )
-        if active_screens_count == 0:
-            status = "جميع الشاشات موقوفة"
-            tone = "paused"
-            detail = "فعّل شاشاتك من صفحة إدارة الشاشات حتى تستقبل الجدول والمحتوى من جديد."
-        elif live_screens_count == active_screens_count:
-            status = f"كل الشاشات متصلة ({live_screens_count}/{active_screens_count})"
-            tone = "live"
-            detail = "جميع شاشات المدرسة تعمل وتستقبل تحديثات الجدول والتنبيهات تلقائيًا."
-        elif unbound_count == active_screens_count:
-            status = f"بانتظار الربط ({unbound_count})"
-            tone = "waiting"
-            detail = "افتح رابط كل شاشة على تلفازها مرة واحدة لإكمال الربط وبدء العرض."
-        elif live_screens_count == 0:
-            status = f"لا توجد شاشة متصلة (0/{active_screens_count})"
-            tone = "offline"
-            detail = "لم يصل اتصال حديث من أي شاشة. تحقق من تشغيل الأجهزة والإنترنت في المدرسة."
-        else:
-            status = f"{live_screens_count} من {active_screens_count} متصلة"
-            tone = "waiting"
-            detail = (
-                f"{offline_count} شاشة نشطة بلا اتصال حديث. افتح إدارة الشاشات لمعرفة أيها يحتاج تدخلاً."
-            )
-
-        screen_hub = {
-            "exists": True,
-            "is_fleet": True,
-            "name": f"{len(screens)} شاشة في {school.name}",
-            "status": status,
-            "tone": tone,
-            "detail": detail,
-            "primary_label": "إدارة الشاشات",
-            "primary_url": reverse("dashboard:screen_list"),
-            "short_code": "",
-        }
-    else:
-        primary_screen_url = (
-            reverse("website:short_display", args=[primary_screen.short_code])
-            if getattr(primary_screen, "short_code", "")
-            else reverse("dashboard:screen_list")
-        )
-        if not bool(getattr(primary_screen, "is_active", False)):
-            status = "الشاشة موقوفة"
-            tone = "paused"
-            detail = "فعّل الشاشة من صفحة إدارة الشاشات حتى تستقبل الجدول والمحتوى من جديد."
-        elif primary_screen_is_live:
-            status = "متصلة الآن"
-            tone = "live"
-            detail = "الشاشة تعمل وتستقبل تحديثات الجدول والتنبيهات تلقائيًا."
-        elif primary_screen_is_bound and primary_screen_last_seen:
-            status = "غير متصلة حاليًا"
-            tone = "offline"
-            detail = "الشاشة مرتبطة بجهاز، لكن لم يصل منها اتصال حديث. تحقق من تشغيل التلفاز والإنترنت."
-        elif primary_screen_is_bound:
-            status = "مرتبطة وجاهزة"
-            tone = "waiting"
-            detail = "تم ربط الجهاز بنجاح، وسيظهر الاتصال اللحظي عند وصول أول نبض تشغيل."
-        else:
-            status = "بانتظار أول تشغيل"
-            tone = "waiting"
-            detail = "افتح رابط الشاشة على التلفاز مرة واحدة لإكمال الربط وبدء العرض."
-
-        screen_hub = {
-            "exists": True,
-            "is_fleet": False,
-            "name": primary_screen.name,
-            "status": status,
-            "tone": tone,
-            "detail": detail,
-            "primary_label": "فتح شاشة المدرسة",
-            "primary_url": primary_screen_url,
-            "short_code": getattr(primary_screen, "short_code", "") or "",
-        }
+    screens = list(DisplayScreen.objects.filter(school=school).order_by("id"))
+    seen = presence_map(screens)
+    status_labels = {
+        "live": "متصلة الآن",
+        "offline": "منقطعة الآن",
+        "pending": "بانتظار أول اتصال",
+        "waiting": "بانتظار أول تشغيل",
+        "disabled": "معطلة من اللوحة",
+    }
+    screen_cards = []
+    for screen in screens:
+        state = display_connection_state(screen, seen[screen.pk], now=now)
+        screen_cards.append({
+            "name": screen.name,
+            "state": state,
+            "status": status_labels[state],
+            "last_seen": seen[screen.pk],
+            "preview_url": (
+                reverse("website:short_display", args=[screen.short_code]) + "?preview=1"
+                if screen.is_active and screen.short_code else ""
+            ),
+        })
+    live_screens_count = sum(card["state"] == "live" for card in screen_cards)
+    offline_screens_count = sum(card["state"] == "offline" for card in screen_cards)
 
     stats = {
         "ann_count": Announcement.objects.filter(school=school).count(),
         "exc_count": Excellence.objects.filter(school=school).count(),
         "standby_today": StandbyAssignment.objects.filter(school=school, date=today).count(),
         "screens_count": len(screens),
-        "active_screens_count": active_screens_count,
         "live_screens_count": live_screens_count,
+        "offline_screens_count": offline_screens_count,
     }
 
-    day_snapshot = {}
     current_state = {}
-    current_period = None
     next_period = None
     if settings_obj:
         try:
             day_snapshot = build_day_snapshot(settings_obj, now=now)
             current_state = day_snapshot.get("state") or {}
-            current_period = day_snapshot.get("current_period")
             next_period = day_snapshot.get("next_period")
         except Exception:
             logger.exception("dashboard index day snapshot failed school_id=%s", getattr(school, "id", None))
-            day_snapshot = {}
-            current_state = {}
 
     today_weekday = today.isoweekday()
     today_weekday_label = WEEKDAY_MAP.get(today_weekday, "")
-    schedule_revision = int(getattr(settings_obj, "schedule_revision", 0) or 0) if settings_obj else 0
 
     SubModel = _get_subscription_model()
     subscription = None
@@ -328,13 +241,12 @@ def index(request):
             "settings": settings_obj,
             "subscription": subscription,
             "today": today,
+            "today_weekday": today_weekday,
             "today_weekday_label": today_weekday_label,
-            "day_snapshot": day_snapshot,
             "current_state": current_state,
-            "current_period": current_period,
             "next_period": next_period,
-            "schedule_revision": schedule_revision,
-            "screen_hub": screen_hub,
+            "school": school,
+            "screen_cards": screen_cards,
             **onboarding_context,
         },
     )

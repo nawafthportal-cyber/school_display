@@ -1,13 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
     const body = document.body;
     const header = document.getElementById('header');
-    const mobileCta = document.querySelector('.mobile-cta');
     const menuToggle = document.querySelector('[data-menu-toggle]');
     const mobileMenu = document.getElementById('mobileMenu');
 
     function updateScrollState() {
         header?.classList.toggle('scrolled', window.scrollY > 18);
-        mobileCta?.classList.toggle('is-visible', window.scrollY > 520);
     }
 
     function setMenu(open) {
@@ -16,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
         menuToggle.setAttribute('aria-label', open ? 'إغلاق القائمة' : 'فتح القائمة');
         menuToggle.querySelector('i').className = open ? 'fa-solid fa-xmark' : 'fa-solid fa-bars';
         mobileMenu.hidden = !open;
-        header?.classList.toggle('menu-open', open);
     }
 
     window.addEventListener('scroll', updateScrollState, { passive: true });
@@ -32,7 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const showcase = document.querySelector('[data-product-showcase]');
     if (showcase) {
-        const tabs = Array.from(showcase.querySelectorAll('[data-shot-target]'));
+        const tabList = showcase.querySelector('[role="tablist"]');
+        const tabs = Array.from(tabList.querySelectorAll('[data-shot-target]'));
         const shots = Array.from(showcase.querySelectorAll('[data-shot]'));
 
         function selectShot(target) {
@@ -40,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const selected = tab.dataset.shotTarget === target;
                 tab.classList.toggle('active', selected);
                 tab.setAttribute('aria-selected', String(selected));
+                tab.tabIndex = selected ? 0 : -1;
             });
             shots.forEach((shot) => {
                 const selected = shot.dataset.shot === target;
@@ -51,7 +50,80 @@ document.addEventListener('DOMContentLoaded', () => {
         tabs.forEach((tab) => {
             tab.addEventListener('click', () => selectShot(tab.dataset.shotTarget));
         });
-        document.querySelector('[data-show-display]')?.addEventListener('click', () => selectShot('display'));
+        tabList.addEventListener('keydown', (event) => {
+            const currentIndex = tabs.indexOf(event.target);
+            if (currentIndex < 0) return;
+            const nextIndex = {
+                Home: 0,
+                End: tabs.length - 1,
+                ArrowLeft: (currentIndex + 1) % tabs.length,
+                ArrowRight: (currentIndex + tabs.length - 1) % tabs.length,
+            }[event.key];
+            if (!Number.isInteger(nextIndex)) return;
+            event.preventDefault();
+            selectShot(tabs[nextIndex].dataset.shotTarget);
+            tabs[nextIndex].focus();
+        });
+        tabList.hidden = false;
+    }
+
+    const pricingPicker = document.querySelector('[data-pricing-picker]');
+    const pricingGroups = document.querySelector('[data-pricing-groups]');
+    if (pricingPicker && pricingGroups) {
+        const choices = Array.from(pricingPicker.querySelectorAll('[data-pricing-choice]'));
+        const groups = Array.from(pricingGroups.querySelectorAll('.pricing-group'));
+
+        choices.forEach((choice) => {
+            choice.addEventListener('click', () => {
+                const index = Number(choice.dataset.pricingChoice);
+                choices.forEach((item) => item.setAttribute('aria-pressed', String(item === choice)));
+                groups.forEach((group, groupIndex) => {
+                    group.hidden = groupIndex !== index;
+                });
+                groups[index].open = true;
+            });
+        });
+        choices[0].click();
+        pricingGroups.dataset.enhanced = '';
+        pricingPicker.hidden = false;
+    }
+
+    const overviewVideo = document.getElementById('schoolOverviewVideo');
+    const videoPlay = document.querySelector('[data-video-play]');
+    const videoChapters = document.querySelector('[data-video-chapters]');
+    if (overviewVideo && videoPlay && videoChapters) {
+        let pendingSeek = null;
+
+        overviewVideo.addEventListener('loadedmetadata', () => {
+            if (pendingSeek === null) return;
+            overviewVideo.currentTime = pendingSeek;
+            pendingSeek = null;
+        });
+        overviewVideo.addEventListener('play', () => {
+            if (document.activeElement === videoPlay) overviewVideo.focus();
+            videoPlay.hidden = true;
+        });
+
+        function playOverview() {
+            // Native controls stay available when playback is blocked by the browser.
+            overviewVideo.play().catch(() => overviewVideo.focus());
+        }
+
+        videoPlay.addEventListener('click', playOverview);
+        videoChapters.querySelectorAll('[data-video-seek]').forEach((chapter) => {
+            chapter.addEventListener('click', () => {
+                const start = Number(chapter.dataset.videoSeek);
+                if (overviewVideo.readyState >= HTMLMediaElement.HAVE_METADATA) {
+                    overviewVideo.currentTime = start;
+                } else {
+                    pendingSeek = start;
+                }
+                playOverview();
+            });
+        });
+
+        videoPlay.hidden = false;
+        videoChapters.hidden = false;
     }
 
     const lightbox = document.getElementById('imageLightbox');

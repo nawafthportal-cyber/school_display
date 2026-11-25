@@ -109,11 +109,10 @@ class DisplayTheme(models.Model):
 
 
 class SchoolOccasionTheme(models.Model):
-    from core.occasions import announcement_choices
     from core.occasion_customizations import PATTERN_CHOICES
 
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="occasion_theme_customizations")
-    occasion_key = models.CharField(max_length=30, choices=announcement_choices())
+    occasion_key = models.CharField(max_length=30, editable=False)
     name = models.CharField("اسم الثيم", max_length=70)
     tagline = models.CharField("العبارة المصاحبة", max_length=100, blank=True)
     deep = models.CharField("لون الخلفية", max_length=7, validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "اختر لونًا صالحًا.")])

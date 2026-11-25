@@ -153,6 +153,17 @@
       min-width: 0;
     }
 
+    .appearance-nav {
+      display: inline-flex; max-width: 100%; gap: 3px; padding: 4px; margin-bottom: 16px;
+      background: #eef3f3; border: 1px solid #d3dfde; border-radius: 12px;
+    }
+    .appearance-nav a {
+      padding: 9px 16px; border-radius: 8px; color: #405854;
+      font-weight: 700; font-size: .9rem; text-decoration: none;
+    }
+    .appearance-nav a[aria-current="page"] { color: #fff; background: #115e59; }
+    .appearance-nav a:focus-visible { outline: 2px solid #0f766e; outline-offset: 2px; }
+
     .dashboard-table-scroll {
       width: 100%;
       overflow-x: auto;
@@ -168,6 +179,8 @@
 
     /* زر واتساب: ثابت أسفل الشاشة، بلا أي حركة، ونصّه ظاهر دائمًا.
        لا نبض ولا تمدّد عند المرور — العميل يرى الزر كاملاً من أول لحظة. */
+    .sidebar-link.dashboard-whatsapp-mobile { display: none; }
+
     .dashboard-whatsapp-float {
       position: fixed;
       left: max(1rem, env(safe-area-inset-left));
@@ -289,17 +302,8 @@
         padding-inline: 0.75rem;
       }
 
-      /* على الجوال يبقى النص ظاهرًا أيضًا — الوضوح هو المقصود — مع تصغير
-         بسيط حتى لا يزاحم محتوى الصفحة. */
-      .dashboard-whatsapp-float {
-        min-height: 3.25rem;
-        gap: .5rem;
-        padding: .42rem .85rem .42rem .42rem;
-      }
-      .dashboard-whatsapp-icon { width: 2.35rem; height: 2.35rem; }
-      .dashboard-whatsapp-icon svg { width: 1.4rem; height: 1.4rem; }
-      .dashboard-whatsapp-copy strong { font-size: .8rem; }
-      .dashboard-whatsapp-copy small { font-size: .64rem; }
+      .dashboard-whatsapp-float { display: none; }
+      .sidebar-link.dashboard-whatsapp-mobile { display: flex; }
     }
   </style>
   <link rel="stylesheet" href="{% static 'css/dashboard-luxury.css' %}?v=2026-10-10-layout1">
@@ -478,136 +482,168 @@
 
     <div class="p-4 space-y-1">
 
-      <div class="sidebar-section-label">الرئيسية</div>
+      <div class="sidebar-section-label">تشغيل اليوم</div>
 
       <a href="{% url 'dashboard:index' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+         class="sidebar-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'index' %}aria-current="page"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
         <span>الصفحة الرئيسية</span>
       </a>
 
-      <a href="{% url 'dashboard:my_subscription' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'my_subscription' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-        <span>اشتراكي</span>
+      <a href="{% url 'dashboard:timetable_day' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'timetable_day' or request.resolver_match.url_name == 'timetable_week' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'timetable_day' %}aria-current="page"{% elif request.resolver_match.url_name == 'timetable_week' %}aria-current="location"{% endif %}>
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <span>الجدول اليومي</span>
       </a>
 
-      {% if request.user.is_authenticated and not is_system_staff %}
-      {% if request.user.profile.schools.all|length > 1 %}
-      <a href="{% url 'dashboard:schools_overview' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'schools_overview' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V8l5-4 5 4v13M15 21V11l4-2v12M8 12h1m-1 3h1m4-3h1m-1 3h1"/></svg>
-        <span>كل مدارسي</span>
-      </a>
-      {% endif %}
-      <a href="{% url 'dashboard:add_school' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'add_school' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14M4 21h16M7 21V9h10v12"/></svg>
-        <span>إضافة مدرسة جديدة</span>
-      </a>
-      {% endif %}
-
-      <a href="{% url 'dashboard:settings' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        <span>إعدادات المدرسة</span>
+      <a href="{% url 'dashboard:standby_list' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'standby_list' or request.resolver_match.url_name == 'standby_create' or request.resolver_match.url_name == 'standby_edit' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'standby_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'standby_create' or request.resolver_match.url_name == 'standby_edit' %}aria-current="location"{% endif %}>
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>حصص الانتظار</span>
       </a>
 
-      <a href="{% url 'dashboard:help_getting_started' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'help_getting_started' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h8M8 14h5M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
-        <span>دليل البدء</span>
-      </a>
-
-      <div class="sidebar-section-label">الجدول الدراسي</div>
-
-      <a href="{% url 'dashboard:screen_list' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'screen_list' or request.resolver_match.url_name == 'screen_create' or request.resolver_match.url_name == 'screen_edit' or request.resolver_match.url_name == 'screen_pairing' or request.resolver_match.url_name == 'screen_pairing_confirm' or request.resolver_match.url_name == 'request_screen_addon' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-        <span>شاشات العرض</span>
-      </a>
+      <div class="sidebar-section-label">الجدول والبيانات</div>
 
       <a href="{% url 'dashboard:days_list' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'days_list' or request.resolver_match.url_name == 'day_edit' %}active{% endif %}">
+         class="sidebar-link {% if request.resolver_match.url_name == 'days_list' or request.resolver_match.url_name == 'day_edit' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'days_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'day_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         <span>توقيت الحصص والأيام</span>
       </a>
 
       <a href="{% url 'dashboard:closures_list' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'closures_list' %}active{% endif %}">
+         class="sidebar-link {% if request.resolver_match.url_name == 'closures_list' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'closures_list' %}aria-current="page"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2zm4-6l2 2 4-4"/></svg>
         <span>تقويم الإجازات</span>
       </a>
 
-      <a href="{% url 'dashboard:timetable_day' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'timetable_day' or request.resolver_match.url_name == 'timetable_week' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        <span>الجدول اليومي</span>
+      <a href="{% url 'dashboard:lessons_list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'lessons_list' or request.resolver_match.url_name == 'add_lesson' or request.resolver_match.url_name == 'edit_lesson' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'lessons_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'add_lesson' or request.resolver_match.url_name == 'edit_lesson' %}aria-current="location"{% endif %}>
+        <i class="nav-icon fa-solid fa-list-check" aria-hidden="true"></i><span>جميع الحصص</span>
       </a>
 
-      <div class="sidebar-section-label">المحتوى</div>
+      <a href="{% url 'dashboard:school_data' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'school_data' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'school_data' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        <span>الفصول والمواد والمعلمون</span>
+      </a>
+
+      <a href="{% url 'dashboard:school_document_import' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'school_document_import' or request.resolver_match.url_name == 'school_data_import' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'school_document_import' %}aria-current="page"{% elif request.resolver_match.url_name == 'school_data_import' %}aria-current="location"{% endif %}>
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
+        <span>استيراد الجدول</span>
+      </a>
+
+      <div class="sidebar-section-label">النشر على الشاشة</div>
 
       <a href="{% url 'dashboard:ann_list' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'ann_list' or request.resolver_match.url_name == 'ann_create' or request.resolver_match.url_name == 'ann_edit' %}active{% endif %}">
+         class="sidebar-link {% if request.resolver_match.url_name == 'ann_list' or request.resolver_match.url_name == 'ann_create' or request.resolver_match.url_name == 'ann_edit' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'ann_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'ann_create' or request.resolver_match.url_name == 'ann_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
         <span>التنبيهات</span>
       </a>
 
       <a href="{% url 'dashboard:emergency_alert_list' %}"
-         class="sidebar-link {% if 'emergency_alert' in request.resolver_match.url_name %}active{% endif %}">
+         class="sidebar-link {% if 'emergency_alert' in request.resolver_match.url_name %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'emergency_alert_list' %}aria-current="page"{% elif 'emergency_alert' in request.resolver_match.url_name %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 4h.01M10.3 3.7L2.9 17a2 2 0 001.75 3h14.7a2 2 0 001.75-3L13.7 3.7a2 2 0 00-3.4 0z"/></svg>
         <span>تنبيهات الطوارئ</span>
       </a>
 
-      <a href="{% url 'dashboard:occasion_templates' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'occasion_templates' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13a4 4 0 01-4-4 4 4 0 014 4zm0 0a4 4 0 004-4 4 4 0 00-4 4zM4 12h16v9H4zM3 8h18v4H3z"/></svg>
-        <span>قوالب المناسبات</span>
-      </a>
-
       <a href="{% url 'dashboard:exc_list' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'exc_list' or request.resolver_match.url_name == 'exc_create' or request.resolver_match.url_name == 'exc_edit' %}active{% endif %}">
+         class="sidebar-link {% if request.resolver_match.url_name == 'exc_list' or request.resolver_match.url_name == 'exc_create' or request.resolver_match.url_name == 'exc_edit' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'exc_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'exc_create' or request.resolver_match.url_name == 'exc_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" fill="none"/></svg>
         <span>قسم التميّز</span>
       </a>
 
       <a href="{% url 'dashboard:duty_list' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'duty_list' or request.resolver_match.url_name == 'duty_create' or request.resolver_match.url_name == 'duty_edit' %}active{% endif %}">
+         class="sidebar-link {% if request.resolver_match.url_name == 'duty_list' or request.resolver_match.url_name == 'duty_create' or request.resolver_match.url_name == 'duty_edit' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'duty_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'duty_create' or request.resolver_match.url_name == 'duty_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
         <span>الإشراف والمناوبة</span>
       </a>
 
-      <a href="{% url 'dashboard:standby_list' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'standby_list' or request.resolver_match.url_name == 'standby_create' or request.resolver_match.url_name == 'standby_edit' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span>حصص الانتظار</span>
+      <div class="sidebar-section-label">الشاشات والهوية</div>
+
+      <a href="{% url 'dashboard:screen_list' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'screen_list' or request.resolver_match.url_name == 'screen_create' or request.resolver_match.url_name == 'screen_edit' or request.resolver_match.url_name == 'screen_pairing' or request.resolver_match.url_name == 'screen_pairing_confirm' or request.resolver_match.url_name == 'request_screen_addon' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'screen_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'screen_create' or request.resolver_match.url_name == 'screen_edit' or request.resolver_match.url_name == 'screen_pairing' or request.resolver_match.url_name == 'screen_pairing_confirm' or request.resolver_match.url_name == 'request_screen_addon' %}aria-current="location"{% endif %}>
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        <span>شاشات العرض</span>
       </a>
 
-      <div class="sidebar-section-label">البيانات</div>
-
-      <a href="{% url 'dashboard:school_data' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'school_data' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-        <span>الفصول والمواد والمعلمين</span>
+      <a href="{% url 'dashboard:screens_customize_all' %}" class="sidebar-link {% if request.resolver_match.url_name == 'screens_customize_all' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'screens_customize_all' %}aria-current="page"{% endif %}>
+        <i class="nav-icon fa-solid fa-sliders" aria-hidden="true"></i><span>تخصيص جميع الشاشات</span>
       </a>
 
-      <a href="{% url 'dashboard:school_data_import' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'school_data_import' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3M12 3v13m0 0l-4-4m4 4l4-4"/></svg>
-        <span>استيراد Excel</span>
+      {% with page=request.resolver_match.url_name %}
+      <a href="{% url 'dashboard:theme_list' %}" class="sidebar-link {% if page == 'theme_list' or page == 'theme_create' or page == 'theme_edit' or page == 'occasion_templates' or page == 'occasion_theme_create' or page == 'occasion_theme_edit' %}active{% endif %}"
+         {% if page == 'theme_list' %}aria-current="page"{% elif page == 'theme_create' or page == 'theme_edit' or page == 'occasion_templates' or page == 'occasion_theme_create' or page == 'occasion_theme_edit' %}aria-current="location"{% endif %}>
+        <i class="nav-icon fa-solid fa-palette" aria-hidden="true"></i><span>مظهر الشاشات</span>
+      </a>
+      {% endwith %}
+
+      <div class="sidebar-section-label">المدارس والحساب</div>
+
+      {% if request.user.is_authenticated and not is_system_staff %}
+      {% if request.user.profile.schools.all|length > 1 %}
+      <a href="{% url 'dashboard:schools_overview' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'schools_overview' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'schools_overview' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V8l5-4 5 4v13M15 21V11l4-2v12M8 12h1m-1 3h1m4-3h1m-1 3h1"/></svg>
+        <span>كل مدارسي</span>
       </a>
 
-      <a href="{% url 'dashboard:school_document_import' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'school_document_import' %}active{% endif %}">
-        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
-        <span>استيراد ذكي للجدول</span>
+      {% endif %}
+      <a href="{% url 'dashboard:add_school' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'add_school' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'add_school' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14M5 12h14M4 21h16M7 21V9h10v12"/></svg>
+        <span>إضافة مدرسة جديدة</span>
+      </a>
+
+      {% endif %}
+      <a href="{% url 'dashboard:my_subscription' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'my_subscription' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'my_subscription' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+        <span>اشتراكي</span>
+      </a>
+
+      <a href="{% url 'dashboard:settings' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'settings' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span>إعدادات المدرسة</span>
       </a>
 
       <a href="{% url 'dashboard:customer_support_tickets' %}"
-         class="sidebar-link {% if request.resolver_match.url_name == 'customer_support_tickets' or request.resolver_match.url_name == 'customer_support_ticket_detail' or request.resolver_match.url_name == 'customer_support_ticket_create' %}active{% endif %}">
+         class="sidebar-link {% if request.resolver_match.url_name == 'customer_support_tickets' or request.resolver_match.url_name == 'customer_support_ticket_detail' or request.resolver_match.url_name == 'customer_support_ticket_create' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'customer_support_tickets' %}aria-current="page"{% elif request.resolver_match.url_name == 'customer_support_ticket_detail' or request.resolver_match.url_name == 'customer_support_ticket_create' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
         <span>الدعم الفني</span>
       </a>
+
+      <a href="{% url 'dashboard:help_getting_started' %}"
+         class="sidebar-link {% if request.resolver_match.url_name == 'help_getting_started' %}active{% endif %}"
+         {% if request.resolver_match.url_name == 'help_getting_started' %}aria-current="page"{% endif %}>
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h8M8 14h5M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
+        <span>دليل البدء</span>
+      </a>
+
+      {% if school_whatsapp_url %}
+      <a href="{{ school_whatsapp_url }}" target="_blank" rel="noopener noreferrer" class="sidebar-link dashboard-whatsapp-mobile">
+        <i class="nav-icon fa-brands fa-whatsapp" aria-hidden="true"></i><span>التواصل عبر واتساب</span>
+      </a>
+      {% endif %}
 
       {% if is_system_staff %}
         <div class="sidebar-section-label">إدارة النظام</div>
