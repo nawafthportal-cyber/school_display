@@ -3,7 +3,8 @@
 
 {% block title %}الفصول والمواد والمعلمون{% endblock %}
 {% block page_title %}الفصول والمواد والمعلمون{% endblock %}
-{% block page_description %}جهّز بيانات المدرسة الأساسية التي يُبنى عليها الجدول اليومي.{% endblock %}
+{% block page_area %}الجدول والبيانات{% endblock %}
+{% block page_description %}أضف الفصول والمواد والمعلمين هنا أولًا، ثم استخدمها عند إسناد الحصص في جدول المدرسة.{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -159,10 +160,12 @@
       </div>
     </div>
     <div class="sd-command__actions">
-      <a href="{% url 'dashboard:school_document_import' %}" class="dp-btn dp-btn--soft">
+      {% if 'smart_import' not in school_plan_disabled|default:"" or 'excel_import' not in school_plan_disabled|default:"" %}
+      <a href="{% if 'smart_import' in school_plan_disabled|default:"" %}{% url 'dashboard:school_data_import' %}{% else %}{% url 'dashboard:school_document_import' %}{% endif %}" class="dp-btn dp-btn--soft">
         <i class="fa-solid fa-file-import" aria-hidden="true"></i>
         استيراد الجدول
       </a>
+      {% endif %}
       <a href="{% url 'dashboard:timetable_day' %}" class="dp-btn dp-btn--primary">
         <i class="fa-solid fa-table-cells-large" aria-hidden="true"></i>
         الجدول اليومي

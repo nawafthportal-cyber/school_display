@@ -16,12 +16,12 @@ page — and three pages showed no errors at all. Always include it with
     {% if field.field.required %}<span class="dp-field__req" aria-hidden="true">*</span><span class="sr-only"> (حقل مطلوب)</span>{% endif %}
   </label>
   {{ field }}
-  {% if hint %}
-    <small class="dp-field__hint">{{ hint }}</small>
-  {% elif field.help_text %}
-    <small class="dp-field__hint">{{ field.help_text }}</small>
+  {% if hint or field.help_text %}
+    <small id="{{ field.auto_id }}_helptext" class="dp-field__hint">{{ hint|default:field.help_text }}</small>
   {% endif %}
-  {% for error in field.errors %}
-    <div class="dp-field__error">{{ error }}</div>
-  {% endfor %}
+  {% if field.errors %}
+    <div id="{{ field.auto_id }}_error" class="dp-field__error">
+      {% for error in field.errors %}<div>{{ error }}</div>{% endfor %}
+    </div>
+  {% endif %}
 </div>

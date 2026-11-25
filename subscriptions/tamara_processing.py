@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -12,13 +11,12 @@ from django.utils import timezone
 
 from .invoicing import build_invoice_from_operation
 from .models import (
-    SchoolSubscription,
     SubscriptionInvoice,
     SubscriptionPaymentOperation,
     TamaraCheckout,
 )
+from .plan_terms import activate_gateway_plan
 from .tamara import TamaraAPIError, TamaraClient, TamaraConfigurationError
-from .trials import close_superseded_trials_quietly
 
 
 logger = logging.getLogger(__name__)
@@ -92,36 +90,17 @@ def activate_checkout(checkout_id: int, *, status: str, event_type: str) -> Tama
         # the payment_operation saved by the first one.
         checkout.refresh_from_db()
 
-        subscription, _created = SchoolSubscription.objects.get_or_create(
-            school=checkout.school,
-            plan=checkout.plan,
-            starts_at=checkout.starts_at,
-            defaults={
-                "status": "active",
-                "notes": f"Paid via Tamara {checkout.merchant_reference}",
-            },
-        )
-        if subscription.status != "active":
-            subscription.status = "active"
-            changed = ["status", "updated_at"]
-            term_days = int(getattr(checkout.plan, "duration_days", 0) or 0)
-            today = timezone.localdate()
-            if term_days > 0 and (subscription.ends_at is None or subscription.ends_at < today):
-                subscription.ends_at = today + timedelta(days=term_days)
-                changed.append("ends_at")
-            subscription.save(update_fields=changed)
-
-        # التجربة المجانية لا يجوز أن تستمر بالعد التنازلي بعد الاشتراك المدفوع.
-        close_superseded_trials_quietly(checkout.school_id)
-
+        note = f"Tamara {checkout.merchant_reference} / {checkout.tamara_order_id}"
         operation = checkout.payment_operation
         if operation is None:
-            note = f"Tamara {checkout.merchant_reference} / {checkout.tamara_order_id}"
+            # Older payments can exist before the checkout stores their operation.
             operation = (
                 SubscriptionPaymentOperation.objects.filter(
-                    school=checkout.school,
-                    subscription=subscription,
-                    plan=checkout.plan,
+                    school_id=checkout.school_id,
+                    plan_id=checkout.plan_id,
+                    subscription__school_id=checkout.school_id,
+                    subscription__plan_id=checkout.plan_id,
+                    subscription__starts_at=checkout.starts_at,
                     amount=checkout.amount,
                     method="tamara",
                     source="request",
@@ -130,35 +109,43 @@ def activate_checkout(checkout_id: int, *, status: str, event_type: str) -> Tama
                 .order_by("id")
                 .first()
             )
-            if operation is None:
-                operation = SubscriptionPaymentOperation.objects.create(
-                    school=checkout.school,
-                    subscription=subscription,
-                    plan=checkout.plan,
-                    amount=checkout.amount,
-                    method="tamara",
-                    source="request",
-                    created_by=checkout.created_by,
-                    note=note,
-                )
+        if operation is not None:
+            subscription = operation.subscription
+        else:
+            subscription = activate_gateway_plan(
+                school_id=checkout.school_id,
+                plan=checkout.plan,
+                requested_start=checkout.starts_at,
+                notes=f"Paid via Tamara {checkout.merchant_reference}",
+            )
+            operation = SubscriptionPaymentOperation.objects.create(
+                school=checkout.school,
+                subscription=subscription,
+                plan=checkout.plan,
+                amount=checkout.amount,
+                method="tamara",
+                source="request",
+                created_by=checkout.created_by,
+                note=note,
+            )
 
-                from .audit import record
+            from .audit import record
 
-                record(
-                    "payment_recorded",
-                    school=checkout.school,
-                    subscription=subscription,
-                    actor=checkout.created_by,
-                    amount=checkout.amount,
-                    summary="تفعيل اشتراك عبر تمارا",
-                    context={
-                        "gateway": "tamara",
-                        "merchant_reference": checkout.merchant_reference,
-                        "order_id": checkout.tamara_order_id or "",
-                        "event": event_type,
-                        "request_type": checkout.request_type,
-                    },
-                )
+            record(
+                "payment_recorded",
+                school=checkout.school,
+                subscription=subscription,
+                actor=checkout.created_by,
+                amount=checkout.amount,
+                summary="تفعيل اشتراك عبر تمارا",
+                context={
+                    "gateway": "tamara",
+                    "merchant_reference": checkout.merchant_reference,
+                    "order_id": checkout.tamara_order_id or "",
+                    "event": event_type,
+                    "request_type": checkout.request_type,
+                },
+            )
 
         if not SubscriptionInvoice.objects.filter(operation=operation).exists():
             build_invoice_from_operation(operation)

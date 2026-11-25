@@ -2,28 +2,29 @@
 
 {% block title %}إضافة مدرسة جديدة{% endblock %}
 {% block page_title %}إضافة مدرسة جديدة{% endblock %}
-{% block page_description %}أنشئ مدرسة مستقلة، اختر عدد شاشاتها وباقتها، ثم أكمل الدفع{% endblock %}
+{% block page_area %}المدارس والحساب{% endblock %}
+{% block page_description %}أدخل بيانات المدرسة وحدّد عدد الشاشات، ثم اختر الباقة وأكمل طلب الاشتراك. ستجد المدرسة الجديدة في «كل مدارسي».{% endblock %}
 
 {% block content %}
 <div class="dp-stack">
 
-  <section class="dp-steps" aria-label="خطوات إضافة المدرسة">
-    <div class="dp-step is-current">
-      <span class="dp-step__n">١</span>
+  <ol class="dp-steps" aria-label="خطوات إضافة المدرسة">
+    <li class="dp-step">
+      <span class="dp-step__n" aria-hidden="true">١</span>
       <strong>بيانات المدرسة</strong>
       <p>الاسم والنوع والشعار.</p>
-    </div>
-    <div class="dp-step">
-      <span class="dp-step__n">٢</span>
-      <strong>عدد الشاشات والباقة</strong>
+    </li>
+    <li class="dp-step">
+      <span class="dp-step__n" aria-hidden="true">٢</span>
+      <strong>الشاشات والباقة</strong>
       <p>العدد أولًا، ثم المدة المناسبة.</p>
-    </div>
-    <div class="dp-step">
-      <span class="dp-step__n">٣</span>
+    </li>
+    <li class="dp-step">
+      <span class="dp-step__n" aria-hidden="true">٣</span>
       <strong>الدفع والتفعيل</strong>
       <p>بعد الحفظ مباشرة.</p>
-    </div>
-  </section>
+    </li>
+  </ol>
 
   <form method="post" enctype="multipart/form-data" class="dp-form" novalidate>
     {% csrf_token %}

@@ -37,7 +37,7 @@
     </span>
     <span class="min-w-0 flex-1 text-right">
       <strong class="block text-sm text-slate-900">تمارا</strong>
-      <small class="mt-1 block text-[10px] leading-5 text-slate-500">خيارات دفع مرنة حسب الأهلية</small>
+      <small class="mt-1 block text-xs leading-5 text-slate-600">يعرض تمارا خيارات الدفع المتاحة بعد التحقق من الأهلية</small>
     </span>
     {% if tamara_available %}
       <span class="payment-method-status is-ready">متاح</span>
@@ -53,10 +53,10 @@
     data-payment-method="bank"
     aria-pressed="false"
   >
-    <span class="payment-method-logo payment-method-logo-bank">↗</span>
+    <span class="payment-method-logo payment-method-logo-bank" aria-hidden="true">↗</span>
     <span class="min-w-0 flex-1 text-right">
       <strong class="block text-sm text-slate-900">تحويل بنكي</strong>
-      <small class="mt-1 block text-[10px] leading-5 text-slate-500">رفع الإيصال ومراجعته من الإدارة</small>
+      <small class="mt-1 block text-xs leading-5 text-slate-600">حوّل المبلغ وأرفق الإيصال للمراجعة</small>
     </span>
     <span class="payment-method-status is-manual">يدوي</span>
   </button>

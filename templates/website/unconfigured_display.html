@@ -221,7 +221,7 @@
             <div class="container">
                 <header class="section-head">
                     <h2 id="pricingTitle">الباقات والأسعار</h2>
-                    <p>كل المزايا مشمولة. اختر عدد الشاشات لمقارنة إجمالي السعر لكل مدة.</p>
+                    <p>{% if not pricing_has_feature_restrictions %}كل المزايا مشمولة. {% endif %}اختر عدد الشاشات لمقارنة إجمالي السعر لكل مدة.</p>
                 </header>
                 {% if pricing_groups %}
                 <div class="pricing-picker" data-pricing-picker hidden>

@@ -357,8 +357,12 @@ def _build_display_context(request, key: str | None) -> dict | None:
     # read-only view that never claims the screen's device slot. The context is
     # per-viewer, so it must stay out of the shared render cache.
     from display.services import resolve_preview_screen
+    from subscriptions.features import display_feature_policy, school_disabled_features
 
     preview_mode = resolve_preview_screen(request, effective_token) is not None
+    disabled = school_disabled_features(screen.school_id)
+    feature_policy = display_feature_policy(disabled)
+    appearance_screen = screen if "screen_customization" not in disabled else None
 
     try:
         schedule_revision = int(getattr(settings_obj, "schedule_revision", 0) or 0)
@@ -369,16 +373,16 @@ def _build_display_context(request, key: str | None) -> dict | None:
     cache_key = f"display_ctx:{effective_token}:rev:{schedule_revision}"
     if not bypass_cache and not preview_mode:
         cached = cache.get(cache_key)
-        if cached:
+        if cached and cached.get("display_feature_policy") == feature_policy:
             return cached
 
     def _screen_override(field_name: str, fallback):
-        value = getattr(screen, field_name, None)
+        value = getattr(appearance_screen, field_name, None)
         return fallback if value in (None, "") else value
 
     # شعار
     logo_url = None
-    if getattr(screen, "logo_override", None):
+    if getattr(appearance_screen, "logo_override", None):
         try:
             logo_url = screen.logo_override.url
         except Exception:
@@ -392,7 +396,7 @@ def _build_display_context(request, key: str | None) -> dict | None:
         logo_url = getattr(settings_obj, "logo_url", None)
     logo_url = _abs_media_url(request, logo_url)
 
-    screen_theme_override = (getattr(screen, "theme_override", "") or "").strip()
+    screen_theme_override = (_screen_override("theme_override", "") or "").strip()
     raw_theme = screen_theme_override or getattr(settings_obj, "theme", "default")
     theme = THEME_MAP.get(raw_theme, "indigo")
 
@@ -441,12 +445,13 @@ def _build_display_context(request, key: str | None) -> dict | None:
         "theme_key": raw_theme,
         "preview_mode": preview_mode,
         "preview_embedded": preview_mode and request.GET.get("embed") == "1",
+        "display_feature_policy": feature_policy,
         "screen_theme_override": screen_theme_override,
-        "custom_display_theme": theme_payload(effective_custom_theme(settings_obj, screen)) if not preview_lock else None,
-        "screen_occasion_theme": getattr(screen, "occasion_theme", "auto") or "auto",
-        "screen_featured_panel": (
-            getattr(screen, "featured_panel_override", "") or ""
-        ),
+        "custom_display_theme": theme_payload(effective_custom_theme(settings_obj, appearance_screen)) if not preview_lock else None,
+        "screen_occasion_theme": _screen_override("occasion_theme", "auto"),
+        "screen_featured_panel": _screen_override("featured_panel_override", ""),
+        "screen_standby_speed_override": _screen_override("standby_scroll_speed_override", None),
+        "screen_periods_speed_override": _screen_override("periods_scroll_speed_override", None),
         "screen_display_copy": {
             "before_title": _screen_override("display_before_title_override", settings_obj.get_display_before_title()),
             "before_badge": _screen_override("display_before_badge_override", settings_obj.get_display_before_badge()),
@@ -457,11 +462,11 @@ def _build_display_context(request, key: str | None) -> dict | None:
             "holiday_title": _screen_override("display_holiday_title_override", settings_obj.get_display_holiday_title()),
             "holiday_badge": _screen_override("display_holiday_badge_override", settings_obj.get_display_holiday_badge()),
         },
-        "screen_show_announcements": bool(getattr(screen, "show_announcements", True)),
-        "screen_show_period_classes": bool(getattr(screen, "show_period_classes", True)),
-        "screen_show_standby": bool(getattr(screen, "show_standby", True)),
-        "screen_show_duty": bool(getattr(screen, "show_duty", True)),
-        "screen_show_excellence": bool(getattr(screen, "show_excellence", True)),
+        "screen_show_announcements": "announcements" not in disabled and bool(_screen_override("show_announcements", True)),
+        "screen_show_period_classes": bool(_screen_override("show_period_classes", True)),
+        "screen_show_standby": "standby" not in disabled and bool(_screen_override("show_standby", True)),
+        "screen_show_duty": "duty" not in disabled and bool(_screen_override("show_duty", True)),
+        "screen_show_excellence": "excellence" not in disabled and bool(_screen_override("show_excellence", True)),
         "preview_lock": preview_lock,
         # ✅ نعطي الواجهة token الحقيقي دائمًا
         "api_token": effective_token,
@@ -578,6 +583,9 @@ def home(request):
                 "plan_order_url": reverse("website:plan_order"),
                 "dashboard_url": reverse("dashboard:index"),
                 "pricing_groups": pricing_groups,
+                "pricing_has_feature_restrictions": any(
+                    plan["has_feature_restrictions"] for plan in paid_plans
+                ),
                 "starting_plan": starting_plan,
                 "landing_trial": landing_trial,
             },

@@ -333,10 +333,14 @@ def occasion_templates(request):
     if response:
         return response
     from core.models import DisplayScreen
+    from subscriptions.features import school_disabled_features
     cards = cards_for_school(school.pk)
     choices = [(key, label) for key, label in occasions.screen_choices() if key in ("auto", "off")]
     choices.extend((card["key"], card["name"]) for card in cards)
-    screens = list(DisplayScreen.objects.filter(school=school).order_by("name"))
+    screens = (
+        list(DisplayScreen.objects.filter(school=school).order_by("name"))
+        if "screen_customization" not in school_disabled_features(school.pk) else []
+    )
     labels = dict(choices)
     for screen in screens:
         screen.occasion_label = labels.get(screen.occasion_theme, "")

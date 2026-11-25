@@ -650,6 +650,55 @@ class PaidAccessIsGrantedWithoutStaffTests(TestCase):
         self.assertTrue(school_has_active_subscription(self.school.id, on_date=current.ends_at))
         self.assertTrue(school_has_active_subscription(self.school.id, on_date=renewal.starts_at))
 
+    def test_new_same_plan_purchases_append_to_paid_coverage_once_per_payment(self):
+        today = timezone.localdate()
+        current = SchoolSubscription.objects.create(
+            school=self.school, plan=self.plan,
+            starts_at=today - timedelta(days=30), ends_at=today + timedelta(days=10),
+        )
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse("subscriptions:moyasar_start"),
+            {"request_type": "new", "plan_id": self.plan.pk},
+        )
+        checkout = MoyasarCheckout.objects.get(school=self.school)
+        self.assertRedirects(
+            response, reverse("subscriptions:moyasar_checkout", args=[checkout.merchant_reference]),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(checkout.starts_at, current.ends_at + timedelta(days=1))
+
+        # A separate checkout can quote the same start before either payment succeeds.
+        second_checkout = self._checkout(starts_at=checkout.starts_at)
+        first = apply_payment_details(checkout.pk, self._paid_details(checkout), event_type="return")
+        self.assertEqual(first.subscription.starts_at, checkout.starts_at)
+        self.assertFalse(first.subscription.is_active)
+        second_payment = self._paid_details(second_checkout, payment_id="pay_live_0000000000002")
+        second = apply_payment_details(second_checkout.pk, second_payment, event_type="webhook")
+        replay = apply_payment_details(second_checkout.pk, second_payment, event_type="return")
+
+        self.assertEqual(second.subscription.starts_at, first.subscription.ends_at + timedelta(days=1))
+        self.assertEqual(replay.subscription_id, second.subscription_id)
+        self.assertEqual(SchoolSubscription.objects.filter(school=self.school).count(), 3)
+        self.assertEqual(SubscriptionPaymentOperation.objects.filter(school=self.school).count(), 2)
+        current.refresh_from_db()
+        self.assertEqual(current.ends_at, today + timedelta(days=10))
+
+    def test_different_plan_begins_on_confirmation_even_with_a_running_plan(self):
+        today = timezone.localdate()
+        other_plan = SubscriptionPlan.objects.create(
+            code="other-paid-plan", name="A different plan", price=100, duration_days=30,
+        )
+        SchoolSubscription.objects.create(
+            school=self.school, plan=other_plan,
+            starts_at=today - timedelta(days=20), ends_at=today + timedelta(days=10),
+        )
+        checkout = self._checkout(starts_at=today - timedelta(days=2))
+        activated = apply_payment_details(checkout.pk, self._paid_details(checkout), event_type="return")
+
+        self.assertEqual(activated.subscription.starts_at, today)
+        self.assertTrue(activated.subscription.is_active)
+
     # ---- an outage must not turn a real payment into a void -------------
     @patch("subscriptions.moyasar.MoyasarClient.list_payments")
     @patch("subscriptions.moyasar.MoyasarClient.__init__", return_value=None)

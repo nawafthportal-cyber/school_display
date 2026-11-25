@@ -306,17 +306,18 @@
       .sidebar-link.dashboard-whatsapp-mobile { display: flex; }
     }
   </style>
-  <link rel="stylesheet" href="{% static 'css/dashboard-luxury.css' %}?v=2026-10-10-layout1">
+  <link rel="stylesheet" href="{% static 'css/dashboard-luxury.css' %}?v=2026-11-26-manager">
   {% comment %} Premium primitives (dp-*). Sits after the luxury layer so it can
      restore depth where that file flattened everything, and before extra_css so
      a page can still overrule it. {% endcomment %}
-  <link rel="stylesheet" href="{% static 'css/dashboard-premium.css' %}?v=2026-08-13-teal1">
+  <link rel="stylesheet" href="{% static 'css/dashboard-premium.css' %}?v=2026-11-26-manager">
   {% block extra_css %}{% endblock %}
   {% block extra_head %}{% endblock %}
   <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=2026-08-05-m1">
 </head>
 
 <body class="dashboard-shell min-h-full bg-[#f1f5f9] text-slate-900">
+<a class="dashboard-skip-link" href="#dashboardMain">انتقل إلى محتوى الصفحة</a>
 
 <div class="dashboard-ambient" aria-hidden="true">
   <div class="dashboard-orb dashboard-orb--a"></div>
@@ -344,8 +345,8 @@
       {% endif %}
 
       <div class="hidden sm:block">
-        <h1 class="text-[15px] font-extrabold text-slate-800 leading-tight">لوحة التحكم</h1>
-        <p class="text-[11px] text-slate-400 font-medium">{{ school_name|default:"مدرستنا" }}</p>
+        <a href="{% url 'dashboard:index' %}" class="dashboard-brand-link">لوحة المدرسة</a>
+        <p class="dashboard-brand-school" dir="auto">{% firstof request.school.name school_name "لوحة العرض الذكية" %}</p>
       </div>
     </div>
 
@@ -401,7 +402,7 @@
 
       {% if request.user.is_authenticated and not is_system_staff %}
       <a href="{% url 'dashboard:add_school' %}"
-         class="dp-btn dp-btn--primary dp-btn--sm"
+         class="dp-btn dp-btn--soft dp-btn--sm"
          title="إضافة مدرسة جديدة">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.3" d="M12 5v14M5 12h14"/></svg>
         <span class="hidden md:inline">إضافة مدرسة</span>
@@ -476,11 +477,16 @@
 <div class="dashboard-layout-shell min-h-screen flex">
 
   <!-- ═══ SIDEBAR ═══ -->
-  <aside id="dashboardSidebar" aria-label="قائمة التنقل" style="top: var(--header-h);" class="dashboard-sidebar fixed right-0 bottom-0 w-[var(--sidebar-w)] bg-white border-l border-slate-200/80 z-50 overflow-y-auto
+  <nav id="dashboardSidebar" aria-label="القائمة الرئيسية" style="top: var(--header-h);" class="dashboard-sidebar fixed right-0 bottom-0 w-[var(--sidebar-w)] border-l z-50 overflow-y-auto
                 transition-transform duration-300 ease-[cubic-bezier(.4,0,.2,1)]
                 translate-x-full lg:translate-x-0">
 
-    <div class="p-4 space-y-1">
+    <div class="dashboard-sidebar__school">
+      <span>{% if request.school %}المدرسة النشطة{% else %}حساب المدرسة{% endif %}</span>
+      <strong dir="auto">{% firstof request.school.name school_name "لوحة العرض الذكية" %}</strong>
+    </div>
+
+    <div class="px-4 pb-5 space-y-1">
 
       <div class="sidebar-section-label">تشغيل اليوم</div>
 
@@ -498,12 +504,14 @@
         <span>الجدول اليومي</span>
       </a>
 
+      {% if 'standby' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:standby_list' %}"
          class="sidebar-link {% if request.resolver_match.url_name == 'standby_list' or request.resolver_match.url_name == 'standby_create' or request.resolver_match.url_name == 'standby_edit' %}active{% endif %}"
          {% if request.resolver_match.url_name == 'standby_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'standby_create' or request.resolver_match.url_name == 'standby_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <span>حصص الانتظار</span>
       </a>
+      {% endif %}
 
       <div class="sidebar-section-label">الجدول والبيانات</div>
 
@@ -533,42 +541,52 @@
         <span>الفصول والمواد والمعلمون</span>
       </a>
 
-      <a href="{% url 'dashboard:school_document_import' %}"
+      {% if 'smart_import' not in school_plan_disabled|default:"" or 'excel_import' not in school_plan_disabled|default:"" %}
+      <a href="{% if 'smart_import' in school_plan_disabled|default:"" %}{% url 'dashboard:school_data_import' %}{% else %}{% url 'dashboard:school_document_import' %}{% endif %}"
          class="sidebar-link {% if request.resolver_match.url_name == 'school_document_import' or request.resolver_match.url_name == 'school_data_import' %}active{% endif %}"
          {% if request.resolver_match.url_name == 'school_document_import' %}aria-current="page"{% elif request.resolver_match.url_name == 'school_data_import' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
         <span>استيراد الجدول</span>
       </a>
+      {% endif %}
 
       <div class="sidebar-section-label">النشر على الشاشة</div>
 
+      {% if 'announcements' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:ann_list' %}"
          class="sidebar-link {% if request.resolver_match.url_name == 'ann_list' or request.resolver_match.url_name == 'ann_create' or request.resolver_match.url_name == 'ann_edit' %}active{% endif %}"
          {% if request.resolver_match.url_name == 'ann_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'ann_create' or request.resolver_match.url_name == 'ann_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
         <span>التنبيهات</span>
       </a>
+      {% endif %}
 
+      {% if 'emergency_alerts' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:emergency_alert_list' %}"
          class="sidebar-link {% if 'emergency_alert' in request.resolver_match.url_name %}active{% endif %}"
          {% if request.resolver_match.url_name == 'emergency_alert_list' %}aria-current="page"{% elif 'emergency_alert' in request.resolver_match.url_name %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 4h.01M10.3 3.7L2.9 17a2 2 0 001.75 3h14.7a2 2 0 001.75-3L13.7 3.7a2 2 0 00-3.4 0z"/></svg>
         <span>تنبيهات الطوارئ</span>
       </a>
+      {% endif %}
 
+      {% if 'excellence' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:exc_list' %}"
          class="sidebar-link {% if request.resolver_match.url_name == 'exc_list' or request.resolver_match.url_name == 'exc_create' or request.resolver_match.url_name == 'exc_edit' %}active{% endif %}"
          {% if request.resolver_match.url_name == 'exc_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'exc_create' or request.resolver_match.url_name == 'exc_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" fill="none"/></svg>
         <span>قسم التميّز</span>
       </a>
+      {% endif %}
 
+      {% if 'duty' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:duty_list' %}"
          class="sidebar-link {% if request.resolver_match.url_name == 'duty_list' or request.resolver_match.url_name == 'duty_create' or request.resolver_match.url_name == 'duty_edit' %}active{% endif %}"
          {% if request.resolver_match.url_name == 'duty_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'duty_create' or request.resolver_match.url_name == 'duty_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
         <span>الإشراف والمناوبة</span>
       </a>
+      {% endif %}
 
       <div class="sidebar-section-label">الشاشات والهوية</div>
 
@@ -662,18 +680,11 @@
       {% endif %}
     </div>
 
-    <!-- Sidebar Footer -->
-    <div class="p-4 mt-4 border-t border-slate-100">
-      <div class="text-center text-[10px] text-slate-400 font-medium leading-relaxed">
-        <div class="font-bold text-slate-500">{{ school_name|default:"مدرستنا" }}</div>
-        <div>نظام العرض المدرسي الذكي</div>
-      </div>
-    </div>
-  </aside>
+  </nav>
 
   <!-- ═══ MAIN CONTENT ═══ -->
-  <main class="dashboard-main flex-1 lg:mr-[var(--sidebar-w)] transition-all duration-300">
-    <div class="dashboard-main-inner max-w-[1120px] mx-auto px-4 lg:px-8 py-6 animate-fade-up">
+  <main id="dashboardMain" tabindex="-1" class="dashboard-main flex-1 lg:mr-[var(--sidebar-w)]">
+    <div class="dashboard-main-inner max-w-[1120px] mx-auto px-4 lg:px-8 py-6">
 
       {# ═══ Subscription Warning Banner ═══ #}
       {% if request.user.is_authenticated %}
@@ -711,20 +722,25 @@
       stating its name twice in two stacked cards, which is what this block
       exists to avoid.
       {% endcomment %}
-      <div class="dashboard-page-intro mb-6">
-        <div class="dp-min0">
-          <h2 class="text-xl font-bold text-slate-800">
+      {% block page_header %}
+      <header class="dashboard-page-intro mb-6">
+        <div class="dashboard-page-intro__copy">
+          <nav class="dashboard-page-path" aria-label="موقع الصفحة">
+            <a href="{% url 'dashboard:index' %}">لوحة المدرسة</a>
+            <span aria-hidden="true">/</span>
+            <span>{% block page_area %}إدارة المدرسة{% endblock %}</span>
+          </nav>
+          <h1>
             {% block page_title %}الصفحة الرئيسية{% endblock %}
-          </h2>
-          <p class="text-slate-500 text-sm mt-0.5">
-            {% block page_description %}إدارة النظام والعناصر المختلفة{% endblock %}
-          </p>
+          </h1>
+          <p>{% block page_description %}{% endblock %}</p>
         </div>
         {% block page_actions %}{% endblock %}
-      </div>
+      </header>
+      {% endblock %}
 
       <!-- Content Area -->
-      <div class="dashboard-content animate-fade-up" style="animation-delay:.1s">
+      <div class="dashboard-content">
         {% block content %}
         <p class="text-slate-600 text-center py-12">مرحبًا بك في لوحة التحكم.</p>
         {% endblock %}
@@ -754,6 +770,6 @@
 
 {% block extra_js %}{% endblock %}
 <script defer src="{% static 'js/csp-actions.js' %}?v=2026-10-10-confirm1"></script>
-<script defer src="{% static 'js/dashboard-shell.js' %}?v=2026-10-10-focus1"></script>
+<script defer src="{% static 'js/dashboard-shell.js' %}?v=2026-11-26-manager"></script>
 </body>
 </html>

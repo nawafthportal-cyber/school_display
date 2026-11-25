@@ -48,6 +48,7 @@ from core.system_access import (
     normalize_permission_keys,
     role_permissions,
 )
+from subscriptions.features import PLAN_FEATURES, plan_disabled_features
 from subscriptions.models import SchoolSubscription, SubscriptionScreenAddon, SubscriptionRequest
 logger = logging.getLogger(__name__)
 
@@ -2223,14 +2224,27 @@ class SystemEmployeeUpdateForm(forms.ModelForm):
 from core.models import SupportTicket
 
 class SubscriptionPlanForm(forms.ModelForm):
+    features_submitted = forms.BooleanField(required=False, initial=True, widget=forms.HiddenInput)
+    enabled_features = forms.MultipleChoiceField(
+        label="الخصائص المتاحة للاستخدام",
+        choices=tuple(PLAN_FEATURES.items()),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["enabled_features"].initial = tuple(
+            key for key in PLAN_FEATURES if key not in plan_disabled_features(self.instance)
+        )
         self.fields["duration_days"].required = True
         self.fields["code"].help_text = "رمز داخلي فريد بالإنجليزية، مثل: basic أو annual-pro."
         self.fields["price"].help_text = "السعر الكامل للباقة بالريال السعودي."
         self.fields["duration_days"].help_text = "عدد أيام الاشتراك، مثل 365 للباقة السنوية."
         self.fields["description"].help_text = "وصف قصير يساعد المدرسة على اختيار الباقة المناسبة."
-        self.fields["card_features"].help_text = "اكتب كل ميزة في سطر مستقل، وستظهر بالترتيب نفسه داخل البطاقة."
+        self.fields["card_features"].help_text = (
+            "اكتب كل سطر على حدة. عند إيقاف إحدى الخصائص، تعرض البطاقة الخصائص المفعّلة تلقائيًا."
+        )
 
     class Meta:
         model = SubscriptionPlan
@@ -2290,6 +2304,9 @@ class SubscriptionPlanForm(forms.ModelForm):
 
     def save(self, commit=True):
         plan = super().save(commit=False)
+        if self.cleaned_data["features_submitted"] or "enabled_features" in self.data:
+            enabled = set(self.cleaned_data["enabled_features"])
+            plan.disabled_features = [key for key in PLAN_FEATURES if key not in enabled]
         if commit:
             plan.save()
             if plan.is_featured:

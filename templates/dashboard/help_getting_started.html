@@ -2,15 +2,14 @@
 {% load static %}
 
 {% block title %}دليل استخدام المنصة{% endblock %}
-{% block page_title %}دليل استخدام المنصة{% endblock %}
-{% block page_description %}مسار تفاعلي يرافقك من الإعداد الأول وحتى إدارة شاشة المدرسة يوميًا.{% endblock %}
+{% block page_header %}{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{% static 'css/help-guide.css' %}?v=2026-08-09-p1">
+  <link rel="stylesheet" href="{% static 'css/help-guide.css' %}?v=2026-11-26-manager">
 {% endblock %}
 
 {% block content %}
-<main class="guide" data-guide-root data-progress="{{ setup_summary.progress_percent }}">
+<div class="guide" data-guide-root data-progress="{{ setup_summary.progress_percent }}">
   <div class="guide-reading-progress" aria-hidden="true"><span data-guide-reading-progress></span></div>
 
   <section class="guide-hero" id="guide-overview" aria-labelledby="guide-title">
@@ -18,11 +17,10 @@
     <div class="guide-hero__glow guide-hero__glow--two" aria-hidden="true"></div>
 
     <div class="guide-hero__copy">
-      <span class="guide-eyebrow"><i class="fa-solid fa-compass" aria-hidden="true"></i> مركز التعلّم</span>
-      <h1 id="guide-title">من أول تسجيل دخول<br><span>إلى شاشة مدرسية متكاملة</span></h1>
+      <span class="guide-eyebrow"><i class="fa-solid fa-compass" aria-hidden="true"></i> الدعم والمساعدة</span>
+      <h1 id="guide-title">دليل استخدام المنصة</h1>
       <p>
-        هذا دليلك العملي لإعداد {{ school.name|default:"مدرستك" }} وتشغيلها. ابدأ بالمسار الأساسي،
-        ثم ارجع إلى مكتبة الشروحات كلما أردت استخدام إحدى وظائف المنصة.
+        تابع خطوات إعداد {{ school.name|default:"مدرستك" }} بحسب جاهزيتها، أو افتح شرح المهمة التي تعمل عليها الآن.
       </p>
 
       <div class="guide-hero__actions">
@@ -43,11 +41,6 @@
         </a>
       </div>
 
-      <div class="guide-hero__facts" aria-label="ملخص الدليل">
-        <span><i class="fa-solid fa-route" aria-hidden="true"></i> مسار واضح خطوة بخطوة</span>
-        <span><i class="fa-solid fa-bolt" aria-hidden="true"></i> روابط مباشرة لكل وظيفة</span>
-        <span><i class="fa-solid fa-rotate" aria-hidden="true"></i> تقدّم يُحدّث تلقائيًا</span>
-      </div>
     </div>
 
     <aside class="guide-progress-card" aria-label="نسبة جاهزية المدرسة">
@@ -405,7 +398,7 @@
       فتح تذكرة دعم <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
     </a>
   </section>
-</main>
+</div>
 {% endblock %}
 
 {% block extra_js %}

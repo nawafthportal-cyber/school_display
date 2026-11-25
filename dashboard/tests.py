@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from django.conf import settings
 from datetime import date, time, timedelta
 from decimal import Decimal
@@ -495,6 +496,35 @@ class CustomerExperienceRegressionTests(TestCase):
         self.assertContains(response, "اختيار باقة التجديد")
         self.assertNotContains(response, 'data-payment-hub="renewal"')
 
+    def test_new_bank_purchase_of_the_same_plan_keeps_remaining_days(self):
+        from PIL import Image
+        from subscriptions.request_processing import process_request
+
+        today = timezone.localdate()
+        current = SchoolSubscription.objects.get(school=self.school)
+        current.starts_at = today - timedelta(days=20)
+        current.ends_at = today + timedelta(days=10)
+        current.save(update_fields=["starts_at", "ends_at"])
+        receipt = BytesIO()
+        Image.new("RGB", (32, 32), "white").save(receipt, format="PNG")
+        with TemporaryDirectory() as receipts, override_settings(USE_CLOUD_STORAGE=False, PRIVATE_RECEIPT_ROOT=receipts):
+            response = self.client.post(reverse("dashboard:my_subscription"), {
+                "action": "new",
+                "new-plan": current.plan_id,
+                "new-receipt_image": SimpleUploadedFile("receipt.png", receipt.getvalue(), "image/png"),
+            })
+        self.assertRedirects(response, reverse("dashboard:my_subscription"), fetch_redirect_response=False)
+        request = SubscriptionRequest.objects.get(school=self.school, request_type="new")
+        expected = current.ends_at + timedelta(days=1)
+        self.assertEqual(request.requested_starts_at, expected)
+
+        approver = get_user_model().objects.create_superuser(username="term-approver", email="billing@example.test")
+        approved, changed = process_request(request_id=request.pk, action="approve", actor=approver)
+        self.assertTrue(changed)
+        self.assertEqual(approved.approved_subscription.starts_at, expected)
+        self.assertNotEqual(approved.approved_subscription_id, current.pk)
+        self.assertContains(self.client.get(reverse("dashboard:my_subscription")), expected.isoformat())
+
     def test_display_customization_lives_with_screens_not_school_settings(self):
         screen = DisplayScreen.objects.create(
             name="الشاشة الرئيسية",
@@ -843,7 +873,7 @@ class CustomerExperienceRegressionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "مركز تشغيل المدرسة")
         self.assertContains(response, "بانتظار أول تشغيل")
-        self.assertContains(response, "حسب جدول اليوم")
+        self.assertContains(response, "الحصة الحالية والتالية")
         self.assertContains(response, "إدارة الشاشات")
         self.assertContains(response, reverse("website:short_display", args=[screen.short_code]) + "?preview=1")
         self.assertContains(response, 'aria-label="تقدم إعداد المنصة"')

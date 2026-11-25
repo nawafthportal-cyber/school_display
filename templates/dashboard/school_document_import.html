@@ -1,17 +1,18 @@
 {% extends "dashboard/_base.html" %}
 {% load static %}
 {% block title %}استيراد ذكي من Excel أو صورة أو PDF{% endblock %}
-{% block page_title %}من ملفك إلى جدول المدرسة{% endblock %}
-{% block page_description %}استخرج المعلمين والمواد والفصول والحصص، ثم راجعها قبل الحفظ.{% endblock %}
+{% block page_title %}الاستيراد الذكي للجدول{% endblock %}
+{% block page_area %}الجدول والبيانات{% endblock %}
+{% block page_description %}ارفع ملف Excel أو صورة أو PDF، وراجع الحصص والأسماء المستخرجة، ثم اعتمد التغييرات بعد التحقق منها.{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/document-import.css' %}"><link rel="stylesheet" href="{% static 'css/import-changes.css' %}">{% endblock %}
 {% block content %}
 <div class="dp-stack di" data-document-import data-max-rows="{{ max_rows }}">
-  {% include 'dashboard/_timetable_import_methods.html' with method='smart' only %}
-  <section class="dp-steps" aria-label="مراحل الاستيراد">
-    <div class="dp-step{% if not draft %} is-current{% endif %}"><span class="dp-step__n">١</span><strong>ارفع الملف</strong><p>Excel أو صورة واضحة أو PDF لجدول المدرسة.</p></div>
-    <div class="dp-step{% if draft %} is-current{% endif %}"><span class="dp-step__n">٢</span><strong>راجع وصحح</strong><p>تأكد من الأسماء، والأيام، وأوقات الحصص.</p></div>
-    <div class="dp-step{% if import_token %} is-current{% endif %}"><span class="dp-step__n">٣</span><strong>اعتمد الإدخال</strong><p>راجع التغييرات، ثم احفظ مع إمكانية التراجع.</p></div>
-  </section>
+  {% include 'dashboard/_timetable_import_methods.html' with method='smart' %}
+  <ol class="dp-steps" aria-label="مراحل الاستيراد">
+    <li class="dp-step"{% if not draft and not import_token %} aria-current="step"{% endif %}><span class="dp-step__n" aria-hidden="true">١</span><strong>رفع الملف</strong><p>اختر ملفًا من جهازك.</p></li>
+    <li class="dp-step"{% if draft and not import_token %} aria-current="step"{% endif %}><span class="dp-step__n" aria-hidden="true">٢</span><strong>مراجعة البيانات</strong><p>راجع الأسماء وأوقات الحصص.</p></li>
+    <li class="dp-step"{% if import_token %} aria-current="step"{% endif %}><span class="dp-step__n" aria-hidden="true">٣</span><strong>اعتماد التغييرات</strong><p>راجع الأثر على الجدول ثم احفظ.</p></li>
+  </ol>
   <noscript><div class="di-notice">فعّل JavaScript في المتصفح لتعديل الجدول والتحقق منه.</div></noscript>
 
   {% if not configured %}

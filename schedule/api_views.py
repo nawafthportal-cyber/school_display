@@ -1843,6 +1843,14 @@ def _as_list(value):
     return []
 
 
+_SNAPSHOT_COMPATIBILITY_CONTAINERS = ("data", "payload", "result", "snapshot")
+_SNAPSHOT_COMPATIBILITY_FIELDS = {
+    "excellence": ("honor_board", "excellence_board", "honors", "awards", "excellent", "excellent_students", "honor_items"),
+    "standby": ("waiting", "standby_periods", "standby_items", "standby_list", "standbyClasses", "standby_classes"),
+    "announcements": ("alerts", "notices", "messages", "announcement_list", "announcements_list"),
+}
+
+
 def _normalize_snapshot_keys(snap: dict) -> dict:
     """
     مفاتيح ثابتة للواجهة:
@@ -1866,7 +1874,7 @@ def _normalize_snapshot_keys(snap: dict) -> dict:
             "announcements": [],
         }
 
-    for container_key in ("data", "payload", "result", "snapshot"):
+    for container_key in _SNAPSHOT_COMPATIBILITY_CONTAINERS:
         c = snap.get(container_key)
         if isinstance(c, dict):
             for k, v in c.items():
@@ -1884,18 +1892,8 @@ def _normalize_snapshot_keys(snap: dict) -> dict:
                 return
         snap[dst_key] = []
 
-    fill(
-        "excellence",
-        ["honor_board", "excellence_board", "honors", "awards", "excellent", "excellent_students", "honor_items"],
-    )
-    fill(
-        "standby",
-        ["waiting", "standby_periods", "standby_items", "standby_list", "standbyClasses", "standby_classes"],
-    )
-    fill(
-        "announcements",
-        ["alerts", "notices", "messages", "announcement_list", "announcements_list"],
-    )
+    for field, aliases in _SNAPSHOT_COMPATIBILITY_FIELDS.items():
+        fill(field, aliases)
 
     snap["day_path"] = _as_list(snap.get("day_path"))
     snap["period_classes"] = _as_list(snap.get("period_classes"))
@@ -3083,6 +3081,7 @@ def goodbye(request, token: str | None = None):
 @require_http_methods(["POST"])
 def emergency_receipt(request, alert_id: int):
     from notices.models import EmergencyAlert, EmergencyAlertReceipt
+    from subscriptions.features import school_disabled_features
 
     token = (request.headers.get("X-Display-Token") or "").strip()
     device = (request.headers.get("X-Display-Device") or "").strip()
@@ -3092,7 +3091,7 @@ def emergency_receipt(request, alert_id: int):
         return HttpResponse(status=404)
 
     screen = DisplayScreen.objects.filter(token=token, bound_device_id=device, is_active=True).only("id", "school_id").first()
-    if screen is None:
+    if screen is None or "emergency_alerts" in school_disabled_features(screen.school_id):
         return HttpResponse(status=404)
     now = timezone.now()
     alert = (
@@ -3808,6 +3807,8 @@ def snapshot(request, token: str | None = None):
     GET /api/display/snapshot/
     GET /api/display/snapshot/<token>/
     """
+    from subscriptions.features import DISPLAY_CONTENT_FEATURES, display_feature_policy, school_disabled_features
+
     # تعريف جميع المتغيرات المطلوبة لتجنب أخطاء undefined variable
     settings_obj = None
     rev = None
@@ -3827,9 +3828,51 @@ def snapshot(request, token: str | None = None):
     hashed_token = None
     cached_school_id = None
     force_nocache = False
+    screen = None
+    restrictions_by_school = {}
+
+    def display_restrictions(school_id):
+        if school_id not in restrictions_by_school:
+            restrictions_by_school[school_id] = school_disabled_features(school_id)
+        return restrictions_by_school[school_id]
+
+    def feature_etag(etag, school_id):
+        disabled = display_restrictions(school_id) & DISPLAY_CONTENT_FEATURES
+        if not etag or not disabled:
+            return etag
+        suffix = _sha256(",".join(sorted(disabled)))[:12]
+        return f"{etag}-{suffix}"
+
+    def request_matches_etag(etag, school_id):
+        incoming = _parse_if_none_match(request.headers.get("If-None-Match"))
+        return bool(incoming and incoming == feature_etag(etag, school_id))
 
     def _finalize(resp, cache_status=None, device_bound=None, school_id=None, rev=None):
         """Finalize snapshot responses with stable headers and lightweight diagnostics."""
+        if resp.status_code in (200, 304):
+            restrictions = display_restrictions(school_id)
+            if school_id is not None:
+                resp["X-Display-Feature-Policy"] = display_feature_policy(restrictions)
+            disabled = restrictions & DISPLAY_CONTENT_FEATURES
+            if disabled:
+                # Older or stale snapshots may still contain unavailable data.
+                # Apply the current school's policy to the outgoing response only.
+                if resp.status_code == 200:
+                    payload = json.loads(resp.content)
+                    for field in disabled:
+                        payload[field] = {"items": []} if isinstance(payload.get(field), dict) else []
+                        aliases = _SNAPSHOT_COMPATIBILITY_FIELDS.get(field, ())
+                        for alias in aliases:
+                            payload.pop(alias, None)
+                        for container in _SNAPSHOT_COMPATIBILITY_CONTAINERS:
+                            nested = payload.get(container)
+                            if isinstance(nested, dict):
+                                for key in (field, *aliases):
+                                    nested.pop(key, None)
+                    resp.content = _stable_json_bytes(payload)
+                if resp.has_header("ETag"):
+                    etag = feature_etag(resp["ETag"].strip('"'), school_id)
+                    resp["ETag"] = f'"{etag}"'
         # Hardened cache headers: old TV browsers (Tizen ≤3, WebOS ≤3) and many
         # school/ISP proxies ignore plain `no-store`. Combine with `no-cache`,
         # `must-revalidate`, `max-age=0`, `private` and `Pragma` so intermediate
@@ -4003,6 +4046,7 @@ def snapshot(request, token: str | None = None):
 
         device_key = ""
         is_preview = False
+        preview_screen = None
         if is_snapshot_path:
             device_key = (request.headers.get("X-Display-Device") or "").strip()
             if not device_key:
@@ -4011,7 +4055,8 @@ def snapshot(request, token: str | None = None):
             # A dashboard preview reads the board without claiming the screen.
             from display.services import resolve_preview_screen
 
-            is_preview = resolve_preview_screen(request, token_value) is not None
+            preview_screen = resolve_preview_screen(request, token_value)
+            is_preview = preview_screen is not None
 
             if not device_key and not is_preview:
                 resp = JsonResponse({"detail": "device_required"}, status=403)
@@ -4109,25 +4154,16 @@ def snapshot(request, token: str | None = None):
             else _validated_snapshot_cache_entry_from_value(cache.get(cache_key))
         )
         if isinstance(cached_entry, dict) and isinstance(cached_entry.get("snap"), dict) and isinstance(cached_entry.get("etag"), str):
-            school_id_for_log = None
-            try:
-                cached_map = cache.get(f"display:token_map:{token_hash}")
-                if isinstance(cached_map, dict):
-                    school_id_for_log = cached_map.get("school_id")
-                else:
-                    try:
-                        school_id_for_log = int(cached_map) if cached_map else None
-                    except Exception:
-                        school_id_for_log = None
-            except Exception:
-                pass
-
-        if isinstance(cached_entry, dict) and isinstance(cached_entry.get("snap"), dict) and isinstance(cached_entry.get("etag"), str):
+            cached_screen = screen or preview_screen or getattr(request, "display_screen", None)
+            school_id_for_log = getattr(cached_screen, "school_id", None)
+            if school_id_for_log is None and get_school_id_by_token is not None:
+                school_id_for_log = get_school_id_by_token(token_value)
+            if school_id_for_log is None:
+                return _finalize(JsonResponse({"detail": "access_denied"}, status=403), cache_status="ERROR")
             _metrics_incr("metrics:snapshot_cache:token_hit")
             _obs_snapshot_cache(logger=logger, outcome="hit", layer="token", school_id=school_id_for_log, cache_key=cache_key)
             _metrics_log_maybe()
-            inm = _parse_if_none_match(request.headers.get("If-None-Match"))
-            if inm and inm == cached_entry.get("etag"):
+            if request_matches_etag(cached_entry.get("etag"), school_id_for_log):
                 resp = HttpResponseNotModified()
                 resp["ETag"] = f"\"{cached_entry['etag']}\""
                 _apply_success_cache_headers(resp, cached_entry.get("snap"))
@@ -4238,8 +4274,7 @@ def snapshot(request, token: str | None = None):
                     if isinstance(entry_fast, dict) and isinstance(entry_fast.get("snap"), dict):
                         snap_fast = entry_fast["snap"]
                         etag_fast = entry_fast.get("etag")
-                        inm = _parse_if_none_match(request.headers.get("If-None-Match"))
-                        if etag_fast and inm and inm == etag_fast:
+                        if request_matches_etag(etag_fast, int(school_id_fast)):
                             resp = HttpResponseNotModified()
                             resp["ETag"] = f"\"{etag_fast}\""
                             _apply_success_cache_headers(resp, snap_fast)
@@ -4492,8 +4527,7 @@ def snapshot(request, token: str | None = None):
                         cache_key=tenant_key_early,
                     )
                     _metrics_log_maybe()
-                    inm = _parse_if_none_match(request.headers.get("If-None-Match"))
-                    if inm and inm == cached_entry_early.get("etag"):
+                    if request_matches_etag(cached_entry_early.get("etag"), int(cached_school_id)):
                         resp = HttpResponseNotModified()
                         resp["ETag"] = f"\"{cached_entry_early['etag']}\""
                         _apply_success_cache_headers(resp, cached_entry_early.get("snap"))
@@ -4534,8 +4568,7 @@ def snapshot(request, token: str | None = None):
                 # multiply Redis memory usage without adding correctness guarantees.
                 etag = cached_entry.get("etag")
 
-                inm = _parse_if_none_match(request.headers.get("If-None-Match"))
-                if etag and inm and inm == etag:
+                if request_matches_etag(etag, int(cached_school_id)):
                     resp = HttpResponseNotModified()
                     resp["ETag"] = f"\"{etag}\""
                     _apply_success_cache_headers(resp, cached_snap)
@@ -4643,8 +4676,7 @@ def snapshot(request, token: str | None = None):
                     cache_key=tenant_cache_key,
                 )
                 _metrics_log_maybe()
-                inm = _parse_if_none_match(request.headers.get("If-None-Match"))
-                if inm and inm == cached_entry2.get("etag"):
+                if request_matches_etag(cached_entry2.get("etag"), school_id):
                     resp = HttpResponseNotModified()
                     resp["ETag"] = f"\"{cached_entry2['etag']}\""
                     _apply_success_cache_headers(resp, cached_entry2.get("snap"))
@@ -4682,8 +4714,7 @@ def snapshot(request, token: str | None = None):
                 _metrics_log_maybe()
                 etag = cached_entry.get("etag")
 
-                inm = _parse_if_none_match(request.headers.get("If-None-Match"))
-                if inm and inm == etag:
+                if request_matches_etag(etag, school_id):
                     resp = HttpResponseNotModified()
                     resp["ETag"] = f"\"{etag}\""
                     _apply_success_cache_headers(resp, cached_school)
@@ -4766,8 +4797,7 @@ def snapshot(request, token: str | None = None):
 
             etag = entry.get("etag")
 
-            inm = _parse_if_none_match(request.headers.get("If-None-Match"))
-            if inm and inm == etag:
+            if request_matches_etag(etag, school_id):
                 resp = HttpResponseNotModified()
                 resp["ETag"] = f"\"{etag}\""
                 _apply_success_cache_headers(resp, snap)

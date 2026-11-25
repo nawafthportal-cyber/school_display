@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal, ROUND_HALF_UP
 
+from .features import PLAN_FEATURES, feature_rows, plan_disabled_features
 
 def _duration_details(duration_days: int | None) -> tuple[str, str, int | None]:
     days = int(duration_days or 0)
@@ -66,6 +67,9 @@ def plan_card(plan) -> dict:
 
     raw_features = str(getattr(plan, "card_features", "") or "")
     features = [line.strip() for line in raw_features.splitlines() if line.strip()]
+    disabled = plan_disabled_features(plan)
+    if disabled:
+        features = [label for key, label in PLAN_FEATURES.items() if key not in disabled]
     custom_screen_text = str(getattr(plan, "card_screen_text", "") or "").strip()
     if custom_screen_text:
         screen_text = custom_screen_text
@@ -93,6 +97,8 @@ def plan_card(plan) -> dict:
         "price_caption": price_caption,
         "monthly_text": monthly_text if show_monthly else "",
         "features": features,
+        "feature_states": feature_rows(disabled),
+        "has_feature_restrictions": bool(disabled),
         "screen_text": screen_text if show_screens else "",
         "cta_text": str(getattr(plan, "card_cta_text", "") or "").strip() or "اطلب هذه الباقة",
     }

@@ -19,6 +19,7 @@
 {% block content %}
 <form method="post" class="space-y-5" novalidate>
   {% csrf_token %}
+  {{ form.features_submitted }}
 
   {% if form.non_field_errors %}
     <div class="admin-form-alert">
@@ -89,8 +90,29 @@
       <section class="admin-panel">
         <div class="admin-panel-header">
           <div>
+            <h2>صلاحيات الباقة</h2>
+            <p>تُطبّق هذه الإعدادات على المدارس التي تستخدم الباقة في اشتراكها الساري.</p>
+          </div>
+        </div>
+        <fieldset class="grid gap-3 md:grid-cols-2">
+          <legend class="sr-only">{{ form.enabled_features.label }}</legend>
+          {% for choice in form.enabled_features %}
+            <label class="admin-switch-row" for="{{ choice.id_for_label }}">
+              <span><strong data-feature-label>{{ choice.choice_label }}</strong></span>
+              {{ choice.tag }}
+            </label>
+          {% endfor %}
+        </fieldset>
+        {% if form.enabled_features.errors %}
+          <p class="admin-field-error">{{ form.enabled_features.errors.0 }}</p>
+        {% endif %}
+      </section>
+
+      <section class="admin-panel">
+        <div class="admin-panel-header">
+          <div>
             <h2><i class="fas fa-rectangle-list ml-2 text-blue-500"></i>محتوى بطاقة الباقة</h2>
-            <p>تحكم في جميع النصوص والمزايا التي يراها العميل داخل البطاقة.</p>
+            <p>خصص النصوص التي تظهر في بطاقة الأسعار.</p>
           </div>
         </div>
         <div class="admin-form-grid md:grid-cols-2">
@@ -260,6 +282,12 @@
       if (featuresList) {
         featuresList.innerHTML = '';
         var lines = ((fields.features && fields.features.value) || '').split(/\r?\n/).map(function (line) { return line.trim(); }).filter(Boolean);
+        var featureControls = Array.from(document.querySelectorAll('input[name="enabled_features"]'));
+        if (featureControls.some(function (control) { return !control.checked; })) {
+          lines = featureControls.filter(function (control) { return control.checked; }).map(function (control) {
+            return control.closest('label').querySelector('[data-feature-label]').textContent.trim();
+          });
+        }
         lines.forEach(function (line) {
           var item = document.createElement('li');
           item.textContent = '✓ ' + line;
@@ -284,6 +312,9 @@
         fields[key].addEventListener('input', updatePreview);
         fields[key].addEventListener('change', updatePreview);
       }
+    });
+    document.querySelectorAll('input[name="enabled_features"]').forEach(function (control) {
+      control.addEventListener('change', updatePreview);
     });
     document.querySelectorAll('[data-duration-days]').forEach(function (button) {
       button.addEventListener('click', function () {

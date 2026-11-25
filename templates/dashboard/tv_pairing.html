@@ -1,8 +1,9 @@
 {% extends "dashboard/_base.html" %}
 
 {% block title %}ربط تلفاز{% endblock %}
-{% block page_title %}ربط تلفاز جديد{% endblock %}
-{% block page_description %}أكمل الربط من جوالك دون كتابة رابط الشاشة على التلفاز{% endblock %}
+{% block page_title %}{% if pairing_success %}تم ربط التلفاز{% elif pairing and not pairing_error %}اختر شاشة العرض{% else %}ربط تلفاز جديد{% endif %}{% endblock %}
+{% block page_area %}الشاشات والهوية{% endblock %}
+{% block page_description %}{% if pairing_success %}ارجع إلى التلفاز للتحقق من ظهور محتوى الشاشة.{% elif pairing and not pairing_error %}طابق الرمز مع التلفاز، ثم اختر شاشة المدرسة التي سيعرض محتواها.{% else %}افتح صفحة الربط في متصفح التلفاز، ثم أدخل الرمز الظاهر عليه هنا.{% endif %}{% endblock %}
 
 {% block content %}
 <div class="pair-mobile-wrap">

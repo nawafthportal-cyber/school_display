@@ -105,6 +105,8 @@ def invalidate_school_subscription_cache(school_id: int | None) -> None:
     """Drop cached access answers so a renewal or lapse takes effect at once."""
     if not school_id:
         return
+    from .features import invalidate_school_feature_cache
+
     day = _day_stamp()
     try:
         cache.delete_many(
@@ -114,5 +116,6 @@ def invalidate_school_subscription_cache(school_id: int | None) -> None:
                 f"subscriptions:display_suspended:{school_id}",
             ]
         )
+        invalidate_school_feature_cache(school_id)
     except Exception:
         logger.debug("subscription_access_cache_invalidate_failed school_id=%s", school_id)

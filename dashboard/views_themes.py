@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 from core.display_themes import effective_custom_theme, theme_payload
 from core.models import DisplayScreen
 from schedule.models import DisplayTheme, SchoolSettings
+from subscriptions.features import PLAN_FEATURES, school_disabled_features
 from .access import get_active_school_or_redirect
 from .decorators import manager_required
 from .theme_forms import DisplayThemeForm
@@ -125,7 +126,8 @@ def theme_list(request):
     if response:
         return response
     themes = list(DisplayTheme.objects.filter(school=school))
-    screens = list(DisplayScreen.objects.filter(school=school).select_related("custom_theme_override").order_by("name"))
+    customization_enabled = "screen_customization" not in school_disabled_features(school.pk)
+    screens = list(DisplayScreen.objects.filter(school=school).select_related("custom_theme_override").order_by("name")) if customization_enabled else []
     settings = SchoolSettings.objects.filter(school=school).select_related("custom_theme").first()
     by_theme = {theme.pk: [] for theme in themes}
     for screen in screens:
@@ -176,6 +178,10 @@ def theme_action(request, pk, action):
     theme = get_object_or_404(DisplayTheme, school=school, pk=pk)
     if action == "apply":
         target = request.POST.get("target", "school")
+        customization_enabled = "screen_customization" not in school_disabled_features(school.pk)
+        if target not in ("school", "all") and not customization_enabled:
+            messages.warning(request, f"خاصية «{PLAN_FEATURES['screen_customization']}» غير مفعّلة في اشتراك المدرسة.")
+            return redirect("dashboard:my_subscription")
         with transaction.atomic():
             if target == "school":
                 obj, _ = SchoolSettings.objects.get_or_create(school=school, defaults={"name": school.name})
@@ -190,9 +196,10 @@ def theme_action(request, pk, action):
                 obj.theme = theme.base_theme
                 obj.display_accent_color = theme.accent_color
                 obj.save(update_fields=("custom_theme", "theme", "display_accent_color"))
-                DisplayScreen.objects.filter(school=school).update(
-                    custom_theme_override=None, theme_override="", display_accent_color_override="",
-                )
+                if customization_enabled:
+                    DisplayScreen.objects.filter(school=school).update(
+                        custom_theme_override=None, theme_override="", display_accent_color_override="",
+                    )
                 transaction.on_commit(lambda: _refresh_school_displays(school))
             else:
                 if not target.isdecimal():

@@ -1,11 +1,15 @@
 <nav class="dp-surface dp-surface--pad dp-stack dp-stack--tight" aria-label="طريقة استيراد الجدول">
   <strong>اختر طريقة الاستيراد</strong>
   <div class="dp-toolbar__actions">
+    {% if 'smart_import' not in school_plan_disabled|default:"" %}
     <a href="{% url 'dashboard:school_document_import' %}" class="dp-btn {% if method == 'smart' %}dp-btn--primary{% else %}dp-btn--soft{% endif %}" {% if method == 'smart' %}aria-current="page"{% endif %}>
-      <i class="fa-solid fa-file-image" aria-hidden="true"></i> استيراد ذكي من ملفك
+      <i class="fa-solid fa-file-image" aria-hidden="true"></i> استخدام ملفك الحالي
     </a>
+    {% endif %}
+    {% if 'excel_import' not in school_plan_disabled|default:"" %}
     <a href="{% url 'dashboard:school_data_import' %}" class="dp-btn {% if method == 'excel' %}dp-btn--primary{% else %}dp-btn--soft{% endif %}" {% if method == 'excel' %}aria-current="page"{% endif %}>
-      <i class="fa-solid fa-file-excel" aria-hidden="true"></i> استيراد باستخدام قالب Excel
+      <i class="fa-solid fa-file-excel" aria-hidden="true"></i> استخدام قالب Excel الجاهز
     </a>
+    {% endif %}
   </div>
 </nav>

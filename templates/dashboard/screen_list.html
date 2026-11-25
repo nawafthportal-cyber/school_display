@@ -3,7 +3,20 @@
 
 {% block title %}شاشات العرض{% endblock %}
 {% block page_title %}شاشات العرض{% endblock %}
-{% block page_description %}راقب الاتصال والانقطاعات ونسبة التشغيل وتحكم في كل شاشة من مكان واحد{% endblock %}
+{% block page_area %}الشاشات والهوية{% endblock %}
+{% block page_description %}ابدأ بمتابعة الشاشات المنقطعة. افتح بطاقة أي شاشة لمعاينة محتواها أو تخصيصها أو إدارة اتصالها.{% endblock %}
+{% block page_actions %}
+  <div class="dp-toolbar__actions">
+    {% if can_create_screen %}
+      <a href="{% url 'dashboard:screen_create' %}" class="dp-btn {% if screens_count %}dp-btn--soft{% else %}dp-btn--primary{% endif %}">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i> شاشة جديدة
+      </a>
+    {% endif %}
+    <a href="{% url 'dashboard:screen_pairing' %}" class="dp-btn {% if screens_count or not can_create_screen %}dp-btn--primary{% else %}dp-btn--soft{% endif %}" data-pairing-guide-open>
+      <i class="fa-solid fa-display" aria-hidden="true"></i> ربط تلفاز
+    </a>
+  </div>
+{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/screen-live-preview.css' %}?v=2026-11-25-device-preview-2">
@@ -42,14 +55,9 @@
 
   <section class="screen-command-panel mb-4">
     <div class="min-w-0">
-      <h2>إدارة شاشات التلفاز</h2>
-      <p>تابع حالة كل شاشة، انسخ رابط التشغيل، ونفذ إجراءات التشغيل من مكان واحد.</p>
+      <h2>إجراءات على شاشات المدرسة</h2>
     </div>
     <div class="screen-command-actions">
-      <a href="{% url 'dashboard:screen_pairing' %}" class="screen-primary-action screen-pair-action" data-pairing-guide-open>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 14.5v-8ZM9 20l3-3 3 3M8.5 9.5l2 2L15.5 7"/></svg>
-        <span>ربط تلفاز</span>
-      </a>
       <a href="#first-screen-tutorial" class="screen-secondary-action" data-pairing-video-open>شرح الربط بالفيديو</a>
       <a href="{% url 'dashboard:screens_customize_all' %}" class="screen-secondary-action">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a9 9 0 1 0 0 18h1.4a1.6 1.6 0 0 0 .2-3.2h-.7a1.9 1.9 0 0 1-1.9-1.9v-.2a1.9 1.9 0 0 1 1.9-1.9H16A5 5 0 0 0 21 9c0-3.3-4-6-9-6Z"/></svg>
@@ -60,13 +68,6 @@
         <i class="fa-solid fa-rotate" aria-hidden="true"></i>
         <span>تحديث الحالة</span>
       </a>
-      {% if can_create_screen %}
-        <a href="{% url 'dashboard:screen_create' %}" class="screen-primary-action">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg>
-          <span>شاشة جديدة</span>
-        </a>
-      {% endif %}
-
       {% if show_screen_limit_message %}
         <a href="{% url 'dashboard:my_subscription' %}{% if can_purchase_screen_addon %}#screen-addon-purchase{% endif %}" class="screen-secondary-action">
           <span>{% if can_purchase_screen_addon %}زيادة الباقة{% else %}اختيار باقة مدفوعة{% endif %}</span>
@@ -92,20 +93,6 @@
       <a href="{% url 'dashboard:settings' %}#runtime-monitor-title" class="screen-secondary-action">إعدادات المراقبة</a>
     </div>
   </section>
-
-  {% include "dashboard/_screen_pairing_tutorial.html" %}
-
-  <details class="screen-help-panel mb-4">
-    <summary>
-      <span>طريقة التشغيل المختصرة</span>
-      <small>افتح عند الحاجة</small>
-    </summary>
-    <div class="screen-help-content">
-      <p><strong>الطريقة الأسهل:</strong> افتح <code dir="ltr">school-display.com/tv</code> على التلفاز، ثم امسح QR بالجوال واختر الشاشة. سيبدأ العرض تلقائيًا.</p>
-      <p>يبقى الرابط الكامل الظاهر في كل بطاقة متاحًا كطريقة احتياطية عند الحاجة.</p>
-      <p>تظهر الشاشة كـ <strong>متصلة الآن</strong> إذا وصل منها نبض تشغيل خلال آخر {{ screen_live_threshold_minutes }} دقيقة. عند نقلها، اخترها أثناء الربط ووافق على استبدال الجهاز القديم.</p>
-    </div>
-  </details>
 
   {% if show_screen_limit_message %}
     <div class="mb-4 rounded-xl border border-rose-100 bg-rose-50/60 p-4 flex items-start gap-3">
@@ -243,10 +230,12 @@
             </div>
 
             <div class="screen-card-actions">
+              {% if 'screen_customization' not in school_plan_disabled|default:"" %}
               <a href="{% url 'dashboard:screen_edit' screen.pk %}" class="screen-action-btn" title="تخصيص هذه الشاشة">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a9 9 0 1 0 0 18h1.4a1.6 1.6 0 0 0 .2-3.2h-.7a1.9 1.9 0 0 1-1.9-1.9v-.2a1.9 1.9 0 0 1 1.9-1.9H16A5 5 0 0 0 21 9c0-3.3-4-6-9-6Z"/></svg>
                 <span>تخصيص الشاشة</span>
               </a>
+              {% endif %}
 
               <form method="post" action="{% url 'dashboard:screen_refresh_now' screen.pk %}">
                 {% csrf_token %}
@@ -299,6 +288,16 @@
       </div>
     {% endif %}
   </section>
+
+  {% include "dashboard/_screen_pairing_tutorial.html" %}
+
+  <details class="screen-help-panel mb-4">
+    <summary><span>ربط التلفاز والتحقق من الاتصال</span></summary>
+    <div class="screen-help-content">
+      <p>افتح <bdi>school-display.com/tv</bdi> على التلفاز، ثم امسح رمز QR بجوالك واختر الشاشة. يمكنك أيضًا نسخ رابط التشغيل من بطاقتها وفتحه على التلفاز.</p>
+      <p>تعني «متصلة الآن» أن اللوحة تلقت إشارة تشغيل خلال آخر {{ screen_live_threshold_minutes }} دقيقة. لنقل شاشة إلى تلفاز آخر، اخترها أثناء الربط ووافق على استبدال الجهاز القديم.</p>
+    </div>
+  </details>
 
   <section class="screen-incidents-section" aria-labelledby="recent-screen-incidents-title">
     <div class="screen-section-heading">
@@ -758,15 +757,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .screen-primary-action:hover {
   background: linear-gradient(145deg, #1a6c81 0%, #114a5b 100%);
-}
-
-.screen-pair-action {
-  background: linear-gradient(135deg, #176b70, #2b8f8c);
-  box-shadow: 0 8px 20px rgba(23, 107, 112, 0.18);
-}
-
-.screen-pair-action:hover {
-  background: linear-gradient(135deg, #125a5f, #237c7a);
 }
 
 .screen-secondary-action,

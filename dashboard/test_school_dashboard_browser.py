@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from core.models import DisplayScreen, School, SupportTicket
 from notices.models import Announcement
-from schedule.models import ClassLesson, SchoolSettings, Subject
+from schedule.models import ClassLesson, DisplayTheme, SchoolSettings, Subject
 from subscriptions.models import SchoolSubscription
 from . import test_manager_templates as fixtures
 
@@ -45,6 +45,8 @@ LAYOUT_FACTS = """() => {
     .map(e => e.id || e.name);
   const ids = [...document.querySelectorAll('[id]')].map(e => e.id);
   return { overflow: document.documentElement.scrollWidth - innerWidth, outside,
+    direction: document.documentElement.dir, landmarks: document.querySelectorAll('main, [role="main"]').length,
+    headings: [...document.querySelectorAll('h1')].filter(visible).length,
     unlabelled, duplicateIds: ids.filter((id, i) => ids.indexOf(id) !== i) };
 }"""
 
@@ -62,6 +64,7 @@ class SchoolDashboardBrowserTests(StaticLiveServerTestCase):
         SchoolSettings.objects.create(school=other, name=other.name)
         SchoolSubscription.objects.create(school=other, plan=plan, starts_at=timezone.localdate(), status="active")
         screen = DisplayScreen.objects.create(school=school, name="شاشة المدخل الرئيسي ومركز مصادر التعلم")
+        theme = DisplayTheme.objects.create(school=school, name="الهوية المدرسية")
         lesson = ClassLesson.objects.create(
             settings=fixture.settings, school_class=fixture.school_class,
             weekday=7, period_index=1, subject=Subject.objects.get(school=school), teacher=fixture.teacher,
@@ -82,6 +85,7 @@ class SchoolDashboardBrowserTests(StaticLiveServerTestCase):
             "ann_create", "emergency_alert_list", "emergency_alert_create", "occasion_templates",
             "exc_list", "exc_create", "duty_list", "duty_create", "standby_list", "standby_create",
             "school_data", "school_data_import", "school_document_import", "lessons_list", "add_lesson", "customer_support_tickets",
+            "screens_customize_all", "theme_list", "theme_create", "occasion_theme_create",
             "customer_support_ticket_create", "change_password", "select_school", "two_factor_setup",
         )
         self.pages = [(name, reverse("dashboard:" + name)) for name in names]
@@ -89,9 +93,11 @@ class SchoolDashboardBrowserTests(StaticLiveServerTestCase):
             ("ann_edit", fixture.announcement.pk), ("exc_edit", fixture.excellence.pk),
             ("duty_edit", fixture.duty.pk), ("screen_edit", screen.pk), ("edit_lesson", lesson.pk),
             ("day_edit", 7), ("customer_support_ticket_detail", ticket.pk),
+            ("theme_edit", theme.pk),
         ):
             self.pages.append((name, reverse("dashboard:" + name, args=[pk])))
         self.pages += [
+            ("occasion_theme_edit", reverse("dashboard:occasion_theme_edit", args=["national_day"])),
             ("timetable_day_filtered", reverse("dashboard:timetable_day") + f"?weekday=7&class_id={fixture.school_class.pk}"),
             ("ann_list_page2", reverse("dashboard:ann_list") + "?page=2"),
         ]
@@ -127,13 +133,32 @@ class SchoolDashboardBrowserTests(StaticLiveServerTestCase):
         self.assertEqual(facts["outside"], [], facts)
         self.assertEqual(facts["unlabelled"], [], facts)
         self.assertEqual(facts["duplicateIds"], [], facts)
+        self.assertEqual(facts["direction"], "rtl", facts)
+        self.assertEqual(facts["landmarks"], 1, facts)
+        self.assertEqual(facts["headings"], 1, facts)
         self.assertEqual(self.errors, [])
 
     def test_all_school_pages_fit_phone_tablet_and_desktop(self):
-        for width in (390, 768, 1440):
+        for width in (375, 768, 1024, 1280, 1440):
             for name, path in self.pages:
                 with self.subTest(page=name, width=width):
                     self.assert_page_fits(path, width)
+
+    def test_keyboard_can_skip_navigation_and_return_from_the_mobile_drawer(self):
+        self.assert_page_fits(dict(self.pages)["ann_edit"], 375)
+        self.page.keyboard.press("Tab")
+        self.assertTrue(self.page.locator(".dashboard-skip-link").evaluate("el => el === document.activeElement"))
+        self.page.keyboard.press("Enter")
+        self.assertEqual(self.page.evaluate("document.activeElement.id"), "dashboardMain")
+
+        self.page.locator("#dashboardSidebarToggleBtn").focus()
+        self.page.keyboard.press("Enter")
+        current = self.page.locator("#dashboardSidebar [aria-current='location']")
+        self.assertTrue(current.evaluate("el => el === document.activeElement"))
+        self.assertTrue(self.page.locator("#dashboardMain").evaluate("el => el.inert"))
+        self.page.keyboard.press("Escape")
+        self.assertEqual(self.page.evaluate("document.activeElement.id"), "dashboardSidebarToggleBtn")
+        self.assertFalse(self.page.locator("#dashboardMain").evaluate("el => el.inert"))
 
     def test_dense_pages_and_all_settings_tabs_fit_small_phones(self):
         dense = {"my_subscription", "schools_overview", "settings", "help_getting_started", "timetable_day_filtered", "screen_edit"}

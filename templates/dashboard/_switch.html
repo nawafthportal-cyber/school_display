@@ -15,6 +15,8 @@ rather than a bare checkbox whose meaning lives in a nearby paragraph.
     {% endif %}
   </span>
 </label>
-{% for error in field.errors %}
-  <div class="dp-field__error">{{ error }}</div>
-{% endfor %}
+{% if field.errors %}
+  <div id="{{ field.auto_id }}_error" class="dp-field__error">
+    {% for error in field.errors %}<div>{{ error }}</div>{% endfor %}
+  </div>
+{% endif %}

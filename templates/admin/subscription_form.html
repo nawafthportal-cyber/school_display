@@ -34,6 +34,10 @@
 {% block content %}
 <div class="max-w-4xl space-y-6">
 
+  {% if school_subscription_features %}
+    {% include "subscriptions/_feature_status.html" %}
+  {% endif %}
+
   <div class="rounded-2xl border border-sky-100 bg-sky-50/70 p-4">
     <p class="text-sm leading-7 text-sky-900">
       اختر المدرسة والخطة وحدّد فترة الاشتراك. يمكنك إيقاف الاشتراك مؤقتًا بإلغاء تفعيل خيار <span class="font-black">نشط</span>،

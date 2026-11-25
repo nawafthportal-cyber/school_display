@@ -2,7 +2,8 @@
 
 {% block title %}التنبيهات{% endblock %}
 {% block page_title %}التنبيهات والإشعارات{% endblock %}
-{% block page_description %}إدارة التنبيهات المعروضة على شاشات العرض{% endblock %}
+{% block page_area %}النشر على الشاشة{% endblock %}
+{% block page_description %}راجع التنبيهات الحالية والمجدولة. لإعلان جديد، حدّد الشاشات التي ستعرضه ومتى يبدأ وينتهي.{% endblock %}
 
 {% block page_actions %}
   <div class="dp-toolbar__actions">
@@ -50,8 +51,7 @@
   {% if page.object_list %}
     <div class="dp-section-head">
       <div>
-        <h3>بطاقات التنبيهات</h3>
-        <p>كل بطاقة توضّح نص التنبيه، مستواه، حالته، ووقت ظهوره.</p>
+        <h2>سجل التنبيهات</h2>
       </div>
       <span class="dp-pill dp-pill--slate">{{ page.object_list|length }} من {{ page.paginator.count }}</span>
     </div>

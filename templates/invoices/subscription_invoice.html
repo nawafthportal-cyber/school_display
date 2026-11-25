@@ -4,12 +4,12 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>فاتورة   - {{ invoice.invoice_number }}</title>
+    <title>فاتورة الاشتراك — {{ invoice.invoice_number }}</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap');
 
         :root {
-            --primary: #111827;     /* Deep Black/Blue - Official */
+            --primary: #133744;
             --gold: #bfa15f;        /* Elegant Gold - Luxury */
             --gold-light: #fdf8eb;  /* Very Light Gold - Backgrounds */
             --text-main: #1f2937;
@@ -19,7 +19,7 @@
 
         body {
             font-family: 'Tajawal', sans-serif;
-            background-color: #525659;
+            background-color: #eeefea;
             margin: 0;
             padding: 20px;
             color: var(--text-main);
@@ -73,7 +73,7 @@
         }
 
         .invoice-info {
-            text-align: left;
+            text-align: end;
         }
         .invoice-tag {
             background: var(--gold-light);
@@ -236,16 +236,22 @@
 
         /* Print Button */
         .print-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
             max-width: 800px;
             margin: 0 auto 20px auto;
-            text-align: left;
+            color: var(--primary);
         }
         .btn-print {
             background-color: var(--primary);
             color: #fff;
             border: none;
-            padding: 10px 24px;
-            border-radius: 99px;
+            min-block-size: 44px;
+            padding: 10px 20px;
+            border-radius: 10px;
             font-family: 'Tajawal', sans-serif;
             font-weight: 700;
             cursor: pointer;
@@ -254,23 +260,33 @@
             align-items: center;
             gap: 8px;
             font-size: 14px;
-            transition: all 0.2s;
+            transition: background-color .18s ease;
         }
         .btn-print:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
-            background-color: #000;
+            background-color: #145a6a;
         }
+        .btn-print:focus-visible, .table-wrap:focus-visible { outline: 2px solid #145a6a; outline-offset: 3px; }
 
 
         /* Invoices are read on phones as often as they are printed. */
-        @media (max-width: 640px) {
+        @media screen and (max-width: 640px) {
             body { padding: 12px; }
+            .invoice-container { min-height: 0; }
+            .content-wrap { padding: 22px 16px; }
+            .header, .parties { flex-direction: column; gap: 18px; margin-bottom: 24px; }
+            .invoice-info { text-align: start; }
+            .party-box { width: 100%; overflow-wrap: anywhere; }
+            .table-wrap { overflow-x: auto; margin-bottom: 22px; }
+            th, td { padding: 8px 3px; }
 
             .summary-section { justify-content: stretch; margin-bottom: 32px; }
             .summary-table { width: 100%; }
 
-            table { width: 100%; }
+            table { table-layout: fixed; }
+            .col-idx { width: 7%; }
+            .col-qty { width: 13%; }
+            .col-price, .col-total { width: 20%; }
+            .service-title, .service-meta { overflow-wrap: anywhere; }
         }
 
         @media print {
@@ -340,8 +356,9 @@
 </head>
 <body>
 
-    <div class="print-toolbar">
-         <button data-action="print" class="btn-print">
+    <div class="print-toolbar" aria-label="خيارات الفاتورة">
+         <span>يمكنك طباعة الفاتورة أو حفظها بصيغة PDF من نافذة الطباعة.</span>
+         <button type="button" data-action="print" class="btn-print">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2-2v5a2 2 0 0 1-2 2h-2"></path>
@@ -351,7 +368,7 @@
         </button>
     </div>
 
-    <div class="invoice-container">
+    <main class="invoice-container">
         <div class="top-stripe"></div>
         <div class="content-wrap">
             
@@ -361,16 +378,16 @@
                     <p>Smart Display Platform</p>
                 </div>
                 <div class="invoice-info">
-                    <div class="invoice-tag">فاتورة الإشتراك </div>
+                    <div class="invoice-tag">فاتورة الاشتراك</div>
                     
                     <div class="meta-group">
                         <span class="meta-label">رقم الفاتورة | Invoice No</span>
-                        <span class="meta-value">{{ invoice.invoice_number }}</span>
+                        <span class="meta-value"><bdi>{{ invoice.invoice_number }}</bdi></span>
                     </div>
                     
                     <div class="meta-group">
                         <span class="meta-label">تاريخ الإصدار | Issue Date</span>
-                        <span class="meta-value" dir="ltr">{{ invoice.issued_at|date:"Y/m/d" }}</span>
+                        <span class="meta-value"><bdi>{{ invoice.issued_at|date:"Y/m/d" }}</bdi></span>
                     </div>
                 </div>
             </div>
@@ -425,15 +442,15 @@
                 </div>
             </div>
 
-            <div class="table-wrap">
+            <div class="table-wrap" role="region" aria-label="بنود الفاتورة" tabindex="0">
                 <table>
                     <thead>
                         <tr>
-                            <th class="col-idx">#</th>
-                            <th>تفاصيل الخدمة / المنتج</th>
-                            <th class="col-qty">الكمية</th>
-                            <th class="col-price">السعر</th>
-                            <th class="col-total">الإجمالي</th>
+                            <th class="col-idx" scope="col">#</th>
+                            <th scope="col">تفاصيل الاشتراك</th>
+                            <th class="col-qty" scope="col">الكمية</th>
+                            <th class="col-price" scope="col">السعر</th>
+                            <th class="col-total" scope="col">الإجمالي</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -497,7 +514,7 @@
             </div>
         
         </div>
-    </div>
+    </main>
 
   <script defer src="{% static 'js/csp-actions.js' %}?v=2026-08-04-a1"></script>
 </body>

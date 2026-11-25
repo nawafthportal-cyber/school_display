@@ -68,6 +68,7 @@
   {% endcomment %}
   data-lite="{{ lite_mode|default:'' }}"
   data-theme="{% if theme %}{{ theme }}{% else %}indigo{% endif %}"
+  data-display-feature-policy="{{ display_feature_policy|default:'-' }}"
     data-accent-color="{% if display_accent_color %}{{ display_accent_color }}{% endif %}"
     data-preview-lock="{% if preview_lock %}1{% else %}0{% endif %}"
     data-preview-mode="{% if preview_mode %}1{% else %}0{% endif %}"
@@ -113,8 +114,8 @@
   data-ws-live-status-check="{% if ws_live_status_check_sec %}{{ ws_live_status_check_sec }}{% else %}45{% endif %}"
   data-standby="{% if standby_scroll_speed %}{{ standby_scroll_speed|unlocalize }}{% else %}0.8{% endif %}"
   data-periods-speed="{% if periods_scroll_speed %}{{ periods_scroll_speed|unlocalize }}{% else %}0.5{% endif %}"
-  data-screen-standby-speed="{{ screen.standby_scroll_speed_override|default_if_none:''|unlocalize }}"
-  data-screen-periods-speed="{{ screen.periods_scroll_speed_override|default_if_none:''|unlocalize }}"
+  data-screen-standby-speed="{{ screen_standby_speed_override|default_if_none:''|unlocalize }}"
+  data-screen-periods-speed="{{ screen_periods_speed_override|default_if_none:''|unlocalize }}"
     style="{% if display_accent_color %}--accent-main: {{ display_accent_color }};{% endif %}"
 >
   <div class="bg-mesh"></div>
@@ -512,9 +513,9 @@
     <script defer src="{% static 'js/display-theme.js' %}?v=2026-11-06-1"></script>
   <script defer src="{% static 'js/display-controls.js' %}?v=2026-11-25-tv-offline"></script>
     {% if display_use_minified_js %}
-    <script defer src="{% static 'js/display.min.js' %}?v=45d5b1af"></script>
+    <script defer src="{% static 'js/display.min.js' %}?v=3beefb46"></script>
     {% else %}
-    <script defer src="{% static 'js/display.js' %}?v=45d5b1af"></script>
+    <script defer src="{% static 'js/display.js' %}?v=3beefb46"></script>
     {% endif %}
   <script defer src="{% static 'js/display-sw-register.js' %}?v=2026-11-25-tv-offline"></script>
 </body>

@@ -225,19 +225,6 @@
   box-shadow: 0 14px 28px -14px rgba(18, 63, 78, 0.9);
 }
 
-.guide-hero__facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.7rem 1.3rem;
-  margin-top: 1.5rem;
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.guide-hero__facts span { display: inline-flex; align-items: center; gap: 0.45rem; }
-.guide-hero__facts i { color: #d9b881; }
-
 /* --------------------------------------------------------------------------
    Progress card
    -------------------------------------------------------------------------- */
@@ -737,7 +724,6 @@
   .guide-hero__copy > p { font-size: 0.85rem; line-height: 1.95; }
   .guide-hero__actions { align-items: stretch; margin-top: 1.25rem; }
   .guide-hero__actions .guide-btn { flex: 1 1 100%; }
-  .guide-hero__facts { display: grid; gap: 0.5rem; margin-top: 1.2rem; }
 
   .guide-progress-card { display: block; padding: 1rem; border-radius: 18px; }
   .guide-progress-card__body { justify-content: space-between; padding-block: 1rem; }

@@ -60,14 +60,17 @@
         bodyOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
         lockedElements = Array.prototype.map.call(document.querySelectorAll(
-          ".dashboard-main, .dashboard-topbar-actions, .dashboard-whatsapp-float"
+          ".dashboard-main, .dashboard-topbar-actions, .dashboard-whatsapp-float, .dashboard-skip-link, .dashboard-brand-link"
         ), function (element) {
           var previous = element.inert;
           element.inert = true;
           return { element: element, inert: previous };
         });
-        var firstLink = sidebar.querySelector("a[href], button:not([disabled])");
-        if (firstLink) firstLink.focus({ preventScroll: true });
+        var currentLink = sidebar.querySelector("[aria-current]") || sidebar.querySelector("a[href]");
+        if (currentLink) {
+          currentLink.scrollIntoView({ block: "nearest" });
+          currentLink.focus({ preventScroll: true });
+        }
       } else if (!mobileOpen && wasOpen) {
         document.body.style.overflow = bodyOverflow;
         lockedElements.forEach(function (entry) { entry.element.inert = entry.inert; });

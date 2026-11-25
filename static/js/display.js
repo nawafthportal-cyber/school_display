@@ -7000,6 +7000,13 @@
         if (h) applyServerNowMs(h, "header");
       } catch (e) {}
 
+      // Reload the screen's layout if its subscription features changed.
+      const featurePolicy = r.headers.get("X-Display-Feature-Policy");
+      if (featurePolicy && featurePolicy !== screenSetting("displayFeaturePolicy", "-")) {
+        window.location.reload();
+        return null;
+      }
+
       if (r.status === 304) return { _notModified: true };
 
       if (r.status === 429) {

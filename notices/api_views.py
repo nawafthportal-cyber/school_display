@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from core.utils import validate_display_token
+from subscriptions.features import school_disabled_features
 
 from .models import Announcement, Excellence
 from .api_serializers import AnnouncementSerializer, ExcellenceSerializer
@@ -16,6 +17,8 @@ def active_announcements(request):
     screen, school = validate_display_token(request)
     if not screen or not school:
         return Response({"detail": "Forbidden"}, status=403)
+    if "announcements" in school_disabled_features(school.pk):
+        return Response({"items": []})
 
     now = timezone.now()
     qs = Announcement.objects.filter(
@@ -40,6 +43,8 @@ def active_excellence(request):
     screen, school = validate_display_token(request)
     if not screen or not school:
         return Response({"detail": "Forbidden"}, status=403)
+    if "excellence" in school_disabled_features(school.pk):
+        return Response({"items": []})
 
     now = timezone.now()
     qs = Excellence.objects.filter(

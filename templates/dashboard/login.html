@@ -145,9 +145,10 @@
     }
   </style>
   <link rel="stylesheet" href="{% static 'css/mobile.css' %}?v=2026-08-05-m1">
+  <link rel="stylesheet" href="{% static 'css/dashboard-auth.css' %}?v=2026-11-26-manager">
 </head>
 
-<body class="dashboard-login flex flex-col">
+<body class="school-auth dashboard-login flex flex-col">
   {# ── Subtle Background ── #}
   <div class="fixed inset-0 -z-10">
     <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-teal-700/[.06] rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
@@ -172,8 +173,8 @@
           <div class="login-card-icon mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[22px] bg-gradient-to-br from-teal-700 via-cyan-700 to-amber-500 text-white shadow-xl shadow-teal-900/15">
             <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
           </div>
-          <h1 class="text-2xl font-black text-slate-800 mb-1">تسجيل الدخول</h1>
-          <p class="text-sm text-slate-500">ادخل إلى لوحة المدرسة بإسم المستخدم أو رقم الجوال المسجل.</p>
+          <h1 class="text-2xl font-black text-slate-800 mb-1">الدخول إلى لوحة المدرسة</h1>
+          <p class="text-sm text-slate-600">استخدم اسم المستخدم أو رقم الجوال المسجّل في حسابك.</p>
         </div>
 
         {% if session_replaced %}
@@ -212,21 +213,21 @@
 
           <div>
             <label for="loginUsername" class="block text-xs font-bold text-slate-600 mb-1.5 mr-1">اسم المستخدم أو رقم الجوال</label>
-            <input id="loginUsername" class="input-field" type="text" name="username" autocomplete="username" placeholder="مثال: trial_501234567 أو 05XXXXXXXX" inputmode="text" required autofocus>
+            <input id="loginUsername" class="input-field" type="text" name="username" autocomplete="username" autocapitalize="none" dir="auto" inputmode="text" required autofocus>
           </div>
 
           <div>
             <label for="loginPassword" class="block text-xs font-bold text-slate-600 mb-1.5 mr-1">كلمة المرور</label>
             <input id="loginPassword" class="input-field" type="password" name="password" autocomplete="current-password" placeholder="••••••••" required>
-            <div class="mt-2 text-left">
-              <a href="{% url 'dashboard:password_reset' %}" class="text-xs font-bold text-teal-800 hover:text-teal-900 transition-colors">نسيت كلمة المرور؟</a>
+            <div class="text-left">
+              <a href="{% url 'dashboard:password_reset' %}" class="auth-secondary-link inline-flex text-sm font-bold text-teal-800 hover:text-teal-900 transition-colors">نسيت كلمة المرور؟</a>
             </div>
           </div>
 
           <div class="pt-1">
             <button type="submit" class="login-submit w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#16576a] to-[#0e3b48] text-white font-bold text-sm shadow-lg shadow-teal-800/25 hover:shadow-teal-800/40 hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
-              دخول المنصة
+              تسجيل الدخول
             </button>
           </div>
         </form>

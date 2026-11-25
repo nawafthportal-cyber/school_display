@@ -11,6 +11,8 @@ from .view_helpers import *  # noqa: F401,F403  (shared view layer)
 # After the star import on purpose, so the shared view layer can never shadow
 # these with something else of the same name.
 from decimal import Decimal, InvalidOperation  # noqa: E402
+from subscriptions.features import effective_feature_subscription, subscription_feature_rows  # noqa: E402
+from subscriptions.plan_terms import paid_plan_start_date  # noqa: E402
 
 
 @system_permission_required("subscriptions.view")
@@ -337,6 +339,7 @@ def system_subscription_edit(request, pk: int):
     plan_prices = {p.id: str(p.price) for p in SubscriptionPlan.objects.all().only("id", "price")}
 
     obj = get_object_or_404(SubModel, pk=pk)
+    school_id = obj.school_id
 
     if request.method == "POST":
         from django.core.exceptions import ValidationError
@@ -371,10 +374,19 @@ def system_subscription_edit(request, pk: int):
     else:
         form = SchoolSubscriptionForm(instance=obj)
 
+    current_subscription = effective_feature_subscription(school_id)
     return render(
         request,
         "admin/subscription_form.html",
-        {"form": form, "title": "تعديل اشتراك", "edit": True, "plan_durations": plan_durations, "plan_prices": plan_prices},
+        {
+            "form": form,
+            "title": "تعديل اشتراك",
+            "edit": True,
+            "plan_durations": plan_durations,
+            "plan_prices": plan_prices,
+            "school_subscription_features": subscription_feature_rows(current_subscription),
+            "school_feature_plan_name": current_subscription.plan.name if current_subscription else "",
+        },
     )
 
 @system_permission_required("subscriptions.manage")
@@ -698,21 +710,7 @@ def my_subscription(request):
 
         qs = SubModel.objects.filter(school=school)
 
-        # الاشتراك الحالي (ساري ضمن اليوم)
-        current_qs = qs
-        if status_field:
-            current_qs = current_qs.filter(status="active")
-        elif is_active_field:
-            current_qs = current_qs.filter(is_active=True)
-        if start_field:
-            current_qs = current_qs.filter(**{f"{start_field}__lte": today})
-        if end_field:
-            current_qs = current_qs.filter(Q(**{f"{end_field}__isnull": True}) | Q(**{f"{end_field}__gte": today}))
-        if start_field:
-            current_qs = current_qs.order_by(f"-{start_field}", "-id")
-        else:
-            current_qs = current_qs.order_by("-id")
-        current_subscription = current_qs.first()
+        current_subscription = effective_feature_subscription(school.pk, on_date=today)
 
         # الاشتراك القادم (أقرب اشتراك يبدأ في المستقبل)
         upcoming_qs = qs
@@ -870,7 +868,7 @@ def my_subscription(request):
                         created_by=request.user,
                         request_type="renewal",
                         plan=plan_obj,
-                        requested_starts_at=timezone.localdate(),
+                        requested_starts_at=paid_plan_start_date(school.pk, plan_obj.pk),
                         amount=getattr(plan_obj, "price", 0) or 0,
                         receipt_image=_shorten_receipt_filename(
                             renew_form.cleaned_data["receipt_image"],
@@ -899,7 +897,7 @@ def my_subscription(request):
                     created_by=request.user,
                     request_type="new",
                     plan=plan_obj,
-                    requested_starts_at=timezone.localdate(),
+                    requested_starts_at=paid_plan_start_date(school.pk, plan_obj.pk),
                     amount=getattr(plan_obj, "price", 0) or 0,
                     receipt_image=_shorten_receipt_filename(
                         new_form.cleaned_data["receipt_image"],
@@ -1221,6 +1219,8 @@ def my_subscription(request):
             "screen_addon_offer": screen_addon_offer,
 
             "current_subscription": current_subscription,
+            "school_subscription_features": subscription_feature_rows(current_subscription),
+            "school_feature_plan_name": current_subscription.plan.name if current_subscription else "",
             "current_status_code": current_status_code,
             "current_status_label": current_status_label,
             "current_status_badge_class": current_status_badge_class,

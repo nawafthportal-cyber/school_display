@@ -3,12 +3,12 @@ from __future__ import annotations
 from urllib.parse import quote
 
 from django.apps import apps
-from django.db.models import F, Q
 from django.urls import reverse
 from django.utils import timezone
 
 from core.models import SupportTicket
 from core.system_access import NAV_PERMISSION_MAP, role_label
+from subscriptions.features import effective_feature_subscription, plan_disabled_features
 
 from .access import (
     get_system_permissions,
@@ -42,16 +42,7 @@ def school_whatsapp_contact(request):
     Subscription = apps.get_model("subscriptions", "SchoolSubscription")
     today = timezone.localdate()
     subscriptions = Subscription.objects.filter(school=school).select_related("plan")
-    # A school can hold more than one live row — a trial it upgraded out of, or
-    # an early renewal — so "the current subscription" is the one whose cover
-    # reaches furthest, not the one that started last. Picking the wrong row is
-    # what puts a "3 days left" warning in front of a paid-up customer.
-    current_subscription = (
-        subscriptions.filter(status="active", starts_at__lte=today)
-        .filter(Q(ends_at__isnull=True) | Q(ends_at__gte=today))
-        .order_by(F("ends_at").desc(nulls_first=True), "-starts_at", "-created_at")
-        .first()
-    )
+    current_subscription = effective_feature_subscription(school.pk, on_date=today)
     subscription = current_subscription or subscriptions.order_by("-created_at").first()
     request.school_subscription = subscription
 
@@ -83,6 +74,7 @@ def school_whatsapp_contact(request):
         ),
         "school_whatsapp_status": status_text,
         "school_whatsapp_platform_name": WHATSAPP_PLATFORM_NAME,
+        "school_plan_disabled": plan_disabled_features(getattr(current_subscription, "plan", None)),
     }
 
 

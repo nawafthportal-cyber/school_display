@@ -3,7 +3,8 @@
 
 {% block title %}الدفع الإلكتروني{% endblock %}
 {% block page_title %}الدفع الإلكتروني الآمن{% endblock %}
-{% block page_description %}أكمل دفع الاشتراك عبر وسائل الدفع الإلكترونية المتاحة بشكل آمن.{% endblock %}
+{% block page_area %}المدارس والحساب{% endblock %}
+{% block page_description %}راجع الباقة والمبلغ في ملخص الطلب، ثم أكمل الدفع وانتظر تأكيد العملية.{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/moyasar-payment-form@2.2.10/dist/moyasar.css">
@@ -68,7 +69,7 @@
           <dd class="font-bold">{{ checkout.get_request_type_display }}</dd>
         </div>
         <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
-          <dt class="text-slate-400">بداية الاشتراك</dt>
+          <dt class="text-slate-400">بداية الاشتراك المتوقعة</dt>
           <dd class="font-bold" dir="ltr">{{ checkout.starts_at|date:"Y-m-d" }}</dd>
         </div>
         {% if checkout.request_type == "screens" %}

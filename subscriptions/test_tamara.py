@@ -17,7 +17,7 @@ from subscriptions.models import (
     TamaraCheckout,
 )
 from subscriptions.tamara import TamaraAPIError
-from subscriptions.tamara_processing import reconcile_pending_checkouts
+from subscriptions.tamara_processing import activate_checkout, reconcile_pending_checkouts
 
 
 TAMARA_TEST_SETTINGS = {
@@ -105,6 +105,36 @@ class TamaraCheckoutTests(TestCase):
         self.assertEqual(checkout.tamara_order_id, "order-123")
         self.assertEqual(checkout.checkout_id, "checkout-123")
         self.assertEqual(checkout.status, "new")
+
+    @patch("subscriptions.tamara.TamaraClient.create_checkout")
+    @patch("subscriptions.tamara.TamaraClient.is_eligible", return_value=True)
+    def test_new_same_plan_checkout_quotes_and_grants_a_future_term(self, _eligible, create_checkout):
+        today = timezone.localdate()
+        current = SchoolSubscription.objects.create(
+            school=self.school, plan=self.plan,
+            starts_at=today - timedelta(days=30), ends_at=today + timedelta(days=10),
+        )
+        create_checkout.return_value = {
+            "order_id": "order-future-term", "checkout_id": "checkout-future-term",
+            "checkout_url": "https://checkout.tamara.co/session/future-term",
+        }
+        self.client.post(
+            reverse("subscriptions:tamara_start"),
+            {"request_type": "new", "plan_id": self.plan.pk},
+        )
+        checkout = TamaraCheckout.objects.get()
+        expected = current.ends_at + timedelta(days=1)
+        self.assertEqual(checkout.starts_at, expected)
+        self.assertEqual(
+            create_checkout.call_args.args[0]["risk_assessment"]["education"]["start_date"],
+            expected.strftime("%d-%m-%Y"),
+        )
+
+        paid = activate_checkout(checkout.pk, status="authorised", event_type="webhook")
+        captured = activate_checkout(checkout.pk, status="captured", event_type="return")
+        self.assertEqual(paid.subscription.starts_at, expected)
+        self.assertEqual(captured.subscription_id, paid.subscription_id)
+        self.assertEqual(SchoolSubscription.objects.filter(school=self.school).count(), 2)
 
     @patch("subscriptions.tamara_processing.TamaraClient.capture_order")
     @patch("subscriptions.tamara_processing.TamaraClient.authorise_order")
