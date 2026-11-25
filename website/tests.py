@@ -476,6 +476,7 @@ class DisplayRuntimeConfigTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-ws-live-status-check="60"')
+        self.assertEqual(response["X-School-Display"], "board")
 
     def test_display_page_exposes_screen_specific_theme_and_visibility(self):
         school = School.objects.create(name="مدرسة التخصيص", slug="custom-display-school")

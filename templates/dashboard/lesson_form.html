@@ -9,6 +9,7 @@
 
   <form method="post" class="dp-form">
     {% csrf_token %}
+    <input type="hidden" name="next" value="{{ list_url }}">
 
     <div class="dp-form__main">
       {% if form.non_field_errors %}
@@ -56,7 +57,7 @@
         <span>لن يتغير الجدول على الشاشات قبل الحفظ.</span>
       </div>
       <div class="dp-actionbar__buttons">
-        <a href="{% url 'dashboard:lessons_list' %}" class="dp-btn dp-btn--ghost">إلغاء</a>
+        <a href="{{ list_url }}" class="dp-btn dp-btn--ghost">العودة إلى الحصص</a>
         <button type="submit" class="dp-btn dp-btn--primary">
           <i class="fa-solid fa-check" aria-hidden="true"></i>
           <span>حفظ الحصة</span>

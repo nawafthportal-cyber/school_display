@@ -149,23 +149,27 @@ test('an unusable timetable is unknown rather than a confirmed holiday', () => {
   assert.equal(result.day_path.length, 0);
 });
 
-test('rendered offline holiday title uses the new date while online copy remains compatible', () => {
-  function renderedTitle(iso, shifted) {
+test('rendered messages distinguish off-hours, a dated closure and configured holiday copy', () => {
+  function renderedTitle(iso, shifted, update = () => {}) {
     const f = fixture(iso);
     const payload = f.rehydrate();
     if (!shifted) delete payload._offlineDayShifted;
+    update(payload);
     const noOp = () => {};
     Object.assign(f.context, {
       dom: { heroTitle: {}, heroRange: {}, badgeKind: {} },
       rt: {}, cfg: {}, last: {},
-      DISPLAY_COPY: { holidayTitle: 'Old holiday title', holidayBadge: 'Holiday' },
+      DISPLAY_COPY: {
+        holidayTitle: 'Old holiday title', holidayBadge: 'Holiday',
+        afterTitle: 'See you tomorrow', afterBadge: 'Complete',
+        afterHolidayTitle: 'Enjoy the holiday', afterHolidayBadge: 'Holiday',
+      },
       periodsScroller: null, standbyScroller: null, dutyScroller: null,
       hasActiveCountdown: false, countdownSeconds: null, lastStateCoreSig: '',
       lastZeroHandledCoreSig: '', progressRange: {},
-      normalizeDisplayStateType: value => value,
       getStateReason: state => state.reason,
       getPeriodIndex: () => null, getCurrentPeriodIdxFromPayload: () => null,
-      computeDayOver: () => false, screenSetting: () => '',
+      computeDayOver: () => false, motionSpeed: () => 0.5,
       fmtTimeRange: () => '--:--',
       setTextIfChanged: (element, value) => { if (element) element.textContent = value; },
       renderEmergencyAlerts: noOp, renderOfflineMode: noOp, hydrateBrand: noOp,
@@ -174,13 +178,22 @@ test('rendered offline holiday title uses the new date while online copy remains
       applyBoardStatePresentation: noOp, renderCurrentChips: noOp,
       renderMiniSchedule: noOp, dayEngineSyncToLocalNow: noOp, sleepEvaluate: noOp,
     });
-    vm.runInContext(extract('renderState'), f.context, { filename: sourcePath + ':renderState' });
+    for (const name of ['normalizeDisplayStateType', 'getAfterDayOverCopy', 'renderState']) {
+      vm.runInContext(extract(name), f.context, { filename: sourcePath + ':' + name });
+    }
     f.context.renderState(payload);
     return f.context.dom.heroTitle.textContent;
   }
   assert.equal(renderedTitle('2026-10-13T08:30:00+03:00', true), 'Known closure');
   assert.equal(renderedTitle('2026-10-16T08:30:00+03:00', true), 'Weekend');
   assert.equal(renderedTitle('2026-10-13T08:30:00+03:00', false), 'Old holiday title');
+  assert.equal(renderedTitle('2026-10-13T08:30:00+03:00', false, payload => {
+    payload.state = { type: 'NO_SCHEDULE_TODAY', reason: 'holiday', label: 'Known closure', variant: 'dated_closure' };
+  }), 'Known closure');
+  assert.equal(renderedTitle('2026-10-13T20:30:00+03:00', false, payload => {
+    payload.state = { type: 'OFF_HOURS', reason: 'after_hours' };
+    payload.meta.next_school_day = { days_ahead: 1 };
+  }), 'See you tomorrow');
 });
 
 test('unknown calendar recovery uses five-minute base polling while terminal and sleep gates remain authoritative', () => {

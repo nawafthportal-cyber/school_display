@@ -82,6 +82,8 @@ urlpatterns = [
     path("emergency-alerts/<int:pk>/cancel/", views.emergency_alert_cancel, name="emergency_alert_cancel"),
     path("emergency-alerts/<int:pk>/delete/", views.emergency_alert_delete, name="emergency_alert_delete"),
     path("occasion-templates/", views.occasion_templates, name="occasion_templates"),
+    path("occasion-templates/new/", views_themes.occasion_theme_edit, name="occasion_theme_create"),
+    path("occasion-templates/assign/", views_themes.occasion_assign, name="occasion_assign"),
     path("occasion-templates/<slug:key>/edit/", views_themes.occasion_theme_edit, name="occasion_theme_edit"),
 
     # ==================

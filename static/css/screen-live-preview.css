@@ -8,7 +8,7 @@
   max-height: 96vh;
   margin: auto;
   padding: 0;
-  overflow: visible;
+  overflow: auto;
   border: 0;
   color: #f8fafc;
   background: transparent;
@@ -256,14 +256,22 @@
 .live-preview-stage {
   position: relative;
   z-index: 1;
+  display: grid;
+  place-items: center;
   width: 100%;
-  height: min(69vh, calc((96vw - 2rem) * .5625), 51rem);
-  min-height: 18rem;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, .24);
   border-radius: 1.05rem;
   background: #020817;
   box-shadow: 0 18px 46px rgba(0, 0, 0, .42), inset 0 0 0 1px rgba(255, 255, 255, .025);
+}
+
+.live-preview-canvas {
+  position: relative;
+  --preview-aspect: 1.77777778;
+  width: min(100%, calc(max(10rem, 96vh - 16rem) * var(--preview-aspect)), 86rem);
+  aspect-ratio: var(--preview-aspect);
+  background: #020817;
 }
 
 .live-preview-stage::after {
@@ -276,8 +284,13 @@
 }
 
 .live-preview-stage iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
   display: block;
   width: 100%;
+  max-width: none;
   height: 100%;
   border: 0;
   opacity: 1;
@@ -387,21 +400,26 @@
   font-weight: 700;
 }
 
-.live-preview-format strong {
-  padding: .2rem .42rem;
+.live-preview-format select {
+  padding: .32rem .52rem;
   border: 1px solid rgba(148, 163, 184, .16);
   border-radius: .4rem;
-  color: #94a3b8;
-  background: rgba(15, 23, 42, .5);
-  font-size: .62rem;
+  color: #e2e8f0;
+  background: #0f172a;
+  font: inherit;
+  font-size: .78rem;
+  cursor: pointer;
 }
 
 .live-preview-stage:fullscreen {
   width: 100vw;
   height: 100vh;
-  min-height: 100vh;
   border: 0;
   border-radius: 0;
+}
+
+.live-preview-stage:fullscreen .live-preview-canvas {
+  width: min(100vw, calc(100vh * var(--preview-aspect)));
 }
 
 @media (max-width: 860px) {
@@ -428,10 +446,6 @@
     padding: 0;
   }
 
-  .live-preview-stage {
-    height: min(62vh, calc((100vw - 3rem) * .5625));
-    min-height: 14rem;
-  }
 }
 
 @media (max-width: 560px) {
@@ -450,8 +464,7 @@
   }
 
   .live-preview-heading p,
-  .live-preview-safety div span,
-  .live-preview-format {
+  .live-preview-safety div span {
     display: none;
   }
 
@@ -460,16 +473,12 @@
   }
 
   .live-preview-screen-status {
-    display: none;
-  }
-
-  .live-preview-stage {
-    height: calc((100vw - 2.4rem) * .5625);
-    min-height: 12rem;
+    white-space: normal;
   }
 
   .live-preview-footer {
     min-height: 1.6rem;
+    flex-wrap: wrap;
   }
 
   .live-preview-connection small {

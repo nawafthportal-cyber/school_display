@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from django.http import Http404
 
 from .view_helpers import *  # noqa: F401,F403  (shared view layer)
@@ -394,15 +397,17 @@ def lessons_list(request):
 
     settings_obj = SchoolSettings.objects.filter(school=school).first()
     lessons = ClassLesson.objects.none()
+    classes = _classes_qs_from_settings(settings_obj).order_by("name") if settings_obj else []
     if settings_obj:
         lessons = (
             ClassLesson.objects.filter(settings=settings_obj)
             .select_related("school_class", "subject", "teacher")
-            .order_by("weekday", "period_index", "school_class__name")
+            .order_by("weekday", "period_index", "school_class__name", "pk")
         )
 
     search = (request.GET.get("search") or "").strip()
     day = (request.GET.get("day") or "").strip()
+    class_id = (request.GET.get("class_id") or "").strip()
 
     if search:
         lessons = lessons.filter(
@@ -411,22 +416,38 @@ def lessons_list(request):
             | Q(teacher__name__icontains=search)
         )
 
-    if day.isdigit():
+    if day in {str(value) for value, _ in ClassLesson._meta.get_field("weekday").choices}:
         lessons = lessons.filter(weekday=int(day))
+    if class_id.isascii() and class_id.isdecimal() and len(class_id) <= 19:
+        lessons = lessons.filter(school_class_id=int(class_id))
+
+    page = Paginator(lessons, 25).get_page(request.GET.get("page"))
+    filters = request.GET.copy()
+    filters.pop("page", None)
 
     return render(
         request,
         "dashboard/lessons_list.html",
         {
-            "lessons": lessons,
-            # Echoed back into the toolbar so a search survives its own submit,
-            # and so the day dropdown is built from the model's own encoding
-            # (1=الاثنين … 7=الأحد) instead of a hand-written 0-4 list.
+            "lessons": page.object_list,
+            "page": page,
+            "page_range": page.paginator.get_elided_page_range(page.number),
+            "page_query": filters.urlencode(),
+            "classes": classes,
+            "selected_class_id": class_id,
             "search": search,
             "selected_day": day,
             "weekday_choices": ClassLesson._meta.get_field("weekday").choices,
         },
     )
+
+def _lesson_list_url(request):
+    list_url = reverse("dashboard:lessons_list")
+    candidate = _safe_next_url(request, default_name="dashboard:lessons_list")
+    parsed = urlsplit(candidate)
+    if not parsed.netloc and not parsed.scheme and parsed.path == list_url:
+        return candidate
+    return list_url
 
 @manager_required
 def lesson_create(request):
@@ -443,6 +464,7 @@ def lesson_create(request):
         messages.error(request, "فضلاً أضف إعدادات المدرسة أولاً.")
         return redirect("dashboard:lessons_list")
 
+    list_url = _lesson_list_url(request)
     form = LessonForm(request.POST or None)
 
     classes_qs = _classes_qs_from_settings(settings_obj).order_by("name")
@@ -457,10 +479,10 @@ def lesson_create(request):
             lesson.save()
             _invalidate_display_cache(school)
             messages.success(request, "تمت إضافة الحصة بنجاح.")
-            return redirect("dashboard:lessons_list")
+            return redirect(list_url)
         messages.error(request, "الرجاء تصحيح الأخطاء.")
 
-    return render(request, "dashboard/lesson_form.html", {"form": form, "title": "إضافة حصة"})
+    return render(request, "dashboard/lesson_form.html", {"form": form, "title": "إضافة حصة", "list_url": list_url})
 
 @manager_required
 def lesson_edit(request, pk: int):
@@ -480,6 +502,7 @@ def lesson_edit(request, pk: int):
 
     obj = get_object_or_404(ClassLesson, pk=pk, settings=settings_obj)
 
+    list_url = _lesson_list_url(request)
     form = LessonForm(request.POST or None, instance=obj)
 
     classes_qs = _classes_qs_from_settings(settings_obj).order_by("name")
@@ -492,10 +515,10 @@ def lesson_edit(request, pk: int):
             form.save()
             _invalidate_display_cache(school)
             messages.success(request, "تم تعديل الحصة بنجاح.")
-            return redirect("dashboard:lessons_list")
+            return redirect(list_url)
         messages.error(request, "الرجاء تصحيح الأخطاء.")
 
-    return render(request, "dashboard/lesson_form.html", {"form": form, "title": "تعديل حصة"})
+    return render(request, "dashboard/lesson_form.html", {"form": form, "title": "تعديل حصة", "list_url": list_url})
 
 @manager_required
 @require_POST
@@ -516,7 +539,7 @@ def lesson_delete(request, pk: int):
     obj.delete()
     _invalidate_display_cache(school)
     messages.success(request, "تم حذف الحصة.")
-    return redirect("dashboard:lessons_list")
+    return redirect(_lesson_list_url(request))
 
 @manager_required
 def timetable_day_view(request):
@@ -536,10 +559,22 @@ def timetable_day_view(request):
         return redirect("dashboard:settings")
 
     weekdays_choices = list(SCHOOL_WEEK)
-    default_weekday = weekdays_choices[0][0] if weekdays_choices else 0
+    try:
+        school_timezone = ZoneInfo(settings_obj.timezone_name or "Asia/Riyadh")
+    except (ValueError, ZoneInfoNotFoundError):
+        school_timezone = ZoneInfo("Asia/Riyadh")
+    today = timezone.localdate(timezone=school_timezone)
+    default_weekday = today.isoweekday()
+    selection_key = f"timetable_day_selection_{school.pk}"
+    selection = request.session.get(selection_key, {})
 
     weekday_param = request.GET.get("weekday") if request.method == "GET" else request.POST.get("weekday")
     class_param = request.GET.get("class_id") if request.method == "GET" else request.POST.get("class_id")
+    if request.method == "GET":
+        if weekday_param is None and selection.get("date") == today.isoformat():
+            weekday_param = selection.get("weekday")
+        if class_param is None:
+            class_param = selection.get("class_id")
     if request.method == "POST" and weekday_param in (None, ""):
         return JsonResponse({"ok": False, "message": "حدد اليوم المطلوب حفظ جدوله."}, status=400)
 
@@ -549,8 +584,10 @@ def timetable_day_view(request):
         if request.method == "POST":
             return JsonResponse({"ok": False, "message": "اليوم المحدد غير صالح."}, status=400)
         weekday = int(default_weekday)
-    if request.method == "POST" and weekday not in SCHOOL_WEEKDAY_IDS:
-        return JsonResponse({"ok": False, "message": "اليوم المحدد غير صالح."}, status=400)
+    if weekday not in SCHOOL_WEEKDAY_IDS:
+        if request.method == "POST":
+            return JsonResponse({"ok": False, "message": "اليوم المحدد غير صالح."}, status=400)
+        weekday = default_weekday
 
     classes_qs = _classes_qs_from_settings(settings_obj).order_by("name")
 
@@ -571,6 +608,10 @@ def timetable_day_view(request):
         raise Http404("الفصل المحدد غير موجود في المدرسة النشطة.")
 
     selected_class_id = selected_class.id if selected_class else None
+    if request.method == "GET":
+        updated_selection = {"date": today.isoformat(), "weekday": weekday, "class_id": selected_class_id}
+        if updated_selection != selection:
+            request.session[selection_key] = updated_selection
 
     periods_qs = Period.objects.filter(day__settings=settings_obj, day__weekday=weekday).order_by("index")
     subjects_qs = Subject.objects.filter(school=school).order_by("name")

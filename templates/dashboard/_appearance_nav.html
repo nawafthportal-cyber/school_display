@@ -1,0 +1,4 @@
+<nav class="appearance-nav" aria-label="أقسام مظهر الشاشات">
+  <a href="{% url 'dashboard:theme_list' %}{% if selected_screen %}?screen={{ selected_screen.pk }}{% endif %}"{% if section == 'daily' %} aria-current="page"{% else %} data-screen-link{% endif %}>المظهر اليومي</a>
+  <a href="{% url 'dashboard:occasion_templates' %}{% if selected_screen %}?screen={{ selected_screen.pk }}{% endif %}"{% if section == 'occasions' %} aria-current="page"{% endif %}>عرض مناسبة</a>
+</nav>

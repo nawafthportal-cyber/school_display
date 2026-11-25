@@ -11,7 +11,8 @@
         return;
     }
 
-    window.addEventListener("load", function () {
+    document.addEventListener("DOMContentLoaded", function () {
+        if (document.body.getAttribute("data-preview-mode") === "1") return;
         navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(function () {
             // The first navigation happens before a newly-installed worker can
             // control it. Cache the exact display URL now so one successful

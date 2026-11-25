@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from core.models import DisplayScreen, School
 from core.occasions import announcement_choices as occasion_announcement_choices
+from core.occasion_customizations import OccasionSelectionField
 
 
 ANNOUNCEMENT_LEVELS = (
@@ -136,7 +137,7 @@ class Announcement(models.Model):
         choices=ANNOUNCEMENT_LEVELS,
         default="info",
     )
-    occasion_theme = models.CharField(
+    occasion_theme = OccasionSelectionField(
         "ثيم المناسبة",
         max_length=30,
         choices=OCCASION_THEME_CHOICES,
@@ -247,6 +248,7 @@ class EmergencyAlert(models.Model):
         blank=True,
         help_text="اتركها فارغة لإرسال التنبيه إلى جميع شاشات المدارس المحددة.",
     )
+    limited_to_screens = models.BooleanField(default=False)
     is_active = models.BooleanField("نشط", default=True)
     starts_at = models.DateTimeField("وقت البدء", default=timezone.now)
     expires_at = models.DateTimeField("وقت الانتهاء", null=True, blank=True)
@@ -299,6 +301,17 @@ class EmergencyAlert(models.Model):
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "screen_ids": list(self.screens.values_list("id", flat=True)),
         }
+
+
+class EmergencyAlertReceipt(models.Model):
+    alert = models.ForeignKey(EmergencyAlert, on_delete=models.CASCADE, related_name="receipts")
+    screen = models.ForeignKey(DisplayScreen, on_delete=models.CASCADE)
+    displayed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("alert", "screen"), name="one_emergency_receipt_per_screen"),
+        ]
 
 
 # ===========================

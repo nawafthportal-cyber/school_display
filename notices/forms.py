@@ -10,6 +10,13 @@ from .models import Announcement, Excellence
 
 
 class AnnouncementForm(forms.ModelForm):
+    def __init__(self, *args, school=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if school:
+            self.instance.school = school
+        from core.occasion_customizations import choices_for_school
+        self.fields["occasion_theme"].choices = choices_for_school(self.instance.school_id, Announcement.OCCASION_THEME_CHOICES)
+
     class Meta:
         model = Announcement
         fields = [

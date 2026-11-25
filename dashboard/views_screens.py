@@ -19,6 +19,8 @@ from django.views.decorators.http import require_POST
 
 from display.ws_groups import school_group_name
 from core.display_presence import display_live_threshold_seconds, latest_display_presence
+from core.display_themes import effective_custom_theme
+from core.occasion_customizations import choices_for_school
 from core.screen_monitoring import format_duration
 from .access import get_active_school_or_redirect
 from .decorators import manager_required
@@ -309,7 +311,7 @@ def screen_list(request):
     except Exception:
         auto_disabled_count = 0
 
-    qs = display_screen.objects.filter(school=school).order_by("-created_at", "-id")
+    qs = display_screen.objects.filter(school=school).select_related("custom_theme_override").order_by("-created_at", "-id")
     current_count = qs.count()
     max_screens = get_school_max_screens_limit(school)
     plan_name = get_school_effective_plan_label(school)
@@ -372,7 +374,13 @@ def screen_list(request):
         except (TypeError, ValueError, OverflowError):
             monitor_worker_live = False
     screen_rows = []
+    occasion_labels = dict(choices_for_school(school.pk, display_screen.OCCASION_THEME_CHOICES))
+    base_themes = dict(_school_settings_model().THEME_CHOICES)
     for screen in qs:
+        theme = effective_custom_theme(monitoring_settings, screen)
+        base = screen.theme_override or getattr(monitoring_settings, "theme", "indigo")
+        screen.dashboard_theme_name = theme.name if theme else base_themes.get(base, base)
+        screen.dashboard_occasion_name = occasion_labels.get(screen.occasion_theme, "تلقائي حسب التنبيه")
         last_seen = latest_display_presence(screen)
         bound_at = getattr(screen, "bound_at", None)
         last_activity = last_seen or bound_at
@@ -418,16 +426,16 @@ def screen_list(request):
         elif is_live:
             status_key = "live"
             status_label = "متصلة الآن"
-            status_hint = "الشاشة تعمل وتستقبل التحديثات"
+            status_hint = "وصل اتصال حديث من جهاز التلفاز"
         elif bound_device and last_seen:
             status_key = "offline"
             status_label = "منقطعة الآن"
-            status_hint = "الجهاز مرتبط، لكن لم يصل نبض حديث"
+            status_hint = "الجهاز مرتبط ولم يصل منه اتصال حديث"
             offline_count += 1
         elif bound_device:
             status_key = "pending"
-            status_label = "مرتبطة وجاهزة"
-            status_hint = "تم ربط الجهاز؛ سيظهر الاتصال عند أول نبض"
+            status_label = "بانتظار أول اتصال"
+            status_hint = "تم الربط وبانتظار أول اتصال من الجهاز"
             waiting_count += 1
         else:
             status_key = "waiting"
@@ -463,8 +471,10 @@ def screen_list(request):
         screen.dashboard_status_key = status_key
         screen.dashboard_status_label = status_label
         screen.dashboard_status_hint = status_hint
+        screen.dashboard_last_activity_label = "وقت ربط الجهاز" if bound_at and not last_seen else "آخر اتصال بالتلفاز"
         screen.dashboard_last_seen_display = last_seen_display
         screen.dashboard_last_seen_full = last_seen_full
+        screen.dashboard_last_activity_at = last_activity
         screen.dashboard_is_live = is_live
         screen.dashboard_bound_device = bound_device
         screen.dashboard_last_seen_seconds = last_seen_seconds
@@ -478,9 +488,6 @@ def screen_list(request):
         )
         screen.dashboard_outage_cause = (
             open_outage.get_cause_display() if open_outage else ""
-        )
-        screen.dashboard_outage_detail = (
-            (open_outage.cause_detail or "").strip() if open_outage else ""
         )
         # مجموعة موروثة = كل حقول التخصيص فيها فارغة، أي أن الشاشة ما زالت
         # تتبع "تخصيص جميع الشاشات" وتصلها تعديلاته تلقائيًا.
@@ -698,6 +705,7 @@ def screens_customize_all(request):
             "form": form,
             "school": school,
             "display_preview_url": preview_url,
+            "display_preview_name": preview_screen.name if preview_screen else "",
             "initial_settings_tab": "appearance",
             "show_display_settings": True,
             "show_account_settings": False,
@@ -791,6 +799,7 @@ def screen_edit(request, pk: int):
             "screen": screen,
             "school": school,
             "display_preview_url": preview_url,
+            "display_preview_name": screen.name,
             "initial_settings_tab": "appearance",
             "show_display_settings": True,
             "show_account_settings": False,

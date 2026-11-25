@@ -153,6 +153,7 @@ class SchoolClosureCalendarTests(TestCase):
         self.assertEqual(snap["state"]["reason"], "holiday")
         # اسم المناسبة أنفع من «اليوم إجازة» المجرّدة.
         self.assertEqual(snap["state"]["label"], "إجازة عيد الفطر")
+        self.assertEqual(snap["state"]["variant"], "dated_closure")
 
     def test_the_next_school_day_skips_the_rest_of_the_closure(self):
         SchoolClosure.objects.create(

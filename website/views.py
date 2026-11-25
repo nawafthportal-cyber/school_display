@@ -440,6 +440,7 @@ def _build_display_context(request, key: str | None) -> dict | None:
         "theme": theme,
         "theme_key": raw_theme,
         "preview_mode": preview_mode,
+        "preview_embedded": preview_mode and request.GET.get("embed") == "1",
         "screen_theme_override": screen_theme_override,
         "custom_display_theme": theme_payload(effective_custom_theme(settings_obj, screen)) if not preview_lock else None,
         "screen_occasion_theme": getattr(screen, "occasion_theme", "auto") or "auto",
@@ -583,7 +584,7 @@ def home(request):
         )
     # Never fold this into ``ctx``: that dict is cached per token+revision, while
     # lite mode depends on the requesting device.
-    return render(request, "website/display.html", {**ctx, "lite_mode": _display_lite_mode(request)})
+    return _render_display(request, ctx)
 
 
 def subscriptions(request):
@@ -713,6 +714,13 @@ def trial_signup(request):
     )
 
 
+def _render_display(request, ctx):
+    response = render(request, "website/display.html", {**ctx, "lite_mode": _display_lite_mode(request)})
+    if not ctx.get("preview_mode"):
+        response["X-School-Display"] = "board"
+    return response
+
+
 def display(request):
     return home(request)
 
@@ -750,7 +758,7 @@ def display_view(request, screen_key: str):
         )
 
     # See ``home``: lite mode is per-device, so it stays out of the cached ctx.
-    return render(request, "website/display.html", {**ctx, "lite_mode": _display_lite_mode(request)})
+    return _render_display(request, ctx)
 
 
 @never_cache

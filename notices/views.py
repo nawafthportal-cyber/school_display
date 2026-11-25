@@ -44,7 +44,7 @@ def ann_list(request: HttpRequest) -> HttpResponse:
 def ann_create(request: HttpRequest) -> HttpResponse:
     school = _get_school_or_deny(request)
     if request.method == "POST":
-        form = AnnouncementForm(request.POST)
+        form = AnnouncementForm(request.POST, school=school)
         if form.is_valid():
             ann = form.save(commit=False)
             ann.school = school
@@ -53,7 +53,7 @@ def ann_create(request: HttpRequest) -> HttpResponse:
             return redirect("notices:ann_list")
         messages.error(request, "الرجاء تصحيح الأخطاء.")
     else:
-        form = AnnouncementForm()
+        form = AnnouncementForm(school=school)
     return render(
         request,
         "notices/ann_form.html",

@@ -417,7 +417,13 @@ def _school_is_awaiting_setup(settings, active_days_index: dict[int, list] | Non
 
 
 def _after_hours_copy(settings_payload: dict[str, str], next_school_day):
-    if next_school_day and int(next_school_day.get("days_ahead") or 0) == 1:
+    if not next_school_day:
+        return {
+            "label": "انتهى دوام اليوم",
+            "badge": "نهاية الدوام",
+            "variant": "after_school_day",
+        }
+    if int(next_school_day.get("days_ahead") or 0) == 1:
         return {
             "label": settings_payload["display_after_title"],
             "badge": settings_payload["display_after_badge"],
@@ -665,6 +671,7 @@ def _build_day_snapshot(
                 "label": settings_payload["display_holiday_title"],
                 "badge": settings_payload["display_holiday_badge"],
                 "reason": "holiday",
+                **({"variant": "dated_closure"} if closure_title else {}),
                 "from": None,
                 "to": None,
                 "remaining_seconds": None,

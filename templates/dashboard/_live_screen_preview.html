@@ -1,0 +1,82 @@
+<dialog class="live-preview-dialog" id="livePreviewDialog" aria-labelledby="livePreviewTitle" aria-describedby="livePreviewDescription">
+  <section class="live-preview-shell">
+    <header class="live-preview-header">
+      <div class="live-preview-heading">
+        <span class="live-preview-screen-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="13" rx="2.5"/><path d="M8 21h8M12 17v4"/></svg>
+        </span>
+        <div class="min-w-0">
+          <div class="live-preview-eyebrow">
+            <span class="live-preview-pulse" aria-hidden="true"></span>
+            <span>معاينة حية</span>
+          </div>
+          <h2 id="livePreviewTitle">شاشة العرض</h2>
+          <p id="livePreviewDescription">تعرض آخر إعدادات محفوظة ومحتوى هذه الشاشة.</p>
+        </div>
+      </div>
+
+      <div class="live-preview-tools" aria-label="أدوات المعاينة">
+        <button type="button" class="live-preview-tool" data-live-preview-refresh title="تحديث المعاينة الآن" aria-label="تحديث المعاينة">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 4v5h5M4 13a8.1 8.1 0 0 0 15.5 2M20 20v-5h-5"/></svg>
+          <span>تحديث</span>
+        </button>
+        <button type="button" class="live-preview-tool" data-live-preview-fullscreen title="عرض المعاينة بملء الشاشة" aria-label="ملء الشاشة">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+          <span>ملء الشاشة</span>
+        </button>
+        <a class="live-preview-tool" data-live-preview-external href="#" target="_blank" rel="noopener" title="فتح المعاينة في نافذة مستقلة" aria-label="فتح المعاينة في نافذة مستقلة">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M14 3h7v7M10 14 21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+          <span>نافذة مستقلة</span>
+        </a>
+        <button type="button" class="live-preview-close" data-live-preview-close aria-label="إغلاق المعاينة">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="live-preview-safety" role="note">
+      <span class="live-preview-shield" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 4.5 6v5.3c0 4.5 3 8.5 7.5 9.7 4.5-1.2 7.5-5.2 7.5-9.7V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg>
+      </span>
+      <div>
+        <strong>للاطلاع فقط — الشاشة الفعلية تواصل عملها دون أي تأثير</strong>
+        <span>لا تنشئ هذه المعاينة ارتباطًا جديدًا، ولا تغيّر حالة الجهاز، ولا تُحتسب كشاشة متصلة.</span>
+      </div>
+      <span class="live-preview-screen-status">اتصال التلفاز · <b data-live-preview-screen-status></b></span>
+    </div>
+
+    <div class="live-preview-stage is-loading" data-live-preview-stage>
+      <div class="live-preview-canvas">
+      <div class="live-preview-loading" data-live-preview-loading role="status">
+        <span class="live-preview-loader" aria-hidden="true"></span>
+        <strong>جارٍ تجهيز البث الحي…</strong>
+        <small>نحمّل نفس المحتوى الظاهر على شاشة المدرسة</small>
+      </div>
+      <iframe
+        data-live-preview-frame
+        title="المعاينة الحية لشاشة العرض"
+        allow="fullscreen"
+        allowfullscreen
+        referrerpolicy="same-origin"
+      ></iframe>
+      </div>
+    </div>
+
+    <footer class="live-preview-footer">
+      <div class="live-preview-connection is-loading" data-live-preview-connection role="status" aria-live="polite">
+        <span aria-hidden="true"></span>
+        <strong data-live-preview-connection-title>جارٍ الاتصال بالعرض…</strong>
+        <small data-live-preview-connection-detail>ستظهر الشاشة بعد لحظات</small>
+      </div>
+      <label class="live-preview-format">
+        <span>مقاس العرض</span>
+        <select data-live-preview-format>
+          <option value="1920x1080">تلفاز أفقي · 16:9</option>
+          <option value="1024x768">بروجكتر · 4:3</option>
+          <option value="1080x1920">شاشة عمودية · 9:16</option>
+          <option value="3440x1440">شاشة عريضة · 21:9</option>
+        </select>
+      </label>
+    </footer>
+  </section>
+</dialog>

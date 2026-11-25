@@ -7,6 +7,7 @@ import secrets
 import uuid
 
 from .occasions import screen_choices as occasion_screen_choices
+from .occasion_customizations import OccasionSelectionField
 from .screen_diagnostics import (
     CAUSE_CHOICES as SCREEN_OUTAGE_CAUSE_CHOICES,
     CAUSE_UNKNOWN as SCREEN_OUTAGE_CAUSE_UNKNOWN,
@@ -290,7 +291,7 @@ class DisplayScreen(models.Model):
         super().clean()
         if self.custom_theme_override_id and self.custom_theme_override.school_id != self.school_id:
             raise ValidationError({"custom_theme_override": "اختر ثيمًا تابعًا لهذه المدرسة."})
-    occasion_theme = models.CharField(
+    occasion_theme = OccasionSelectionField(
         "قالب المناسبة",
         max_length=30,
         choices=OCCASION_THEME_CHOICES,

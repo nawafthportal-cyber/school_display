@@ -6,10 +6,8 @@
   // ===========================================================================
   // The bundle is built with `--target=es2015` (see package.json), so async
   // functions are lowered to generators and nothing here needs a syntax level
-  // above ES2015. That puts the floor at const/let and URLSearchParams —
-  // Chrome 49 — which covers Samsung Tizen 3.0/4.0 (Chrome 56) and LG webOS 4
-  // (Chrome 53). Anything below that (webOS 3.x on Chrome 38, Tizen 2.4 on
-  // Chrome 47) cannot run this bundle at all.
+  // above ES2015. The runtime also needs Fetch and URL.searchParams; older
+  // television browsers without those APIs get the compatibility notice.
   //
   // The APIs below post-date Chrome 49, so they are filled in here:
   //   • Promise.prototype.finally  → added Chrome 63  (breaks ALL fetch calls)
@@ -166,7 +164,13 @@
   function normSpeed(x, def) {
     const v = Number(x);
     if (!isFinite(v) || v <= 0) return def;
-    return clamp(v, 0.15, 4);
+    return clamp(v, 0.05, 5);
+  }
+
+  function motionSpeed(overrideKey, bootKey, schoolSpeed, previous) {
+    // Previously cached HTML only recorded the effective boot value.
+    const key = overrideKey in document.body.dataset ? overrideKey : bootKey;
+    return normSpeed(screenSetting(key, schoolSpeed), previous);
   }
 
   function isDebug() {
@@ -614,8 +618,56 @@
       body.dataset.fitMargin = String(fitMargin);
       body.style.fontSize = "";
     } catch (e) {}
+    fitHeroTitle();
+    try { layoutTimelinePages(); } catch (e) {}
+    try { refreshHonorPages(); } catch (e) {}
     try { refreshAnnouncementLayout(); } catch (e) {}
     try { refreshEmergencyLayout(); } catch (e) {}
+    if (periodsScroller) periodsScroller.recalc();
+    if (standbyScroller) standbyScroller.recalc();
+    if (dutyScroller) dutyScroller.recalc();
+  }
+
+  // A school's welcome/holiday heading may be 150 characters. Measure it in
+  // the actual hero (including the dial and any featured panels), also when a
+  // custom font, orientation or saved message changes on an open screen.
+  let heroFitKey = "";
+  function fitHeroTitle() {
+    const title = dom.heroTitle;
+    if (!title || !title.offsetWidth) return;
+    const content = title.closest(".hero-content");
+    if (!content) return;
+    const body = document.body;
+    const key = [content.clientWidth, content.clientHeight, body.dataset.boardShape,
+      body.dataset.boardDensity, body.dataset.layoutMode, body.dataset.countdownActive,
+      body.style.getPropertyValue("--custom-scale"), body.style.getPropertyValue("--custom-font"),
+      content.innerText.replace(/\d+:\d+(?::\d+)?/g, "")].join("|");
+    if (heroFitKey === key) return;
+    heroFitKey = key;
+    title.style.removeProperty("font-size");
+    const heading = content.querySelector(".hero-heading");
+    const summary = $("heroSummary");
+    function fits() {
+      const room = content.getBoundingClientRect();
+      const head = heading.getBoundingClientRect();
+      const bottom = summary && summary.offsetHeight ? summary.getBoundingClientRect().bottom : head.bottom;
+      return head.top >= room.top - 1 && bottom <= room.bottom + 1 && title.scrollWidth <= title.clientWidth + 1;
+    }
+    if (fits()) return;
+    let lo = 20;
+    let hi = Math.floor(parseFloat(getComputedStyle(title).fontSize));
+    let best = lo;
+    while (lo <= hi) {
+      const size = Math.floor((lo + hi) / 2);
+      title.style.setProperty("font-size", size + "px", "important");
+      if (fits()) {
+        best = size;
+        lo = size + 1;
+      } else {
+        hi = size - 1;
+      }
+    }
+    title.style.setProperty("font-size", best + "px", "important");
   }
 
   // ===== Debug overlay =====
@@ -719,7 +771,27 @@
     if (daysAhead === 1) {
       return { title: DISPLAY_COPY.afterTitle, badge: DISPLAY_COPY.afterBadge };
     }
-    return { title: DISPLAY_COPY.afterHolidayTitle, badge: DISPLAY_COPY.afterHolidayBadge };
+    if (daysAhead > 1) {
+      return { title: DISPLAY_COPY.afterHolidayTitle, badge: DISPLAY_COPY.afterHolidayBadge };
+    }
+    return { title: "انتهى دوام اليوم", badge: "نهاية الدوام" };
+  }
+
+  function getNextSchoolDayMessage(payload) {
+    const next = payload && payload.meta && payload.meta.next_school_day;
+    if (!next || !next.date) return "";
+    let time = safeText(next.first_start).slice(11, 16);
+    if (payload._offlineDayShifted) {
+      const firstStart = Date.parse(next.first_start);
+      if (!Number.isFinite(firstStart)) return "";
+      const wall = _offlineWallClock(firstStart);
+      const hours = wall.utc ? wall.date.getUTCHours() : wall.date.getHours();
+      const minutes = wall.utc ? wall.date.getUTCMinutes() : wall.date.getMinutes();
+      time = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    }
+    if (!/^\d{2}:\d{2}$/.test(time)) return "";
+    const date = `${next.weekday_label ? next.weekday_label + " " : ""}\u2066${next.date}\u2069`;
+    return `الدوام القادم ${date} الساعة \u2066${time}\u2069`;
   }
 
   function teacherLabelText() {
@@ -2345,9 +2417,9 @@
     // actually fires, otherwise TVs that land directly on 00:00 can get stuck.
     lastStateCoreSig = stType + "||" + safeText(title || "") + "||" + safeText(block.from || "") + "||" + safeText(block.to || "");
 
-    // Re-filter standby list.
+    // Refresh both lists together when the local clock enters a new slot.
     try {
-      if (lastPayloadForFiltering) renderStandby(lastPayloadForFiltering.standby || []);
+      renderPeriodLists(lastPayloadForFiltering);
     } catch (e) {}
 
     // Fixed day boards are preloaded before the first period but remain gated.
@@ -2368,10 +2440,6 @@
 
     try {
       renderNextLabel(nextBlock || null);
-    } catch (e) {}
-
-    try {
-      renderPeriodClasses(stType === "period" ? pickRuntimePeriodClasses(lastPayloadForFiltering) : []);
     } catch (e) {}
 
     return true;
@@ -2810,8 +2878,9 @@
 
   function serverWallNowDate() {
     // Shift by tz offset and interpret via UTC getters/formatting.
-    const off = isFinite(Number(serverTzOffsetMin)) ? Number(serverTzOffsetMin) : 0;
-    return new Date(nowMs() + off * 60 * 1000);
+    const current = nowMs();
+    const off = serverTzOffsetMin === null ? -new Date(current).getTimezoneOffset() : serverTzOffsetMin;
+    return new Date(current + off * 60 * 1000);
   }
 
   // Clock display follows the school's local timezone as reported by the server.
@@ -2996,6 +3065,7 @@
   function renderNextLabel(nextObj) {
     if (!dom.nextLabel) return;
 
+    toggleHidden(dom.nextLabel.parentNode, !nextObj);
     if (!nextObj) {
       setTextIfChanged(dom.nextLabel, "—");
       return;
@@ -3008,7 +3078,7 @@
     if (kind === "period") {
       const periodTitle = formatPeriodTitle(nextObj);
       const activity = safeText(nextObj.label || "");
-      title = activity && activity !== periodTitle ? periodTitle + " - " + activity : periodTitle;
+      title = activity && activity !== periodTitle && activity !== "حصة" ? periodTitle + " · " + activity : periodTitle;
     } else if (kind === "break") {
       title = safeText(nextObj.label || "استراحة");
     } else {
@@ -3056,37 +3126,53 @@
     return false;
   }
 
-  function shouldKeepStandbyItem(x, baseMs) {
-    if (!x) return false;
-
-    // ✅ FIX: إخفاء حصص الانتظار التي مضى وقتها
-    // حصة الانتظار للحصة X تظهر طوال الحصة X وتختفي عند بداية الحصة X+1
-    // مثال: حصة انتظار للحصة 2 تظهر أثناء الحصة 2، وتختفي عند بداية الحصة 3
-    
-    // 1) فلترة بالأرقام (الأفضل) - نبحث في جميع الحقول الممكنة
-    const idx = getPeriodIndex(x);
-    const refIdx = dayEngineReferencePeriodIndex() || (rt.activePeriodIndex ? Number(rt.activePeriodIndex) : null);
-
-    if (idx && refIdx) {
-      // نعرض الحصص التي >= الحصة الحالية (أي الحصة الحالية والحصص القادمة)
-      // مثال: إذا الحصة الحالية = 2، نعرض حصة انتظار 2، 3، 4...
-      // عند بداية الحصة 3، حصة انتظار الحصة 2 ستختفي
-      const keep = Number(idx) >= Number(refIdx);
-      return keep;
+  // Numbered assignments follow the local timetable, including when offline.
+  // Older snapshots may have only clock times, or no reliable timing at all.
+  function standbyGroups(items, now) {
+    const groups = {current: [], later: [], unplaced: []};
+    const reference = dayEngineReferencePeriodIndex();
+    const currentIndex = rt.activeStateType === "period" ? reference : null;
+    const latest = currentStandbyByClass(items, currentIndex);
+    const seenCurrent = new Set();
+    function timestamp(value) {
+      if (!value) return null;
+      return /^\d{1,2}:\d{2}/.test(value) ? hmToMs(value, now) : Date.parse(value);
     }
-
-    // 2) fallback بالوقت إذا ما فيه رقم (نادر لكن للتوافقية)
-    const from = x.from || x.start || x.starts_at;
-    if (rt.activeFromHM && from) {
-      const a = hmToMs(rt.activeFromHM, baseMs);
-      const b = hmToMs(from, baseMs);
-      // نعرض فقط الحصص التي وقتها في المستقبل (> وليس >=)
-      if (a && b) return b > a;
+    for (const row of items) {
+      if (!row) continue;
+      const index = getPeriodIndex(row);
+      const from = timestamp(row.from || row.start || row.starts_at);
+      const to = timestamp(row.to || row.end || row.ends_at);
+      let group = "unplaced";
+      if (index && reference) {
+        if (index < reference) continue;
+        group = index === currentIndex ? "current" : "later";
+      } else if (to && to <= now) {
+        continue;
+      } else if (from && from > now) {
+        group = "later";
+      } else if (from && ((to && now < to) || (rt.activeStateType === "period" && from === hmToMs(rt.activeFromHM, now)))) {
+        group = "current";
+      }
+      if (group === "current" && index) {
+        const className = safeText(row.class_name || row["class"] || row.classroom).trim();
+        if (latest.has(className)) {
+          if (!seenCurrent.has(className)) groups.current.push(latest.get(className));
+          seenCurrent.add(className);
+          continue;
+        }
+      }
+      groups[group].push(row);
     }
-
-    // 3) إذا ما نقدر نحدد بالرقم أو الوقت، نعرضه
-    // (هذا احتياطي فقط - لا يجب الوصول له في الظروف العادية)
-    return true;
+    const periodStarts = new Map();
+    for (const block of _dayEngine.blocks) {
+      if (block.kind === "period") periodStarts.set(dayEngineResolvePeriodIndex(block), block.fromMs);
+    }
+    function startTime(row) {
+      return periodStarts.get(getPeriodIndex(row)) || timestamp(row.from || row.start || row.starts_at) || Infinity;
+    }
+    groups.later.sort((a, b) => startTime(a) - startTime(b) || (getPeriodIndex(a) || 0) - (getPeriodIndex(b) || 0));
+    return groups;
   }
 
   // ===== Adaptive board presentation =====
@@ -3836,9 +3922,9 @@
         : localPeriodDayWindow;
       applyBoardStatePresentation(stType, rem > 0);
 
-      // Immediately re-filter standby list (removes ended standby without waiting for server cache/ETag).
+      // Move current standby assignments into their lessons at the local boundary.
       try {
-        renderStandby((snap && snap.standby) || []);
+        renderPeriodLists(snap);
       } catch (e) {}
 
       try {
@@ -3989,8 +4075,7 @@
         renderState(snap);
         renderAnnouncements(snap.announcements || []);
         renderFeaturedPanel(snap);
-        renderStandby(snap.standby || []);
-        renderPeriodClasses(pickRuntimePeriodClasses(snap));
+        renderPeriodLists(snap);
       } catch (e) {
         renderAlert("حدث خطأ أثناء العرض", "افتح ?debug=1 لمزيد من التفاصيل.");
         ensureDebugOverlay();
@@ -4033,8 +4118,7 @@
                     renderState(snap2);
                     renderAnnouncements(snap2.announcements || []);
                     renderFeaturedPanel(snap2);
-                    renderStandby(snap2.standby || []);
-                    renderPeriodClasses(pickRuntimePeriodClasses(snap2));
+                    renderPeriodLists(snap2);
                   } catch (e) {}
 
                   try {
@@ -4121,11 +4205,16 @@
         : fmtTimeRange(cur.from || st.from, cur.to || st.to);
 
     const stateReason = getStateReason(st);
-    const sig = cls + "||" + periodTitle + "||" + activity + "||" + range + "||" + stType + "||" + stateReason;
+    const nextSchoolDayMessage = stType === "after" || stType === "holiday" || stateReason === "after_hours" || stateReason === "holiday"
+      ? getNextSchoolDayMessage(lastPayloadForFiltering)
+      : "";
+    const sig = cls + "||" + periodTitle + "||" + activity + "||" + range + "||" + stType + "||" + stateReason + "||" + nextSchoolDayMessage;
     if (sig === last.currentSig) return;
     last.currentSig = sig;
 
     clearNode(dom.currentScheduleList);
+    const summary = $("heroSummary");
+    toggleHidden(summary, false);
 
     if (!cls && !periodTitle && !activity && range.indexOf("--:--") >= 0) {
       const msg = document.createElement("div");
@@ -4139,20 +4228,64 @@
       msg.className = "hero-empty-message";
       msg.textContent = stateReason === "offline_unknown_day"
         ? "سيُحدَّث جدول اليوم تلقائيًا عند عودة الاتصال"
-        : (emptyMessages[stType] || "لا توجد حصة جارية الآن");
+        : (nextSchoolDayMessage || emptyMessages[stType] || "لا توجد حصة جارية الآن");
       msg.setAttribute("role", "status");
       dom.currentScheduleList.appendChild(msg);
       return;
     }
 
-    if (periodTitle) dom.currentScheduleList.appendChild(makeChip(periodTitle));
-    if (activity && activity !== periodTitle) dom.currentScheduleList.appendChild(makeChip(activity));
+    // The title and time range are already printed above the dial. Only
+    // show extra information here when the school supplied an activity/class.
+    const detail = activity && activity !== periodTitle && activity !== "حصة" && activity !== safeText(dom.heroTitle && dom.heroTitle.textContent);
+    if (detail) dom.currentScheduleList.appendChild(makeChip(activity));
     if (cls) dom.currentScheduleList.appendChild(makeChip(cls));
-    dom.currentScheduleList.appendChild(makeChip(range, "num-font"));
+    toggleHidden(summary, !detail && !cls);
   }
 
-  // ===== Mini schedule =====
+  // A wall display has no visitor controls; rotate complete groups of stops
+  // in reading order if the remaining day cannot fit on a single line.
   let miniItems = [];
+  let timelinePageCount = 0;
+  let timelinePage = 0;
+  let timelineWidth = 0;
+  let timelineTimer = null;
+
+  function showTimelinePage(index) {
+    timelinePage = index;
+    miniItems.forEach((item) => toggleHidden(item.el, item.page !== index));
+    const counter = $("timelinePages");
+    if (counter) {
+      toggleHidden(counter, timelinePageCount < 2);
+      setTextIfChanged(counter, (index + 1) + " / " + timelinePageCount);
+    }
+  }
+
+  function layoutTimelinePages() {
+    if (!dom.miniSchedule) return;
+    const width = dom.miniSchedule.clientWidth;
+    if (width === timelineWidth && (width || !timelineTimer)) return;
+    timelineWidth = width;
+    if (timelineTimer) clearInterval(timelineTimer);
+    timelineTimer = null;
+    timelinePageCount = 0;
+    if (!width || !miniItems.length) return;
+    miniItems.forEach((item) => toggleHidden(item.el, false));
+    let used = 0;
+    miniItems.forEach((item) => {
+      const size = item.el.offsetWidth;
+      if (!timelinePageCount || used + size > width + 1) {
+        timelinePageCount++;
+        used = 0;
+      }
+      item.page = timelinePageCount - 1;
+      used += size;
+    });
+    showTimelinePage(0);
+    if (timelinePageCount > 1) {
+      timelineTimer = setInterval(() => showTimelinePage((timelinePage + 1) % timelinePageCount), 8000);
+    }
+  }
+
   function renderMiniSchedule(payload, baseMs) {
     if (!dom.miniSchedule) return;
 
@@ -4160,7 +4293,8 @@
     if (Array.isArray(payload.day_path)) {
       payload.day_path.forEach((x) => {
         if (!x) return;
-        timeline.push({ start: x.from, end: x.to, label: x.label || "" });
+        const label = x.kind === "period" && (!x.label || x.label === "حصة") ? formatPeriodTitle(x) : x.label;
+        timeline.push({ start: x.from, end: x.to, label: label || "" });
       });
     }
 
@@ -4185,30 +4319,12 @@
           const box = document.createElement("div");
           box.setAttribute("role", "listitem");
           box.className = "mini-schedule-item";
-          box.style.flex = "0 0 auto";
-          box.style.borderRadius = "14px";
-          box.style.border = "1px solid rgba(255,255,255,0.10)";
-          box.style.background = "rgba(255,255,255,0.05)";
-          box.style.padding = "10px 12px";
-          box.style.minWidth = "74px";
-          box.style.display = "flex";
-          box.style.flexDirection = "column";
-          box.style.alignItems = "center";
-          box.style.justifyContent = "center";
-          box.style.gap = "6px";
-          box.style.transition = "opacity .2s ease";
-
           const t = document.createElement("span");
           t.className = "num-font mini-schedule-item__time";
-          t.style.fontSize = "12px";
-          t.style.opacity = "0.75";
           t.textContent = toTimeStr(x.start);
 
           const l = document.createElement("span");
           l.className = "mini-schedule-item__label";
-          l.style.fontWeight = "1000";
-          l.style.fontSize = "16px";
-          l.style.lineHeight = "1";
           l.textContent = safeText(x.label || "—");
 
           box.setAttribute("aria-label", "من " + safeText(toTimeStr(x.start)) + " إلى " + safeText(toTimeStr(x.end)) + "، " + safeText(x.label || "—"));
@@ -4219,12 +4335,15 @@
           miniItems.push({ start: x.start, end: x.end, label: x.label, el: box });
         });
       }
+      timelineWidth = 0;
     }
+    layoutTimelinePages();
 
     miniItems.forEach((it) => {
       if (!it.el) return;
       const active = isNowBetween(it.start, it.end, baseMs);
-      it.el.style.opacity = active ? "1" : "0.65";
+      if (active) it.el.setAttribute("aria-current", "time");
+      else it.el.removeAttribute("aria-current");
       try { it.el.classList.toggle("is-active", active); } catch (e) {}
     });
   }
@@ -4257,7 +4376,7 @@
   let occasionCustomizations = window.SchoolOccasionThemes ? window.SchoolOccasionThemes.read("schoolOccasionThemes") : {};
 
   function occasionMeta(key) {
-    const original = OCCASION_THEME_META[key];
+    const original = Object.prototype.hasOwnProperty.call(OCCASION_THEME_META, key) ? OCCASION_THEME_META[key] : null;
     return window.SchoolOccasionThemes ? window.SchoolOccasionThemes.meta(key, occasionCustomizations, original) : original;
   }
 
@@ -4291,7 +4410,7 @@
     setTextIfChanged(dom.occasionHeroIcon, meta.mark || meta.badgeIcon);
     setTextIfChanged(
       dom.occasionHeroLabel,
-      occasionLabel(selected, meta)
+      selected.id === "screen-fixed-occasion" && key.indexOf("event_") === 0 ? "مناسبة مدرسية" : occasionLabel(selected, meta)
     );
     setTextIfChanged(dom.occasionHeroTitle, safeText(selected.title || meta.label));
     setTextIfChanged(
@@ -4324,14 +4443,14 @@
       for (let i = 0; i < list.length; i++) {
         const themeKey = safeText((list[i] || {}).occasion_theme || "");
         if (
-          OCCASION_THEME_META[themeKey] &&
+          occasionMeta(themeKey) &&
           (screenOccasion === "auto" || themeKey === screenOccasion)
         ) {
           selected = list[i] || {};
           break;
         }
       }
-      if (!selected && OCCASION_THEME_META[screenOccasion]) {
+      if (!selected && occasionMeta(screenOccasion)) {
         selected = {
           id: "screen-fixed-occasion",
           occasion_theme: screenOccasion,
@@ -4350,7 +4469,7 @@
     occasionThemeSignature = signature;
     if (window.SchoolOccasionThemes) window.SchoolOccasionThemes.apply(document.body, key, occasionCustomizations);
 
-    if (!key || !OCCASION_THEME_META[key]) {
+    if (!key || !occasionMeta(key)) {
       activeOccasionAnnouncement = null;
       document.body.removeAttribute("data-occasion-theme");
       document.body.removeAttribute("data-occasion-ambient");
@@ -4602,22 +4721,21 @@
       st.cloneCount = 0;
     }
 
-    function needScroll(forceScroll) {
-      // ✅ افتراضيًا: التمرير فقط إذا امتلأ الكرت فعلاً
-      if (forceScroll) return st.contentH > 0 && st.viewH > 0;
-      return st.contentH > st.viewH + 4;
-    }
-
     function recalc() {
       const vp = findViewportForTrack(trackEl);
       const content = trackEl.firstElementChild;
       if (!vp || !content) return;
 
       st.viewH = vp.offsetHeight || 0;
+      if (content.dataset.rows) {
+        const headings = content.querySelectorAll(".standby-section-title");
+        let available = st.viewH;
+        for (const heading of headings) available -= heading.offsetHeight;
+        const perRow = Math.floor(available / Number(content.dataset.rows));
+        trackEl.dataset.density = perRow >= 155 ? "roomy" : perRow < 115 ? "dense" : "regular";
+        trackEl.style.setProperty("--lesson-row-height", Math.max(0, Math.min(210, perRow)) + "px");
+      }
       st.contentH = content.offsetHeight || 0;
-
-      const forceScroll =
-        !!(content && content.dataset && content.dataset.forceScroll === "1");
 
       // لو ما عندنا قياسات صحيحة
       if (!st.viewH || !st.contentH) {
@@ -4628,7 +4746,7 @@
         return;
       }
 
-      if (!needScroll(forceScroll)) {
+      if (st.contentH <= st.viewH + 1) {
         stop();
         removeClones();
         st.y = 0;
@@ -4638,7 +4756,6 @@
 
       markScrollState(true);
 
-      // ✅ نضيف نسخ كافية حتى لا يظهر فراغ أثناء التمرير (خصوصًا عند forceScroll)
       // نحتاج إجمالي ارتفاع >= viewH + contentH لكي يظل هناك محتوى يغطي الشاشة أثناء الحركة
       const needTotal = st.viewH + st.contentH + 8;
       let guard = 0;
@@ -4685,8 +4802,7 @@
       dt = Math.min(120, dt);
       st.lastTs = ts;
 
-      const v = Number(getSpeed()) || 0.5;
-      const pxPerSec = clamp(v, 0.15, 4) * 60;
+      const pxPerSec = getSpeed() * 60;
       const step = (pxPerSec * dt) / 1000;
 
       st.y += step;
@@ -4718,14 +4834,22 @@
       st.cloneCount = 0;
       trackEl.style.transform = "translateY(-" + st.y.toFixed(2) + "px)";
 
+      if (sizeObserver && trackEl.firstElementChild) sizeObserver.unobserve(trackEl.firstElementChild);
       while (trackEl.firstChild) trackEl.removeChild(trackEl.firstChild);
       const content = contentBuilderFn();
       trackEl.appendChild(content);
+      if (sizeObserver) sizeObserver.observe(content);
 
       requestAnimationFrame(() => {
         recalc();
       });
     }
+
+    // Orientation, theme transitions and fonts can change geometry after layout.
+    // Watch the viewport and the original list only, never its scrolling copies.
+    const sizeObserver = typeof ResizeObserver === "function" ? new ResizeObserver(recalc) : null;
+    const viewport = findViewportForTrack(trackEl);
+    if (viewport && sizeObserver) sizeObserver.observe(viewport);
 
     return {
       render,
@@ -4742,7 +4866,7 @@
   }
 
   // ===== Slot builder =====
-  function buildSlotItem({ clsName, subj, teacher, badgeText, badgeKind, showChip }) {
+  function buildSlotItem({ clsName, subj, teacher, periodLabel, isStandby }) {
     const item = document.createElement("div");
     item.className = "slot-item";
     item.setAttribute("role", "listitem");
@@ -4762,24 +4886,24 @@
     subject.textContent = safeText(subj || "—");
 
     badges.appendChild(cls);
-    badges.appendChild(subject);
+    if (subj && subj !== "—") badges.appendChild(subject);
 
     top.appendChild(badges);
 
-    const chipEnabled = showChip !== false;
-    if (chipEnabled) {
+    if (periodLabel) {
       const chip = document.createElement("span");
-      chip.className = "chip num-font " + (badgeKind === "warn" ? "chip-warn" : "chip-ok");
-      chip.textContent = safeText(badgeText || "حصة");
+      chip.className = "slot-period";
+      chip.textContent = periodLabel;
       top.appendChild(chip);
     }
 
     const teacherRow = document.createElement("div");
     teacherRow.className = "slot-teacher";
+    if (isStandby) teacherRow.classList.add("slot-teacher--substitute");
 
     const lbl = document.createElement("span");
     lbl.className = "label";
-    lbl.textContent = teacherLabelText() + ":";
+    lbl.textContent = isStandby ? (cfg.SCHOOL_TYPE === "girls" ? "المعلمة البديلة" : "المعلم البديل") : teacherLabelText();
 
     const name = document.createElement("span");
     name.className = "name";
@@ -4792,14 +4916,26 @@
     item.appendChild(teacherRow);
 
     const summary = [
-      badgeText ? "الفترة " + safeText(badgeText) : "",
+      periodLabel || "",
       clsName ? "الفصل " + safeText(clsName) : "",
       subj ? "المادة " + safeText(subj) : "",
-      teacher ? teacherLabelText() + " " + safeText(teacher) : "",
+      teacher ? lbl.textContent + " " + safeText(teacher) : "",
     ].filter(Boolean).join("، ");
     if (summary) item.setAttribute("aria-label", summary);
 
     return item;
+  }
+
+  function standbyPeriodLabel(row) {
+    if (getPeriodIndex(row)) return formatPeriodTitle(row);
+    const start = safeText(row.from || row.start || row.starts_at);
+    if (/^\d{1,2}:\d{2}/.test(start)) return toTimeStr(start);
+    const ms = Date.parse(start);
+    if (!Number.isFinite(ms)) return "";
+    const wall = _offlineWallClock(ms);
+    const hours = wall.utc ? wall.date.getUTCHours() : wall.date.getHours();
+    const minutes = wall.utc ? wall.date.getUTCMinutes() : wall.date.getMinutes();
+    return fmt2(hours) + ":" + fmt2(minutes);
   }
 
   function listSignature(items, kind) {
@@ -4811,7 +4947,7 @@
         const subj = safeText(x.subject_name || x.subject || x.label || "");
         const teacher = safeText(x.teacher_name || x.teacher || x.teacher_full_name || "");
         const pidx = getPeriodIndex(x) || "";
-        const extra = kind === "standby" ? safeText(x.reason || x.note || "") : "";
+        const extra = kind === "standby" ? safeText(x.from || x.start || x.starts_at || "") : !!x.is_standby;
         return [cls, subj, teacher, pidx, extra];
       })
     );
@@ -5022,6 +5158,23 @@
     }, delayMs, "bell_boundary_exact");
   }
 
+  function currentStandbyByClass(items, periodIndex) {
+    const assignments = new Map();
+    if (!periodIndex || !Array.isArray(items)) return assignments;
+
+    for (const item of items) {
+      if (getPeriodIndex(item) !== periodIndex) continue;
+      const row = _normalizePeriodClassRow(item, periodIndex);
+      const className = row.class_name.trim();
+      const teacher = row.teacher_name.trim();
+      if (className && teacher) {
+        // The snapshot lists assignments in creation order. Use the latest for each class.
+        assignments.set(className, { ...row, teacher_name: teacher, teacher: teacher, is_standby: true });
+      }
+    }
+    return assignments;
+  }
+
   function pickRuntimePeriodClasses(payload) {
     const src = payload || lastPayloadForFiltering || null;
     ingestPeriodClassesFromPayload(src);
@@ -5074,15 +5227,27 @@
         }
       }
     }
-    return Array.isArray(arr) ? arr : [];
+    const rows = Array.isArray(arr) ? arr : [];
+    const assignments = currentStandbyByClass(src && src.standby, idx);
+    if (!assignments.size) return rows;
+
+    return rows.map((row) => {
+      const className = safeText(row.class_name || row["class"] || row.classroom).trim();
+      const assignment = assignments.get(className);
+      if (!assignment) return row;
+      return { ...row, teacher_name: assignment.teacher_name, teacher: assignment.teacher, is_standby: true };
+    });
+  }
+
+  function renderPeriodLists(payload) {
+    renderPeriodClasses(pickRuntimePeriodClasses(payload));
+    renderStandby((payload && payload.standby) || []);
   }
 
   function renderPeriodClasses(items) {
     const raw = canShowSchoolDayBoards() && screenFlag("screenShowPeriodClasses", true) && Array.isArray(items)
       ? items.slice()
       : [];
-    const baseMs = nowMs();
-
     let arr = raw;
 
     // ✅ بعد نهاية الدوام: فاضي
@@ -5105,7 +5270,7 @@
 
     // Include runtime state in signature so empty-state message updates correctly
     // when switching between "day over" and "no ongoing classes".
-    const sig = (rt.dayOver ? "1" : "0") + "|" + safeText((rt && rt.activeStateType) || "") + "|" + listSignature(arr, "periods");
+    const sig = [rt.dayOver, rt.activeStateType, cfg.SCHOOL_TYPE, listSignature(arr, "periods")].join("|");
     periodsScroller.render(sig, () => {
       if (!arr.length) {
         const emptyText = !rt.isSchoolDay
@@ -5115,10 +5280,8 @@
       }
 
       const list = document.createElement("div");
-      list.style.display = "flex";
-      list.style.flexDirection = "column";
-      list.style.gap = "10px";
-      list.style.paddingBottom = "10px";
+      list.className = "lesson-list";
+      list.dataset.rows = String(arr.length);
       list.setAttribute("role", "list");
       list.setAttribute("aria-label", "الحصص الجارية");
 
@@ -5129,9 +5292,7 @@
             clsName: x.class_name || x["class"] || x.classroom || "—",
             subj: x.subject_name || x.subject || x.label || "—",
             teacher: x.teacher_name || x.teacher || "",
-            badgeText: formatPeriodTitle(x),
-            badgeKind: "ok",
-            showChip: false,
+            isStandby: x.is_standby,
           })
         );
       });
@@ -5141,59 +5302,48 @@
   }
 
   function renderStandby(items) {
-    const raw = canShowSchoolDayBoards() && screenFlag("screenShowStandby", true) && Array.isArray(items)
-      ? items.slice()
-      : [];
-    const baseMs = nowMs();
-
-    let arr = raw;
-
-    // ✅ إذا انتهى الدوام: فاضي
-    if (rt.dayOver) arr = [];
-    if (!canShowSchoolDayBoards()) arr = [];
-
-    // ✅ اخفاء أي انتظار قبل الحصة الحالية/التالية
-    if (!rt.dayOver && canShowSchoolDayBoards() && (rt.activePeriodIndex || rt.activeFromHM)) {
-      arr = arr.filter((x) => shouldKeepStandbyItem(x, baseMs));
-    }
-
-    if (dom.sbCount) setTextIfChanged(dom.sbCount, String(arr.length));
-    setBoardData("standbyCount", String(arr.length));
-    setBoardData("standbyEmpty", arr.length ? "0" : "1");
+    const visible = !rt.dayOver && canShowSchoolDayBoards() && screenFlag("screenShowStandby", true);
+    const groups = standbyGroups(visible && Array.isArray(items) ? items : [], nowMs());
+    const sections = [["current", "الآن"], ["later", "لاحقًا اليوم"], ["unplaced", "تكليفات اليوم"]];
+    const count = groups.current.length + groups.later.length + groups.unplaced.length;
+    if (dom.sbCount) setTextIfChanged(dom.sbCount, String(count));
+    setBoardData("standbyCount", String(count));
+    setBoardData("standbyEmpty", count ? "0" : "1");
     refreshAdaptiveLayout();
     if (!dom.standbyTrack || !standbyScroller) return;
 
-    const sig = listSignature(arr, "standby");
+    const sig = [rt.dayOver, rt.activeStateType, cfg.SCHOOL_TYPE, ...sections.map(([key]) => listSignature(groups[key], "standby"))].join("|");
     standbyScroller.render(sig, () => {
-      if (!arr.length) {
-        const emptyText = !rt.isSchoolDay
-          ? "لا توجد حصص انتظار في يوم الإجازة"
-          : (rt.dayOver ? "اكتملت تكليفات الانتظار لهذا اليوم" : "لا توجد حصص انتظار حالياً");
+      if (!count) {
+        const emptyText = !rt.isSchoolDay ? "لا توجد حصص انتظار في يوم الإجازة"
+          : (rt.dayOver ? "اكتملت تكليفات الانتظار لهذا اليوم" : "لا توجد تكليفات انتظار أخرى");
         return makeBoardEmptyState(emptyText);
       }
-
       const list = document.createElement("div");
-      list.style.display = "flex";
-      list.style.flexDirection = "column";
-      list.style.gap = "10px";
-      list.style.paddingBottom = "10px";
-      list.setAttribute("role", "list");
-      list.setAttribute("aria-label", "حصص الانتظار");
-
-      arr.forEach((x) => {
-        x = x || {};
-        list.appendChild(
-          buildSlotItem({
-            clsName: x.class_name || x["class"] || x.classroom || "—",
-            subj: x.subject_name || x.subject || x.label || "—",
-            teacher: x.teacher_name || x.teacher || x.teacher_full_name || "—",
-            badgeText: formatPeriodTitle(x),
-            badgeKind: "warn",
-            showChip: true,
-          })
-        );
+      list.className = "lesson-list";
+      list.dataset.rows = String(count);
+      sections.forEach(([key, label]) => {
+        const rows = groups[key];
+        if (!rows.length) return;
+        const section = document.createElement("section");
+        section.className = "standby-section";
+        section.dataset.timing = key;
+        section.setAttribute("role", "list");
+        section.setAttribute("aria-label", label);
+        const heading = document.createElement("h4");
+        heading.className = "standby-section-title";
+        heading.textContent = label;
+        section.appendChild(heading);
+        rows.forEach(row => {
+          section.appendChild(buildSlotItem({
+            clsName: row.class_name || row["class"] || row.classroom,
+            subj: row.subject_name || row.subject || row.label,
+            teacher: row.teacher_name || row.teacher || row.teacher_full_name,
+            periodLabel: standbyPeriodLabel(row),
+          }));
+        });
+        list.appendChild(section);
       });
-
       return list;
     });
   }
@@ -5203,6 +5353,32 @@
   let exPtr = 0;
   let exList = [];
   const EX_INT = 7000;
+  let honorReason = null;
+  let honorPages = [];
+  let honorPage = 0;
+  let honorLayout = "";
+
+  function refreshHonorPages(force) {
+    if (!honorReason || !honorReason.el.clientWidth) return;
+    const key = textBoxesLayoutKey([honorReason.el]);
+    if (!force && key === honorLayout) return;
+    honorLayout = key;
+    honorPages = paginateAnnouncementText(honorReason.el, honorReason.text);
+    honorPage = 0;
+    honorReason.el.textContent = honorPages[0];
+  }
+
+  function advanceHonor() {
+    if (honorReason && honorPage + 1 < honorPages.length) {
+      honorReason.el.textContent = honorPages[++honorPage];
+    } else if (exList.length > 1) {
+      showExcellence(exPtr + 1);
+    } else if (honorReason && honorPage) {
+      honorPage = 0;
+      honorReason.el.textContent = honorPages[0];
+    }
+  }
+
 
   function exSignature(arr) {
     const a = Array.isArray(arr) ? arr : [];
@@ -5290,8 +5466,7 @@
       e.display_name ||
       "—";
 
-    let reason = safeText(e.reason || e.note || e.message || e.title || "");
-    if (reason.length > 180) reason = reason.slice(0, 177) + "…";
+    const reason = safeText(e.reason || e.note || e.message || e.title || "");
 
     const rawSrc =
       e.image_src ||
@@ -5311,61 +5486,62 @@
 
     const src = resolveImageURL(rawSrc);
 
-    dom.exSlot.style.opacity = "0";
-    setTimeout(() => {
-      clearNode(dom.exSlot);
+    clearNode(dom.exSlot);
 
-      const wrap = document.createElement("div");
-      wrap.className = "honor-wrap";
-      wrap.setAttribute("role", "group");
-      wrap.setAttribute("aria-label", "متميز: " + safeText(name) + (reason ? "، سبب التكريم: " + safeText(reason) : ""));
-      wrap.dataset.hasPhoto = src ? "1" : "0";
-      if (safeText(name).length > 34) wrap.classList.add("honor-wrap--long-name");
-      if (safeText(reason).length > 110) wrap.classList.add("honor-wrap--long-reason");
+    const wrap = document.createElement("div");
+    wrap.className = "honor-wrap";
+    wrap.setAttribute("role", "group");
+    wrap.setAttribute("aria-label", "متميز: " + safeText(name) + (reason ? "، سبب التكريم: " + safeText(reason) : ""));
+    wrap.dataset.hasPhoto = src ? "1" : "0";
+    if (safeText(name).length > 34) wrap.classList.add("honor-wrap--long-name");
+    if (safeText(reason).length > 110) wrap.classList.add("honor-wrap--long-reason");
 
+    const imgContainer = document.createElement("div");
+    imgContainer.className = "honor-avatar-wrap";
+    function showInitials() {
+      wrap.dataset.hasPhoto = "0";
+      clearNode(imgContainer);
+      const initials = document.createElement("span");
+      initials.className = "honor-initials";
+      initials.setAttribute("aria-hidden", "true");
+      const words = safeText(name).trim().split(/\s+/).filter((word) => !/[.٫]/.test(word));
+      initials.textContent = words.slice(0, 2).map((word) => word.charAt(0)).join(" ");
+      imgContainer.appendChild(initials);
+    }
+    if (src) {
       const img = document.createElement("img");
-      img.alt = "صورة المتميز " + safeText(name);
-      img.loading = "eager";
+      img.alt = "صورة " + safeText(name);
       img.className = "honor-avatar";
-      
-      const fallbackSvg =
-        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230f172a'/%3E%3Cstop offset='1' stop-color='%231e293b'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='200' height='200' rx='24' fill='url(%23bg)'/%3E%3Ccircle cx='100' cy='78' r='34' fill='%2394a3b8' opacity='.82'/%3E%3Crect x='46' y='116' width='108' height='58' rx='28' fill='%2364748b' opacity='.86'/%3E%3Ccircle cx='152' cy='150' r='20' fill='%23fbbf24'/%3E%3Cpath d='M152 139l3.8 7.7 8.5 1.2-6.1 5.9 1.4 8.5-7.6-4-7.6 4 1.4-8.5-6.1-5.9 8.5-1.2 3.8-7.7z' fill='%23fff'/%3E%3C/svg%3E";
-      
-      img.src = src || fallbackSvg;
-
-      // Fallback: if Cloudinary/remote image 404s, swap to SVG placeholder
-      img.addEventListener("error", function() {
-        if (img.src !== fallbackSvg) img.src = fallbackSvg;
-      }, { once: true, passive: true });
-
-      const imgContainer = document.createElement("div");
-      imgContainer.className = "honor-avatar-wrap";
+      img.addEventListener("error", showInitials, { once: true });
+      img.src = src;
       imgContainer.appendChild(img);
+    } else {
+      showInitials();
+    }
 
+    const meta = document.createElement("div");
+    meta.className = "honor-meta";
 
-      const meta = document.createElement("div");
-      meta.className = "honor-meta";
+    const nm = document.createElement("div");
+    nm.className = "honor-name";
+    nm.textContent = name;
 
-      const nm = document.createElement("div");
-      nm.className = "honor-name";
-      nm.textContent = name;
+    const rs = document.createElement("div");
+    rs.className = "honor-reason";
+    rs.textContent = reason || "—";
 
-      const rs = document.createElement("div");
-      rs.className = "honor-reason";
-      rs.textContent = reason || "—";
+    meta.appendChild(nm);
+    if (reason) meta.appendChild(rs);
 
-      meta.appendChild(nm);
-      meta.appendChild(rs);
+    wrap.appendChild(imgContainer);
+    wrap.appendChild(meta);
 
-      wrap.appendChild(imgContainer);
-      wrap.appendChild(meta);
+    dom.exSlot.appendChild(wrap);
+    honorReason = reason ? { el: rs, text: reason } : null;
+    refreshHonorPages(true);
 
-      dom.exSlot.appendChild(wrap);
-      dom.exSlot.style.opacity = "1";
-
-      // ✅ تحميل مسبق للصورة التالية أثناء عرض الحالية
-      try { _preloadExImage(exPtr + 1); } catch (e) {}
-    }, 220);
+    // ✅ تحميل مسبق للصورة التالية أثناء عرض الحالية
+    try { _preloadExImage(exPtr + 1); } catch (e) {}
   }
 
   function renderExcellence(items) {
@@ -5387,6 +5563,7 @@
     );
 
     if (dom.exTotal) setTextIfChanged(dom.exTotal, String(exList.length || 0));
+    if (dom.exCard) dom.exCard.dataset.single = exList.length === 1 ? "1" : "0";
 
     if (exTimer) {
       clearInterval(exTimer);
@@ -5395,6 +5572,7 @@
     if (!dom.exSlot) return;
 
     if (!exList.length) {
+      honorReason = null;
       if (dom.exIndex) setTextIfChanged(dom.exIndex, "0");
       dom.exSlot.innerHTML = "";
       const msg = document.createElement("div");
@@ -5407,7 +5585,7 @@
 
     exPtr = clamp(exPtr, 0, Math.max(0, exList.length - 1));
     showExcellence(exPtr);
-    if (exList.length > 1) exTimer = setInterval(() => showExcellence(exPtr + 1), EX_INT);
+    exTimer = setInterval(advanceHonor, EX_INT);
   }
 
   // ===== Duty / Supervision =====
@@ -5433,114 +5611,25 @@
     const dutyType = safeText(it.duty_type || "");
     const dutyLabel = safeText(it.duty_label || (dutyType === "supervision" ? "إشراف" : "مناوبة"));
     const location = safeText(it.location || "");
-    const isSup = dutyType === "supervision";
 
-    // Luxury container - Deep Glass Theme
     const row = document.createElement("div");
-    row.className =
-      "duty-item relative flex items-center justify-between gap-4 px-6 py-4 rounded-xl " +
-      "border border-white/10 backdrop-blur-md transition-all duration-300 " +
-      "hover:border-white/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.3)] " +
-      "bg-gradient-to-r from-[#0f172a]/60 to-[#1e293b]/60 group overflow-hidden shadow-lg";
+    row.className = "duty-item";
     row.setAttribute("role", "listitem");
-    row.setAttribute("aria-label", [
-      teacher ? teacherLabelText() + " " + teacher : "",
-      dutyLabel ? "النوع " + dutyLabel : "",
-      location ? "الموقع " + location : "",
-    ].filter(Boolean).join("، "));
-
-    // 1. Accent line on the right (RTL start)
-    const accent = document.createElement("div");
-    accent.className = "absolute right-0 top-0 bottom-0 w-[5px] " + 
-        (isSup 
-          ? "bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-[0_0_12px_rgba(16,185,129,0.6)]" 
-          : "bg-gradient-to-b from-amber-400 to-amber-600 shadow-[0_0_12px_rgba(245,158,11,0.6)]");
-    row.appendChild(accent);
-
-    // 2. Info Section (Avatar + Name)
-    const infoSection = document.createElement("div");
-    infoSection.className = "flex items-center gap-5 min-w-0 z-10 pr-3";
-
-    // Avatar
-    const avatar = document.createElement("div");
-    avatar.className =
-      "relative w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold text-white shadow-[inset_0_2px_4px_rgba(255,255,255,0.1)] shrink-0 " +
-      "border border-white/10 " + 
-      (isSup 
-        ? "bg-gradient-to-br from-emerald-500/20 to-emerald-900/30 ring-1 ring-emerald-500/30" 
-        : "bg-gradient-to-br from-amber-500/20 to-amber-900/30 ring-1 ring-amber-500/30");
-    
-    const avatarInner = document.createElement("span");
-    avatarInner.textContent = teacher ? teacher.slice(0, 1) : "—";
-    avatarInner.className = "drop-shadow-md opacity-90";
-    avatarInner.setAttribute("aria-hidden", "true");
-    avatar.appendChild(avatarInner);
-
-    // Meta (Name + Loc)
-    const meta = document.createElement("div");
-    meta.className = "min-w-0 flex flex-col justify-center gap-1.5";
-
-    const nm = document.createElement("div");
-    nm.className = "duty-name text-white font-bold leading-none truncate flex items-center gap-3"; 
-    
-    const nameSpan = document.createElement("span");
-    nameSpan.textContent = teacher || "—";
-    nm.appendChild(nameSpan);
-
+    row.setAttribute("aria-label", [dutyLabel, teacher, location].filter(Boolean).join("، "));
+    const role = document.createElement("span");
+    role.className = "duty-role";
+    role.textContent = dutyLabel;
+    const name = document.createElement("strong");
+    name.className = "duty-name";
+    name.textContent = teacher || "—";
+    row.appendChild(role);
+    row.appendChild(name);
     if (location) {
-      const locSpan = document.createElement("span");
-      // Modern Glass Pill
-      locSpan.className = 
-        "flex items-center gap-1.5 px-3 py-1 rounded-md text-[0.55em] font-bold tracking-wider " +
-        "bg-white/5 border border-white/10 text-indigo-100/90 shadow-sm whitespace-nowrap";
-      
-      const pin = document.createElement("span");
-      pin.textContent = "📍";
-      pin.className = "text-[1em] opacity-80";
-      pin.setAttribute("aria-hidden", "true");
-      
-      const txt = document.createElement("span");
-      txt.textContent = location;
-
-      locSpan.appendChild(pin);
-      locSpan.appendChild(txt);
-      nm.appendChild(locSpan);
+      const place = document.createElement("span");
+      place.className = "duty-location";
+      place.textContent = location;
+      row.appendChild(place);
     }
-
-    meta.appendChild(nm);
-    infoSection.appendChild(avatar);
-    infoSection.appendChild(meta);
-
-    // 3. Badge (Left Side)
-    const badge = document.createElement("div");
-    badge.className = "relative z-10 shrink-0";
-    
-    // Glow effect behind badge
-    const badgeGlow = document.createElement("div");
-    badgeGlow.className = "absolute inset-0 blur-xl opacity-40 " + (isSup ? "bg-emerald-500" : "bg-amber-500");
-    badge.appendChild(badgeGlow);
-
-    const badgeInner = document.createElement("div");
-    badgeInner.className =
-      "relative duty-role px-4 py-2 rounded-lg text-sm font-black tracking-wide border shadow-2xl flex items-center gap-2 " +
-      (isSup
-        ? "bg-[#064e3b]/40 text-emerald-200 border-emerald-500/30"
-        : "bg-[#78350f]/40 text-amber-200 border-amber-500/30");
-    
-    const badgeIcon = document.createElement("span");
-    badgeIcon.textContent = isSup ? "🛡️" : "⭐"; 
-    badgeIcon.className = "opacity-90 grayscale-[0.2]"; 
-    badgeIcon.setAttribute("aria-hidden", "true");
-    
-    const badgeText = document.createElement("span");
-    badgeText.textContent = dutyLabel;
-    
-    badgeInner.appendChild(badgeIcon);
-    badgeInner.appendChild(badgeText);
-    badge.appendChild(badgeInner);
-
-    row.appendChild(infoSection);
-    row.appendChild(badge);
     return row;
   }
 
@@ -5564,12 +5653,7 @@
       }
 
       const wrap = document.createElement("div");
-      wrap.style.display = "flex";
-      wrap.style.flexDirection = "column";
-      wrap.style.gap = "12px";
-      wrap.style.paddingBottom = "12px";
-      // نفس سلوك كرت الحصص الجارية
-      wrap.dataset.forceScroll = list.length >= 4 ? "1" : "0";
+      wrap.className = "duty-list";
       wrap.setAttribute("role", "list");
       wrap.setAttribute("aria-label", "تكليفات الإشراف والمناوبة");
 
@@ -5643,6 +5727,23 @@
   let emergencyPages = [];
   let emergencyPagePtr = 0;
   let emergencyLayoutKey = "";
+  let emergencySourceCached = false;
+  const emergencyReceipts = new Set();
+
+  function confirmEmergencyPresentation(item) {
+    if (IS_PREVIEW || emergencySourceCached || document.hidden || !item.id || emergencyReceipts.has(item.id)) return;
+    const token = getToken();
+    const device = getDeviceId();
+    if (!token || !device) return;
+    emergencyReceipts.add(item.id);
+    fetch("/api/display/emergency-receipt/" + encodeURIComponent(item.id) + "/", {
+      method: "POST",
+      credentials: "omit",
+      headers: { "X-Display-Token": token, "X-Display-Device": device },
+    }).then(function (response) {
+      if (!response.ok) emergencyReceipts.delete(item.id);
+    }).catch(function () { emergencyReceipts.delete(item.id); });
+  }
 
   function emergencyTextBoxes() {
     return [document.getElementById("emergencyTitle"), document.getElementById("emergencyMessage")];
@@ -5764,7 +5865,12 @@
     // Polling must not keep resetting the first page of a long alert.
     if (changed || !emergencyPages.length) showEmergencyPage(0, true);
     else refreshEmergencyLayout();
+    confirmEmergencyPresentation(selected);
   }
+
+  document.addEventListener("visibilitychange", function () {
+    if (emergencySelected && !document.hidden) renderEmergencyAlerts(emergencySource);
+  });
 
   function _formatOfflineAge(ageMs) {
     if (!ageMs || !isFinite(ageMs)) return "";
@@ -5835,7 +5941,8 @@
    */
   function markConnectivityRestored(source) {
     const payload = lastPayloadForFiltering;
-    if (!payload || !payload._offlineCached) return;
+    if (!payload || !payload._offlineCached) return false;
+    if (payload._offlineDayShifted) return true;
 
     delete payload._offlineCached;
     delete payload._offlineSavedAt;
@@ -5844,6 +5951,7 @@
     delete payload._offlineHasDayPlan;
     renderOfflineMode(payload);
     _log("offline_mode_cleared", { source: safeText(source || "connectivity") });
+    return false;
   }
 
 
@@ -5851,6 +5959,7 @@
     if (!payload) return;
 
     lastPayloadForFiltering = payload;
+    emergencySourceCached = !!payload._offlineCached;
     renderEmergencyAlerts(payload.emergency_alerts || []);
     renderOfflineMode(payload);
 
@@ -5932,16 +6041,8 @@
       if (!rt.statusEverySec || rt.statusEverySec < 1) rt.statusEverySec = cfg.REFRESH_EVERY;
     }
 
-    const screenStandbySpeed = Number(screenSetting("standby", ""));
-    const effectiveStandbySpeed = screenStandbySpeed > 0 ? screenStandbySpeed : settings.standby_scroll_speed;
-    if (typeof effectiveStandbySpeed === "number" && effectiveStandbySpeed > 0) {
-      cfg.STANDBY_SPEED = normSpeed(effectiveStandbySpeed, cfg.STANDBY_SPEED);
-    }
-    const screenPeriodsSpeed = Number(screenSetting("periodsSpeed", ""));
-    const effectivePeriodsSpeed = screenPeriodsSpeed > 0 ? screenPeriodsSpeed : settings.periods_scroll_speed;
-    if (typeof effectivePeriodsSpeed === "number" && effectivePeriodsSpeed > 0) {
-      cfg.PERIODS_SPEED = normSpeed(effectivePeriodsSpeed, cfg.PERIODS_SPEED);
-    }
+    cfg.STANDBY_SPEED = motionSpeed("screenStandbySpeed", "standby", settings.standby_scroll_speed, cfg.STANDBY_SPEED);
+    cfg.PERIODS_SPEED = motionSpeed("screenPeriodsSpeed", "periodsSpeed", settings.periods_scroll_speed, cfg.PERIODS_SPEED);
 
     if (periodsScroller) periodsScroller.recalc();
     if (standbyScroller) standbyScroller.recalc();
@@ -6034,16 +6135,6 @@
       if (countdownSeconds !== null) hasActiveCountdown = true;
     }
 
-    // If the server says 0 (or we clamped to 0) and we haven't handled this core state yet,
-    // trigger the countdown-zero refresh even if we didn't observe a local 1->0 transition.
-    if (hasActiveCountdown && typeof countdownSeconds === "number" && countdownSeconds === 0) {
-      const zeroBoundaryReached = isBoundaryReached(rt.activeTargetHM, rt.activeTargetMs, nowMs());
-      if (zeroBoundaryReached && nextCoreSig && nextCoreSig !== lastZeroHandledCoreSig) {
-        lastZeroHandledCoreSig = nextCoreSig;
-        onCountdownZero();
-      }
-    }
-
     applyBoardStatePresentation(
       stType,
       hasActiveCountdown && typeof countdownSeconds === "number" && countdownSeconds > 0
@@ -6059,7 +6150,7 @@
     }
 
     let title = safeText(s.label || "لوحة العرض المدرسية");
-    let range = (stateFrom || stateTo) ? fmtTimeRange(stateFrom, stateTo) : fmtTimeRange(null, null);
+    let range = (stateFrom || stateTo) ? fmtTimeRange(stateFrom, stateTo) : "";
     let badge = "حالة اليوم";
 
     if (stateReason === "offline_unknown_day") {
@@ -6074,29 +6165,22 @@
     } else if (stType === "break") {
       badge = "استراحة";
       title = safeText(s.label || "استراحة");
-    } else if (stType === "before") {
+    } else if (stType === "before" || (stType === "off" && stateReason === "before_hours")) {
       badge = DISPLAY_COPY.beforeBadge;
       title = DISPLAY_COPY.beforeTitle;
-    } else if (stType === "after") {
+    } else if (stType === "after" || (stType === "off" && stateReason === "after_hours")) {
       const afterCopy = getAfterDayOverCopy();
       badge = afterCopy.badge;
       title = afterCopy.title;
-    } else if (stType === "holiday") {
+    } else if (stType === "holiday" || (stType === "off" && stateReason === "holiday")) {
       badge = DISPLAY_COPY.holidayBadge;
-      title = DISPLAY_COPY.holidayTitle;
-      range = "--:--";
+      const hasCalendarTitle = s.variant === "dated_closure" || payload._offlineDayShifted;
+      title = (hasCalendarTitle && safeText(s.label)) || DISPLAY_COPY.holidayTitle;
     } else if (stType === "day") {
       badge = "اليوم الدراسي";
       title = safeText(s.label || "اليوم الدراسي");
     } else if (stType === "off") {
-      badge = stateReason === "after_hours" ? DISPLAY_COPY.afterHolidayBadge : DISPLAY_COPY.holidayBadge;
-      title = stateReason === "after_hours" ? DISPLAY_COPY.afterHolidayTitle : DISPLAY_COPY.holidayTitle;
-      // A rebuilt offline date may have a different closure (or be a normal
-      // weekend). Its calendar label supersedes yesterday's settings copy.
-      if (payload._offlineDayShifted && stateReason === "holiday") {
-        title = safeText(s.label || "") || title;
-      }
-      range = "--:--";
+      badge = stateBadge || "خارج وقت الدوام";
     }
 
     const stateSig =
@@ -6142,6 +6226,14 @@
     renderCurrentChips(stType, s, current);
     renderMiniSchedule(payload, baseMs);
 
+    // Apply an already crossed boundary after the snapshot's DOM writes, so
+    // a cached period cannot overwrite the new local period on offline boot.
+    if (hasActiveCountdown && countdownSeconds === 0 && nextCoreSig && nextCoreSig !== lastZeroHandledCoreSig &&
+        isBoundaryReached(rt.activeTargetHM, rt.activeTargetMs, nowMs())) {
+      lastZeroHandledCoreSig = nextCoreSig;
+      onCountdownZero();
+    }
+
     // Local-time authority: if cached payload lags behind real boundary, correct UI
     // immediately from day_path without any server request.
     try { dayEngineSyncToLocalNow(); } catch (e) {}
@@ -6171,7 +6263,17 @@
 
       // ✅ Keep period/break/before transitions — كل 2 ثانية بدلاً من كل ثانية
       if (_tickCount % 2 === 0) {
+        const cached = lastPayloadForFiltering;
+        if (cached && cached._offlineCached) {
+          const savedDay = (cached.meta && cached.meta.date) || (cached._offlineSavedAt && _localDateKey(cached._offlineSavedAt));
+          if (savedDay && savedDay !== _localDateKey()) restoreOfflineBoard();
+        }
         try { dayEngineSyncToLocalNow(); } catch (e) {}
+      }
+      if (_tickCount % 60 === 0 && lastPayloadForFiltering && lastPayloadForFiltering._offlineCached) {
+        const cached = lastPayloadForFiltering;
+        cached._offlineAgeMs = cached._offlineSavedAt ? Math.max(0, nowMs() - cached._offlineSavedAt) : null;
+        renderOfflineMode(cached);
       }
 
       // Safety net for browsers that suspend exact timers. The dedicated
@@ -6398,19 +6500,15 @@
   }
 
   function persistOfflineSnapshot(payload) {
-    if (!payload || payload._offlineCached || payload._rateLimited || payload._notModified) return;
+    if (IS_PREVIEW || !payload || payload._offlineCached || payload._rateLimited || payload._notModified) return;
     try {
       const savedAt = Date.now();
+      const snapshotDate = payload.meta && payload.meta.date;
       localStorage.setItem(
         _offlineSnapshotKey(),
-        // dayKey يُحفظ صراحةً حتى نكتشف عبور منتصف الليل حتى لو انحرفت ساعة الجهاز.
-        JSON.stringify({savedAt: savedAt, dayKey: _localDateKey(savedAt), payload: payload})
+        JSON.stringify({savedAt: savedAt, dayKey: snapshotDate || _localDateKey(savedAt), payload: payload})
       );
-    } catch (e) {
-      try {
-        localStorage.removeItem(_offlineSnapshotKey());
-      } catch (_) {}
-    }
+    } catch (e) {} // Keep the previous saved copy when storage is full.
   }
 
   let lastOfflineMediaSignature = "";
@@ -6464,7 +6562,7 @@
    * and a full bell file that can later satisfy an offline byte-range request.
    */
   function warmOfflineMedia(payload) {
-    if (!payload || payload._offlineCached || !("serviceWorker" in navigator)) return;
+    if (IS_PREVIEW || !payload || payload._offlineCached || !("serviceWorker" in navigator)) return;
     const urls = collectOfflineMediaUrls(payload);
     if (!urls.length) return;
     const signature = JSON.stringify(urls);
@@ -6729,6 +6827,7 @@
   }
 
   function loadOfflineSnapshot() {
+    if (IS_PREVIEW) return null;
     try {
       const raw = localStorage.getItem(_offlineSnapshotKey());
       if (!raw) return null;
@@ -6749,7 +6848,7 @@
       payload._offlineSavedAt = savedAt || null;
       payload._offlineAgeMs = savedAt ? Math.max(0, nowMs() - savedAt) : null;
 
-      const savedDayKey = String(stored.dayKey || (savedAt ? _localDateKey(savedAt) : ""));
+      const savedDayKey = String((payload.meta && payload.meta.date) || stored.dayKey || (savedAt ? _localDateKey(savedAt) : ""));
       if (savedDayKey && savedDayKey !== _localDateKey()) {
         return _rehydrateForNewDay(payload);
       }
@@ -6758,6 +6857,18 @@
     } catch (e) {
       return null;
     }
+  }
+
+  function restoreOfflineBoard() {
+    if (isBlocked || isTerminalBlockedMode()) return false;
+    const saved = loadOfflineSnapshot();
+    if (!saved) return false;
+    renderState(saved);
+    renderAnnouncements(saved.announcements || []);
+    renderFeaturedPanel(saved);
+    renderPeriodLists(saved);
+    scheduleFit(0);
+    return true;
   }
 
   async function safeFetchSnapshot(opts) {
@@ -6917,7 +7028,7 @@
           body = null;
         }
 
-        if (body && body.error === "school_suspended") {
+        if (r.status === 402 || (body && body.error === "school_suspended")) {
           window.location.reload();
           return null;
         }
@@ -6997,7 +7108,8 @@
         } catch (e) {}
       }
 
-      var payload = await r.json().catch(() => null);
+      var payload = await r.json();
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("invalid_snapshot");
       if (isTerminalBlockedMode()) {
         _log("snapshot_blocked_due_to_binding_loss", _logContext({
           sourcePath: "safeFetchSnapshot_payload",
@@ -7108,7 +7220,7 @@
       } catch (e) {}
 
       if (r.status === 304) {
-        markConnectivityRestored("status_304");
+        const needsNewDay = markConnectivityRestored("status_304");
         // If server provides revision in headers, learn it even on 304.
         try {
           const revH = r.headers.get("X-Schedule-Revision");
@@ -7122,7 +7234,7 @@
             }
           }
         } catch (e) {}
-        return { _notModified: true };
+        return needsNewDay ? { fetch_required: true } : { _notModified: true };
       }
 
       if (!r.ok) {
@@ -7139,7 +7251,7 @@
           bodyErr = null;
         }
 
-        if (bodyErr && bodyErr.error === "school_suspended") {
+        if (r.status === 402 || (bodyErr && bodyErr.error === "school_suspended")) {
           window.location.reload();
           return { fetch_required: false, _blocked: true };
         }
@@ -7160,7 +7272,7 @@
         return { fetch_required: true };
       }
 
-      markConnectivityRestored("status_ok");
+      const needsNewDay = markConnectivityRestored("status_ok");
 
       const body = await r.json().catch(() => null);
       if (isTerminalBlockedMode()) {
@@ -7208,6 +7320,7 @@
         }
       }
 
+      if (needsNewDay) return Object.assign({}, body, { fetch_required: true });
       return body || { fetch_required: true };
     });
 
@@ -7483,7 +7596,7 @@
           if (need) {
             rt.status304Streak = 0;
             rt.statusEverySec = basePollEverySec();
-            snap = await safeFetchSnapshot();
+            snap = await safeFetchSnapshot({ bypassEtag: !!(lastPayloadForFiltering && lastPayloadForFiltering._offlineDayShifted) });
           } else {
             rt.status304Streak = 0;
             rt.statusEverySec = basePollEverySec();
@@ -7593,12 +7706,11 @@
       renderAnnouncements(snap.announcements || []);
       renderFeaturedPanel(snap);
 
-      renderStandby(snap.standby || []);
-      renderPeriodClasses(pickRuntimePeriodClasses(snap));
+      renderPeriodLists(snap);
 
       // Phase 2: Initialize WebSocket (feature flag from server)
       try {
-        const wsEnabledFromServer = !!(snap && snap.meta && snap.meta.ws_enabled);
+        const wsEnabledFromServer = typeof window.WebSocket === "function" && !!(snap && snap.meta && snap.meta.ws_enabled);
         if (wsEnabledFromServer && !rt.wsEnabled) {
           // Feature enabled by server, init WS
           rt.wsEnabled = true;
@@ -8173,6 +8285,7 @@
    *        schedules (15s offline, 120s slow retry) cannot outpace it.
    */
   function initWebSocket(opts) {
+    if (typeof window.WebSocket !== "function") return;
     var duringSleep = !!(opts && opts.duringSleep);
 
     if (isTerminalBlockedMode()) {
@@ -8300,7 +8413,7 @@
         rt.wsSuppressedUntilTs = 0;
         rt.wsOpenedAt = Date.now(); // cooldown reference for fetch dedup
         rt.wsLastMessageAt = rt.wsOpenedAt;
-        markConnectivityRestored("websocket_open");
+        const needsNewDay = markConnectivityRestored("websocket_open");
 
         _log("ws_connected", { mode: rt.mode, openedAt: rt.wsOpenedAt });
         _log("ws_reconnect_succeeded", { mode: rt.mode });
@@ -8338,6 +8451,10 @@
           _log("ws_keepalive_skipped", { reason: "sleeping" });
         } else {
           _startWsKeepalive("ws_open");
+          if (needsNewDay || rt.forceFetchSnapshot) {
+            rt.forceFetchSnapshot = true;
+            scheduleWsSnapshotRefresh(rt.scheduleRevision);
+          }
         }
       };
       
@@ -8588,9 +8705,6 @@
       setNamedTimer("resize", function () {
         setVhVar();
         applyAutoFit();
-        if (periodsScroller) periodsScroller.recalc();
-        if (standbyScroller) standbyScroller.recalc();
-        if (dutyScroller) dutyScroller.recalc();
       }, 160, "resize_debounce");
     },
     listenerOpts({ passive: true })
@@ -8711,6 +8825,10 @@
     }
     _log("browser_online", { mode: rt.mode, wsEnabled: rt.wsEnabled, wsConnected: rt.wsConnected });
     if (rt.mode === "sleeping") {
+      if (lastPayloadForFiltering && lastPayloadForFiltering._offlineCached) {
+        setMode("waking", "browser_online");
+        return;
+      }
       try { sleepSafetyCheck(); } catch (e) {}
       return;
     }
@@ -8718,7 +8836,10 @@
       clearNamedTimer("ws_reconnect");
       initWebSocket();
     }
-    if (rt.mode !== "ws-live") {
+    if (lastPayloadForFiltering && lastPayloadForFiltering._offlineCached) {
+      rt.forceFetchSnapshot = true;
+      scheduleNext(0.25, "ws_invalidate");
+    } else if (rt.mode !== "ws-live") {
       scheduleNext(0.25);
     }
   }, listenerOpts({ passive: true }));
@@ -8728,6 +8849,7 @@
     if (rt.mode === "ws-live") {
       setMode("fallback-poll", "browser_offline");
     }
+    if (!lastPayloadForFiltering || !lastPayloadForFiltering._offlineCached) restoreOfflineBoard();
   }, listenerOpts({ passive: true }));
 
   // ===== Global errors =====
@@ -8960,12 +9082,18 @@
     standbyScroller = dom.standbyTrack ? createScroller(dom.standbyTrack, () => cfg.STANDBY_SPEED, scrollerOpts) : null;
     dutyScroller = dom.dutyTrack ? createScroller(dom.dutyTrack, () => cfg.PERIODS_SPEED, scrollerOpts) : null;
 
-    renderAlert("جاري التحميل…", "يتم الآن جلب البيانات من الخادم.");
+    const recovered = navigator.onLine === false && restoreOfflineBoard();
+    if (!recovered) renderAlert("جاري التحميل…", "يتم الآن جلب البيانات من الخادم.");
     // Re-measure paginated Arabic copy once the local web font has loaded.
     // Older TV engines simply keep the measured system-font pages.
     try {
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(function () {
+          heroFitKey = "";
+          fitHeroTitle();
+          timelineWidth = 0;
+          layoutTimelinePages();
+          refreshHonorPages(true);
           refreshAnnouncementLayout(true);
           refreshEmergencyLayout(true);
         });

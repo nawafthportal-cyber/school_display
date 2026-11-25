@@ -40,7 +40,7 @@
             <div class="dp-toolbar__actions">
               <span class="dp-pill dp-pill--rose">{{ alert.get_kind_display }}</span>
               {% if alert.active_now %}
-                <span class="dp-pill dp-pill--green dp-pill--dot">يظهر الآن</span>
+                <span class="dp-pill dp-pill--green dp-pill--dot">إرسال نشط</span>
               {% else %}
                 <span class="dp-pill dp-pill--slate dp-pill--dot">متوقف</span>
               {% endif %}
@@ -52,7 +52,7 @@
             {% if alert.active_now %}
               <form method="post" action="{% url 'dashboard:emergency_alert_cancel' alert.pk %}">
                 {% csrf_token %}
-                <button type="submit" class="dp-btn dp-btn--danger dp-btn--sm" data-confirm="إلغاء التنبيه الآن؟ ستعود الشاشات لمحتواها المعتاد.">
+                <button type="submit" class="dp-btn dp-btn--danger dp-btn--sm" data-confirm-title="إلغاء إرسال الطوارئ" data-confirm-action="إلغاء التنبيه" data-confirm="إيقاف «{{ alert.title }}» على شاشات {% for school in alert.schools.all %}{{ school.name }}{% if not forloop.last %}، {% endif %}{% endfor %}؟">
                   <i class="fa-solid fa-ban" aria-hidden="true"></i>
                   <span>إلغاء التنبيه</span>
                 </button>
@@ -83,8 +83,27 @@
                 {% for screen in alert.screens.all %}{{ screen.name }}{% if not forloop.last %}، {% endif %}{% endfor %}
               {% elif alert.has_targeted_screens %}
                 شاشات محددة خارج نطاق إدارتك
+              {% elif alert.limited_to_screens %}
+                الشاشات المحددة لم تعد متاحة
               {% else %}
                 كل شاشات المدارس المحددة
+              {% endif %}
+            </dd>
+          </div>
+          <div class="dp-record__row">
+            <dt>تأكيد العرض</dt>
+            <dd>
+              {% if alert.receipts.all %}
+                <details>
+                  <summary>أكدت العرض {{ alert.receipts.all|length }} من الشاشات</summary>
+                  <ul>
+                    {% for receipt in alert.receipts.all %}
+                      <li>{{ receipt.screen.name }} · {{ receipt.screen.school.name }} · <time datetime="{{ receipt.displayed_at|date:'c' }}">{{ receipt.displayed_at|date:'Y-m-d H:i' }}</time></li>
+                    {% endfor %}
+                  </ul>
+                </details>
+              {% else %}
+                لم يُسجّل تأكيد عرض
               {% endif %}
             </dd>
           </div>
@@ -95,7 +114,7 @@
           {% if alert.cancelled_at %}
             <div class="dp-record__row">
               <dt>ألغاه</dt>
-              <dd>{{ alert.cancelled_by.get_full_name|default:alert.cancelled_by.username }} — {{ alert.cancelled_at|date:"Y-m-d H:i" }}</dd>
+              <dd>{% if alert.cancelled_by %}{{ alert.cancelled_by.get_full_name|default:alert.cancelled_by.username }}{% else %}الحساب غير متاح{% endif %} — {{ alert.cancelled_at|date:"Y-m-d H:i" }}</dd>
             </div>
           {% endif %}
         </dl>

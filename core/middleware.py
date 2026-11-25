@@ -382,6 +382,9 @@ class DisplayTokenMiddleware:
             # (or attaching Set-Cookie) on a dying page would only lose the hint.
             or path == "/api/display/goodbye/"
             or path.startswith("/api/display/goodbye/")
+            # The receipt view validates the already-bound TV via its device
+            # header. A receipt must never create a binding or need a cookie.
+            or path.startswith("/api/display/emergency-receipt/")
         )
 
         if not path.startswith(self.API_PREFIX):

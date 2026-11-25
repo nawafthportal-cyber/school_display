@@ -41,7 +41,7 @@
             {% include "dashboard/_field.html" with field=form.level only %}
           </div>
           {% include "dashboard/_field.html" with field=form.body only %}
-          {% include "dashboard/_field.html" with field=form.occasion_theme hint="الثيم يغيّر ألوان وخلفية وزخارف شاشة العرض طوال فترة نشاط الإعلان، ثم تعود الشاشة تلقائيًا لتصميم المدرسة." only %}
+          {% include "dashboard/_field.html" with field=form.occasion_theme hint="يظهر الثيم طوال فترة التنبيه على الشاشات التي تعرض التنبيهات وتتبع المناسبات تلقائيًا، أو التي ثُبّتت عليها هذه المناسبة." only %}
           <a id="occasionThemeEdit" class="dp-btn dp-btn--ghost" target="_blank" rel="noopener" hidden
              data-edit-url="{% url 'dashboard:occasion_theme_edit' '__occasion__' %}">تعديل اسم هذا الثيم وتصميمه ↗</a>
         </div>
@@ -58,7 +58,7 @@
           <div id="announcementScreenTargets" class="dp-field">
             <label>{{ form.screens.label }}</label>
             <div class="dp-checklist">{{ form.screens }}</div>
-            <small class="dp-field__hint">عند عدم اختيار شاشة سيظهر التنبيه على جميع شاشات المدرسة.</small>
+            <small class="dp-field__hint">اختر شاشة واحدة على الأقل. لتعميم التنبيه، اختر «جميع شاشات المدرسة».</small>
             {% for error in form.screens.errors %}<div class="dp-field__error">{{ error }}</div>{% endfor %}
           </div>
         </div>

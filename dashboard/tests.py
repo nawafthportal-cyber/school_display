@@ -59,7 +59,7 @@ from subscriptions.models import (
     SubscriptionScreenAddon,
 )
 from schedule.models import ClassLesson, DaySchedule, Period, SchoolClass, SchoolSettings, Subject, Teacher
-from notices.models import Announcement, EmergencyAlert
+from notices.models import Announcement, EmergencyAlert, EmergencyAlertReceipt
 from dashboard.excel_import import apply_import, build_template_bytes, parse_workbook, undo_import
 from schedule.api_views import _merge_real_data_into_snapshot
 
@@ -595,7 +595,7 @@ class CustomerExperienceRegressionTests(TestCase):
             detected_at=timezone.now() - timedelta(minutes=30),
             last_seen_at=timezone.now() - timedelta(minutes=35),
             cause="network_drop",
-            cause_detail="انقطاع اتصال الجهاز بالإنترنت",
+            cause_detail="وبقية شاشات المدرسة تعمل",
         )
         cache.set("screen-monitor:heartbeat", timezone.now().isoformat(), timeout=180)
 
@@ -605,8 +605,11 @@ class CustomerExperienceRegressionTests(TestCase):
         self.assertContains(response, "منقطعة الآن")
         self.assertContains(response, "متوسط التشغيل خلال 7 أيام")
         self.assertContains(response, "سجل الانقطاعات الأخير")
-        self.assertContains(response, "انقطاع اتصال الجهاز بالإنترنت")
-        self.assertContains(response, "تعمل بصورة طبيعية")
+        self.assertContains(response, "0 من 1")
+        self.assertContains(response, "آخر اتصال بالتلفاز")
+        self.assertContains(response, "تحقّق من تشغيل التلفاز واتصاله بالإنترنت")
+        self.assertContains(response, "وبقية شاشات المدرسة تعمل", count=1)
+        self.assertContains(response, "خدمة المراقبة تعمل بصورة طبيعية")
 
     def test_screen_list_opens_a_read_only_live_preview_inside_the_dashboard(self):
         screen = DisplayScreen.objects.create(
@@ -756,7 +759,8 @@ class CustomerExperienceRegressionTests(TestCase):
         response = self.client.get(reverse("dashboard:screen_list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "مرتبطة وجاهزة")
+        self.assertContains(response, "بانتظار أول اتصال")
+        self.assertContains(response, "وقت ربط الجهاز")
         self.assertContains(response, "قبل أقل من دقيقة")
         self.assertNotContains(response, "مرتبطة بلا اتصال")
         self.assertNotContains(response, "لم تتصل بعد")
@@ -839,9 +843,9 @@ class CustomerExperienceRegressionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "مركز تشغيل المدرسة")
         self.assertContains(response, "بانتظار أول تشغيل")
-        self.assertContains(response, "فتح شاشة المدرسة")
+        self.assertContains(response, "حسب جدول اليوم")
         self.assertContains(response, "إدارة الشاشات")
-        self.assertContains(response, reverse("website:short_display", args=[screen.short_code]))
+        self.assertContains(response, reverse("website:short_display", args=[screen.short_code]) + "?preview=1")
         self.assertContains(response, 'aria-label="تقدم إعداد المنصة"')
 
     def test_dashboard_reports_a_connected_primary_screen(self):
@@ -857,7 +861,8 @@ class CustomerExperienceRegressionTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "متصلة الآن")
-        self.assertContains(response, "الشاشة تعمل وتستقبل تحديثات الجدول والتنبيهات تلقائيًا")
+        self.assertContains(response, "شاشة المدخل")
+        self.assertEqual(response.context["stats"]["live_screens_count"], 1)
 
     def test_school_manager_is_returned_from_internal_admin_panel(self):
         response = self.client.get(reverse("dashboard:system_admin_dashboard"), follow=True)
@@ -1621,6 +1626,53 @@ class EmergencyAlertsAndExcelImportTests(TestCase):
         self.assertFalse(alert.is_active)
         self.assertEqual(alert.cancelled_by, self.manager)
         self.assertIsNotNone(alert.cancelled_at)
+
+    def test_cancelled_alert_remains_in_history_when_cancelling_account_is_gone(self):
+        alert = EmergencyAlert.objects.create(
+            kind="urgent", title="تنبيه ملغى", message="رسالة اختبار", created_by=self.manager,
+            is_active=False, cancelled_at=timezone.now(),
+        )
+        alert.schools.add(self.school)
+
+        response = self.client.get(reverse("dashboard:emergency_alert_list"))
+
+        self.assertContains(response, "تنبيه ملغى")
+        self.assertContains(response, "الحساب غير متاح")
+        self.assertContains(response, timezone.localtime(alert.cancelled_at).strftime("%Y-%m-%d %H:%M"))
+
+    def test_only_the_targeted_bound_display_can_confirm_an_emergency_once(self):
+        self.screen.bound_device_id = "living-room-qa-device"
+        self.screen.save(update_fields=["bound_device_id"])
+        self.other_screen.bound_device_id = "other-qa-device"
+        self.other_screen.save(update_fields=["bound_device_id"])
+        alert = EmergencyAlert.objects.create(
+            kind="urgent", title="تنبيه موجه", message="اختبار تأكيد العرض", created_by=self.manager,
+            limited_to_screens=True,
+        )
+        alert.schools.add(self.school)
+        alert.screens.add(self.screen)
+        endpoint = reverse("core_api:display_api:emergency_receipt", args=[alert.pk])
+        own_headers = {"X-Display-Token": self.screen.token, "X-Display-Device": self.screen.bound_device_id}
+        self.client.logout()
+        for headers in (
+            {**own_headers, "X-Display-Preview": "1"},
+            {**own_headers, "X-Display-Device": "wrong-device"},
+            {"X-Display-Token": self.other_screen.token, "X-Display-Device": self.other_screen.bound_device_id},
+        ):
+            self.assertEqual(self.client.post(endpoint, headers=headers).status_code, 404)
+        for _ in range(2):
+            response = self.client.post(endpoint, headers=own_headers)
+            self.assertEqual(response.status_code, 204)
+            self.assertNotIn("sd_device", response.cookies)
+        self.assertEqual(EmergencyAlertReceipt.objects.filter(alert=alert, screen=self.screen).count(), 1)
+        self.client.force_login(self.manager)
+        self.assertContains(self.client.get(reverse("dashboard:emergency_alert_list")), "أكدت العرض 1 من الشاشات")
+
+        alert.screens.clear()
+        snap = {}
+        _merge_real_data_into_snapshot(RequestFactory().get("/api/display/snapshot/"), snap, self.settings)
+        self.assertEqual(snap["emergency_alerts"], [])
+        self.assertEqual(self.client.post(endpoint, headers=own_headers).status_code, 404)
 
     def test_manager_can_delete_an_expired_emergency_alert(self):
         alert = EmergencyAlert.objects.create(
@@ -2552,6 +2604,17 @@ class ScreenInheritanceTests(TestCase):
         # ...بينما الرسائل والسرعات ما زالت موروثة من إعداد المدرسة.
         self.assertEqual(self.screen.display_before_title_override, "")
         self.assertIsNone(self.screen.standby_scroll_speed_override)
+
+    def test_existing_fractional_motion_can_be_saved_as_a_screen_override(self):
+        response = self.client.post(
+            reverse("dashboard:screen_edit", args=[self.screen.pk]),
+            self._payload(inherit_groups=["messages"], standby_scroll_speed="0.65", periods_scroll_speed="0.45"),
+        )
+
+        self.assertRedirects(response, reverse("dashboard:screen_list"), fetch_redirect_response=False)
+        self.screen.refresh_from_db()
+        self.assertAlmostEqual(self.screen.standby_scroll_speed_override, 0.65)
+        self.assertAlmostEqual(self.screen.periods_scroll_speed_override, 0.45)
 
     def test_inherited_group_does_not_require_its_fields(self):
         payload = self._payload(inherit_groups=["messages"])
