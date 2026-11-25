@@ -1786,7 +1786,7 @@ class EmergencyAlertsAndExcelImportTests(TestCase):
             form.initial["expires_at"] - form.initial["starts_at"],
             timedelta(hours=24),
         )
-        self.assertContains(response, "الثيم يغيّر ألوان وخلفية وزخارف شاشة العرض")
+        self.assertContains(response, "يظهر الثيم طوال فترة التنبيه على الشاشات التي تعرض التنبيهات وتتبع المناسبات تلقائيًا")
 
     def test_occasion_theme_is_saved_and_exposed_to_display_snapshot(self):
         starts_at = timezone.now().replace(second=0, microsecond=0)
@@ -2807,8 +2807,13 @@ class MultiSchoolManagerTests(TestCase):
         response = self.client.get(reverse("dashboard:index"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "2 شاشة في مدرسة مدفوعة")
-        self.assertContains(response, "تخصيص جميع الشاشات")
+        self.assertEqual(response.context["stats"]["screens_count"], 2)
+        self.assertEqual(
+            {card["name"] for card in response.context["screen_cards"]},
+            set(DisplayScreen.objects.filter(school=self.paid_school).values_list("name", flat=True)),
+        )
+        self.assertContains(response, "معاينة شاشة ثانية")
+        self.assertContains(response, reverse("dashboard:screen_list"))
 
 
 class AnnouncementScreenTargetingTests(TestCase):
