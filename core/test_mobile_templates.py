@@ -124,18 +124,21 @@ class MobileStylesheetTests(TestCase):
 
 class InvoiceMobileTests(TestCase):
     INVOICES = ("invoices/subscription_invoice.html",)
+    MOBILE_SCREEN_QUERY = "@media screen and (max-width: 640px)"
 
     def test_invoices_are_readable_on_a_phone(self):
         for rel in self.INVOICES:
             text = (TEMPLATES / rel).read_text(encoding="utf-8")
             with self.subTest(template=rel):
                 self.assertIn('name="viewport"', text)
-                self.assertIn("@media (max-width: 640px)", text)
+                self.assertIn(self.MOBILE_SCREEN_QUERY, text)
 
     def test_invoice_summary_is_not_locked_to_a_fixed_width(self):
         """350px overflows a 360px phone once body padding is counted."""
         for rel in self.INVOICES:
             text = (TEMPLATES / rel).read_text(encoding="utf-8")
-            mobile_block = text.split("@media (max-width: 640px)", 1)[1]
             with self.subTest(template=rel):
+                _, query, following_styles = text.partition(self.MOBILE_SCREEN_QUERY)
+                self.assertTrue(query)
+                mobile_block = following_styles.split("@media", 1)[0]
                 self.assertIn(".summary-table { width: 100%; }", mobile_block)
