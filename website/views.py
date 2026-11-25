@@ -512,56 +512,40 @@ def home(request):
         landing_plans = plan_cards(active_plans)
 
         paid_plans = [plan for plan in landing_plans if not plan["is_trial"] and not plan["is_free"]]
-        landing_monthly_plans = [
-            plan for plan in paid_plans if 27 <= plan["duration_days"] <= 31
-        ]
-        landing_annual_plans = [
-            plan for plan in paid_plans if 330 <= plan["duration_days"] <= 370
-        ]
-        landing_semiannual_plans = [
-            plan for plan in paid_plans if 150 <= plan["duration_days"] <= 200
-        ]
-
         monthly_by_screens = {
             plan["max_screens"]: Decimal(plan["price"])
-            for plan in landing_monthly_plans
+            for plan in paid_plans
             if plan["max_screens"] is not None
             and plan["code"].startswith("school-screen-")
             and plan["code"].endswith("-monthly")
+            and 27 <= plan["duration_days"] <= 31
         }
-        for plans, comparison_months in (
-            (landing_semiannual_plans, 6),
-            (landing_annual_plans, 10),
+        pricing_plans = []
+        for term, label, min_days, max_days, comparison_months in (
+            ("monthly", "شهر", 27, 31, 0),
+            ("semiannual", "6 أشهر", 150, 200, 6),
+            ("annual", "سنة", 330, 370, 10),
         ):
-            for plan in plans:
-                if not plan["code"].startswith("school-screen-"):
-                    continue
-                monthly_price = monthly_by_screens.get(plan["max_screens"])
-                if monthly_price is None:
-                    continue
+            plan = min(
+                (plan for plan in paid_plans if min_days <= plan["duration_days"] <= max_days),
+                key=lambda plan: Decimal(plan["price"]),
+                default=None,
+            )
+            if plan is None:
+                continue
+            plan["landing_term"] = term
+            plan["landing_filter_label"] = label
+            monthly_price = monthly_by_screens.get(plan["max_screens"])
+            if comparison_months and monthly_price and plan["code"].startswith("school-screen-"):
                 savings = (monthly_price * comparison_months) - Decimal(plan["price"])
                 if savings > 0:
                     plan["savings_text"] = (
                         f"توفر {savings:,.0f} ر.س مقارنة بـ{comparison_months} دفعات شهرية"
                     )
-        starting_plan = min(
-            (plan for plan in landing_monthly_plans if plan["max_screens"] == 1),
-            key=lambda plan: Decimal(plan["price"]),
-            default=None,
-        )
-        plans_by_screen_count = {}
-        for plan in sorted(paid_plans, key=lambda plan: plan["duration_days"]):
-            plan["landing_duration"] = plan["duration_label"]
-            if (
-                330 <= plan["duration_days"] <= 370
-                and plan["code"].startswith("school-screen-")
-                and plan["code"].endswith("-annual")
-            ):
-                plan["landing_duration"] = "عام دراسي"
-            plans_by_screen_count.setdefault(plan["max_screens"], []).append(plan)
-        pricing_groups = sorted(
-            plans_by_screen_count.items(),
-            key=lambda group: (group[0] is None, group[0] or 0),
+            pricing_plans.append(plan)
+        starting_plan = next(
+            (plan for plan in pricing_plans if plan["landing_term"] == "monthly"),
+            None,
         )
 
         landing_trial = next(
@@ -582,9 +566,9 @@ def home(request):
                 "trial_signup_url": reverse("website:trial_signup"),
                 "plan_order_url": reverse("website:plan_order"),
                 "dashboard_url": reverse("dashboard:index"),
-                "pricing_groups": pricing_groups,
+                "pricing_plans": pricing_plans,
                 "pricing_has_feature_restrictions": any(
-                    plan["has_feature_restrictions"] for plan in paid_plans
+                    plan["has_feature_restrictions"] for plan in pricing_plans
                 ),
                 "starting_plan": starting_plan,
                 "landing_trial": landing_trial,

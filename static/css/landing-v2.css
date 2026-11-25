@@ -310,26 +310,10 @@ img { display: block; max-width: 100%; }
 
 .pricing-section { background: #eef3ed; }
 .pricing-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin-block-end: 15px; }
-.pricing-options button { min-width: 42px; min-height: 42px; }
+.pricing-options button { min-width: 58px; min-height: 44px; }
 .pricing-options button[aria-pressed="true"] { color: #fff; background: var(--teal); border-color: var(--teal); }
-.pricing-groups { display: grid; gap: 8px; }
-.pricing-group:not([hidden]) { min-width: 0; }
-.pricing-group-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 9px;
-    padding: 10px 14px;
-    list-style: none;
-    background: var(--paper);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-}
-.pricing-group-title::-webkit-details-marker, .faq-list summary::-webkit-details-marker { display: none; }
-.pricing-group[open] > summary { margin-block-end: 9px; }
-.pricing-group[open] > summary i { transform: rotate(180deg); }
-.pricing-groups[data-enhanced] .pricing-group-title { display: none; }
-.pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 13px; }
+.pricing-grid[data-filtered] { max-inline-size: 510px; }
 .price-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -372,6 +356,7 @@ img { display: block; max-width: 100%; }
     list-style: none;
     font-weight: 700;
 }
+.faq-list summary::-webkit-details-marker { display: none; }
 .faq-list summary::after { content: "+"; color: var(--teal); flex: 0 0 18px; text-align: center; }
 .faq-list details[open] summary::after { content: "−"; }
 .faq-list details > p { margin-block-end: 14px; color: var(--muted); font-size: .9rem; }
@@ -783,6 +768,9 @@ img { display: block; max-width: 100%; }
     .video-play { width: 54px; height: 54px; font-size: 1rem; }
     .benefits-grid, .journey-steps, .pricing-grid { grid-template-columns: minmax(0, 1fr); gap: 9px; }
     .journey-steps li { padding-block: 10px 8px; }
+    .pricing-section { padding-block: 32px; }
+    .pricing-section .section-head { margin-block-end: 15px; }
+    .pricing-picker { gap: 8px 12px; margin-block-end: 12px; }
     .price-card {
         grid-template-columns: minmax(0, 1.1fr) minmax(70px, .9fr) auto;
         grid-template-areas: "term amount action" "details details details";
