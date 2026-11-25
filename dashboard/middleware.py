@@ -8,7 +8,9 @@ from django.shortcuts import redirect
 from django.urls import resolve, Resolver404
 from django.utils import timezone
 from django.conf import settings
+from django.http import JsonResponse
 
+from subscriptions.features import DASHBOARD_FEATURE_ROUTES, PLAN_FEATURES, school_disabled_features
 from subscriptions.utils import school_has_active_subscription
 from core.two_factor import get_enabled_config, two_factor_required_for
 from .access import is_system_staff_user
@@ -151,6 +153,12 @@ class SubscriptionRequiredMiddleware:
 
         if has_active:
             request.session.pop("sub_blocked_once", None)
+            feature = DASHBOARD_FEATURE_ROUTES.get(match.url_name) if view_name.startswith("dashboard:") else None
+            if feature and feature in school_disabled_features(school.id):
+                if "/api/" in request.path or "application/json" in request.headers.get("Accept", ""):
+                    return JsonResponse({"error": "feature_not_in_plan", "feature": feature}, status=403)
+                messages.warning(request, f"خاصية «{PLAN_FEATURES[feature]}» غير مفعّلة في اشتراك المدرسة.")
+                return redirect("dashboard:my_subscription")
             return None
 
         if not request.session.get("sub_blocked_once"):

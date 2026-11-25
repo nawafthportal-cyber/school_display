@@ -126,7 +126,9 @@
     <nav class="home-actions" aria-label="إجراءات الإدارة السريعة">
       <a href="{% url 'dashboard:standby_create' %}?date={{ today|date:'Y-m-d' }}" class="dp-btn dp-btn--soft home-action"><i class="fa-solid fa-user-clock" aria-hidden="true"></i>إضافة انتظار</a>
       <a href="{% url 'dashboard:ann_create' %}" class="dp-btn dp-btn--soft home-action"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i>إضافة تنبيه</a>
+      {% if 'duty' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:duty_list' %}" class="dp-btn dp-btn--soft home-action"><i class="fa-solid fa-user-shield" aria-hidden="true"></i>الإشراف والمناوبة</a>
+      {% endif %}
       <a href="{% url 'dashboard:emergency_alert_create' %}" class="dp-btn home-action home-action--emergency"><i class="fa-solid fa-tower-broadcast" aria-hidden="true"></i>تنبيه طارئ</a>
     </nav>
   </section>
@@ -172,9 +174,15 @@
     <section class="dp-surface home-panel" aria-labelledby="home-summary-title">
       <div class="dp-section-head"><h2 id="home-summary-title">ملخص المدرسة</h2></div>
       <div class="home-counts">
+        {% if 'standby' not in school_plan_disabled|default:"" %}
         <a href="{% url 'dashboard:standby_list' %}?date={{ today|date:'Y-m-d' }}"><strong>{{ stats.standby_today }}</strong> انتظار اليوم</a>
+        {% endif %}
+        {% if 'announcements' not in school_plan_disabled|default:"" %}
         <a href="{% url 'dashboard:ann_list' %}"><strong>{{ stats.ann_count }}</strong> التنبيهات</a>
+        {% endif %}
+        {% if 'excellence' not in school_plan_disabled|default:"" %}
         <a href="{% url 'dashboard:exc_list' %}"><strong>{{ stats.exc_count }}</strong> بطاقات التميّز</a>
+        {% endif %}
       </div>
       <a href="{% url 'dashboard:my_subscription' %}" class="dp-link">الاشتراك · {% if subscription and subscription.is_active %}نشط{% elif subscription %}متوقف{% else %}عرض الخيارات{% endif %}</a>
     </section>

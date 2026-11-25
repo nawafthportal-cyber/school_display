@@ -230,10 +230,12 @@
             </div>
 
             <div class="screen-card-actions">
+              {% if 'screen_customization' not in school_plan_disabled|default:"" %}
               <a href="{% url 'dashboard:screen_edit' screen.pk %}" class="screen-action-btn" title="تخصيص هذه الشاشة">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3a9 9 0 1 0 0 18h1.4a1.6 1.6 0 0 0 .2-3.2h-.7a1.9 1.9 0 0 1-1.9-1.9v-.2a1.9 1.9 0 0 1 1.9-1.9H16A5 5 0 0 0 21 9c0-3.3-4-6-9-6Z"/></svg>
                 <span>تخصيص الشاشة</span>
               </a>
+              {% endif %}
 
               <form method="post" action="{% url 'dashboard:screen_refresh_now' screen.pk %}">
                 {% csrf_token %}

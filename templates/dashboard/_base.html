@@ -504,12 +504,14 @@
         <span>الجدول اليومي</span>
       </a>
 
+      {% if 'standby' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:standby_list' %}"
          class="sidebar-link {% if request.resolver_match.url_name == 'standby_list' or request.resolver_match.url_name == 'standby_create' or request.resolver_match.url_name == 'standby_edit' %}active{% endif %}"
          {% if request.resolver_match.url_name == 'standby_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'standby_create' or request.resolver_match.url_name == 'standby_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <span>حصص الانتظار</span>
       </a>
+      {% endif %}
 
       <div class="sidebar-section-label">الجدول والبيانات</div>
 
@@ -539,42 +541,52 @@
         <span>الفصول والمواد والمعلمون</span>
       </a>
 
-      <a href="{% url 'dashboard:school_document_import' %}"
+      {% if 'smart_import' not in school_plan_disabled|default:"" or 'excel_import' not in school_plan_disabled|default:"" %}
+      <a href="{% if 'smart_import' in school_plan_disabled|default:"" %}{% url 'dashboard:school_data_import' %}{% else %}{% url 'dashboard:school_document_import' %}{% endif %}"
          class="sidebar-link {% if request.resolver_match.url_name == 'school_document_import' or request.resolver_match.url_name == 'school_data_import' %}active{% endif %}"
          {% if request.resolver_match.url_name == 'school_document_import' %}aria-current="page"{% elif request.resolver_match.url_name == 'school_data_import' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
         <span>استيراد الجدول</span>
       </a>
+      {% endif %}
 
       <div class="sidebar-section-label">النشر على الشاشة</div>
 
+      {% if 'announcements' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:ann_list' %}"
          class="sidebar-link {% if request.resolver_match.url_name == 'ann_list' or request.resolver_match.url_name == 'ann_create' or request.resolver_match.url_name == 'ann_edit' %}active{% endif %}"
          {% if request.resolver_match.url_name == 'ann_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'ann_create' or request.resolver_match.url_name == 'ann_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
         <span>التنبيهات</span>
       </a>
+      {% endif %}
 
+      {% if 'emergency_alerts' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:emergency_alert_list' %}"
          class="sidebar-link {% if 'emergency_alert' in request.resolver_match.url_name %}active{% endif %}"
          {% if request.resolver_match.url_name == 'emergency_alert_list' %}aria-current="page"{% elif 'emergency_alert' in request.resolver_match.url_name %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 4h.01M10.3 3.7L2.9 17a2 2 0 001.75 3h14.7a2 2 0 001.75-3L13.7 3.7a2 2 0 00-3.4 0z"/></svg>
         <span>تنبيهات الطوارئ</span>
       </a>
+      {% endif %}
 
+      {% if 'excellence' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:exc_list' %}"
          class="sidebar-link {% if request.resolver_match.url_name == 'exc_list' or request.resolver_match.url_name == 'exc_create' or request.resolver_match.url_name == 'exc_edit' %}active{% endif %}"
          {% if request.resolver_match.url_name == 'exc_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'exc_create' or request.resolver_match.url_name == 'exc_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" fill="none"/></svg>
         <span>قسم التميّز</span>
       </a>
+      {% endif %}
 
+      {% if 'duty' not in school_plan_disabled|default:"" %}
       <a href="{% url 'dashboard:duty_list' %}"
          class="sidebar-link {% if request.resolver_match.url_name == 'duty_list' or request.resolver_match.url_name == 'duty_create' or request.resolver_match.url_name == 'duty_edit' %}active{% endif %}"
          {% if request.resolver_match.url_name == 'duty_list' %}aria-current="page"{% elif request.resolver_match.url_name == 'duty_create' or request.resolver_match.url_name == 'duty_edit' %}aria-current="location"{% endif %}>
         <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
         <span>الإشراف والمناوبة</span>
       </a>
+      {% endif %}
 
       <div class="sidebar-section-label">الشاشات والهوية</div>
 

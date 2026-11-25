@@ -2,15 +2,16 @@
 {% load static %}
 
 {% block title %}استيراد بيانات المدرسة{% endblock %}
-{% block page_title %}استيراد بيانات المدرسة من Excel{% endblock %}
+{% block page_title %}{% if excel_import_enabled %}استيراد بيانات المدرسة من Excel{% else %}نتيجة استيراد بيانات المدرسة{% endif %}{% endblock %}
 {% block page_area %}الجدول والبيانات{% endblock %}
-{% block page_description %}نزّل قالب Excel وعبّئه، ثم ارفع الملف لمراجعة الأخطاء وتأثير التعديلات قبل اعتمادها.{% endblock %}
+{% block page_description %}{% if excel_import_enabled %}نزّل قالب Excel وعبّئه، ثم ارفع الملف لمراجعة الأخطاء وتأثير التعديلات قبل اعتمادها.{% else %}راجع نتيجة الاستيراد الأخير.{% endif %}{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/import-changes.css' %}">{% endblock %}
 
 {% block content %}
 <div class="dp-stack">
-  {% include 'dashboard/_timetable_import_methods.html' with method='excel' only %}
+  {% include 'dashboard/_timetable_import_methods.html' with method='excel' %}
 
+  {% if excel_import_enabled %}
   <ol class="dp-steps" aria-label="مراحل الاستيراد">
     <li class="dp-step"{% if not parsed and not completed_import %} aria-current="step"{% endif %}>
       <span class="dp-step__n" aria-hidden="true">١</span>
@@ -28,6 +29,7 @@
       <p>راجع الأثر على الجدول ثم احفظ.</p>
     </li>
   </ol>
+  {% endif %}
 
   {% if completed_import %}
     <section class="dp-panel" style="border-color:#a7f3d0;background:linear-gradient(135deg,#ecfdf5,#fff)">
@@ -55,6 +57,7 @@
     </section>
   {% endif %}
 
+  {% if excel_import_enabled %}
   <section class="dp-panel">
     <div class="dp-panel__head">
       <h3>الملف</h3>
@@ -86,6 +89,7 @@
       </form>
     </div>
   </section>
+  {% endif %}
 
   {% if parsed %}
     <section class="dp-table-shell">

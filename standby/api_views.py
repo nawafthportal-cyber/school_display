@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from core.utils import validate_display_token
+from subscriptions.features import school_disabled_features
 
 from .models import StandbyAssignment
 from .api_serializers import StandbySerializer
@@ -21,6 +22,8 @@ def today_standby(request):
         StandbyAssignment.objects.filter(school=school, date=today)
         .order_by("period_index", "teacher_name")
     )
+    if "standby" in school_disabled_features(school.pk):
+        qs = qs.none()
 
     data = {
         "date": today.isoformat(),

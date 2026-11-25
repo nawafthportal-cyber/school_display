@@ -642,6 +642,7 @@ class SubscriptionPlan(models.Model):
         blank=True,
         help_text="اتركه فارغًا لعدد غير محدود.",
     )
+    disabled_features = models.JSONField("خصائص موقوفة في الباقة", default=list, blank=True)
     # ``max_schools`` كان يوحي بحد للمدارس في الخطة الواحدة، لكن كل مدرسة تحمل
     # اشتراكها المستقل، فلم يُقرأ الحقل في أي مسار. أُزيل حتى لا يوهم بحدٍّ
     # مطبَّق. الحد الفعلي الوحيد هو ``max_screens`` لكل اشتراك.

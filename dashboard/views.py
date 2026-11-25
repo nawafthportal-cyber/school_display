@@ -668,13 +668,25 @@ def school_data_import(request):
     school, response = get_active_school_or_redirect(request)
     if response:
         return response
+    from subscriptions.features import PLAN_FEATURES, school_disabled_features
+
+    disabled = school_disabled_features(school.pk)
+    action = request.POST.get("action", "") if request.method == "POST" else ""
+    excel_enabled = "excel_import" not in disabled
+
+    def unavailable(feature):
+        messages.warning(request, f"خاصية «{PLAN_FEATURES[feature]}» غير مفعّلة في اشتراك المدرسة.")
+        return redirect("dashboard:my_subscription")
+
     parsed = None
     import_token = ""
     impact = None
     completed_import = None
     undo_ttl_seconds = 30 * 60
     latest_undo_key = f"school-data-import-latest:{request.user.pk}:{school.pk}"
-    if request.method == "POST" and request.POST.get("action") == "preview":
+    if action == "preview":
+        if not excel_enabled:
+            return unavailable("excel_import")
         uploaded = request.FILES.get("excel_file")
         if not uploaded:
             messages.error(request, "اختر ملف Excel أولًا.")
@@ -713,10 +725,14 @@ def school_data_import(request):
                 messages.warning(request, "اكتملت المعاينة مع أخطاء. صحح الملف ثم ارفعه مجددًا.")
             else:
                 messages.success(request, "المعاينة سليمة. يمكنك تنفيذ الاستيراد الآن.")
-    elif request.method == "POST" and request.POST.get("action") == "import":
+    elif action == "import":
         import_token = (request.POST.get("import_token") or "").strip()
         key = f"school-data-import:{request.user.pk}:{school.pk}:{import_token}"
         parsed = cache.get(key)
+        if parsed:
+            feature = "smart_import" if parsed.get("requires_document_review") else "excel_import"
+            if feature in disabled:
+                return unavailable(feature)
         if not parsed:
             messages.error(request, "انتهت صلاحية المعاينة. ارفع الملف مرة أخرى.")
         elif parsed.get("errors"):
@@ -784,7 +800,7 @@ def school_data_import(request):
             return redirect(
                 f"{reverse('dashboard:school_data_import')}?completed={undo_token}"
             )
-    elif request.method == "POST" and request.POST.get("action") == "undo":
+    elif action == "undo":
         undo_token = (request.POST.get("undo_token") or "").strip()
         undo_key = f"school-data-import-undo:{request.user.pk}:{school.pk}:{undo_token}"
         undo_payload = cache.get(undo_key)
@@ -816,6 +832,10 @@ def school_data_import(request):
         completed_import = cache.get(
             f"school-data-import-undo:{request.user.pk}:{school.pk}:{completed_token}"
         )
+    if not excel_enabled and not completed_import and not parsed:
+        if "smart_import" not in disabled:
+            return redirect("dashboard:school_document_import")
+        return unavailable("excel_import")
     if parsed and impact is None and not parsed.get("errors"):
         impact = build_import_impact(school=school, parsed=parsed)
     return render(
@@ -823,6 +843,7 @@ def school_data_import(request):
         "dashboard/school_data_import.html",
         {
             "parsed": parsed,
+            "excel_import_enabled": excel_enabled,
             "preview_rows": (parsed or {}).get("rows", [])[:200],
             "hidden_preview_rows": max(0, len((parsed or {}).get("rows", [])) - 200),
             "preview_issues": (parsed or {}).get("issues", [])[:200],

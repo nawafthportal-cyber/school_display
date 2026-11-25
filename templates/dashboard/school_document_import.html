@@ -7,7 +7,7 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/document-import.css' %}"><link rel="stylesheet" href="{% static 'css/import-changes.css' %}">{% endblock %}
 {% block content %}
 <div class="dp-stack di" data-document-import data-max-rows="{{ max_rows }}">
-  {% include 'dashboard/_timetable_import_methods.html' with method='smart' only %}
+  {% include 'dashboard/_timetable_import_methods.html' with method='smart' %}
   <ol class="dp-steps" aria-label="مراحل الاستيراد">
     <li class="dp-step"{% if not draft and not import_token %} aria-current="step"{% endif %}><span class="dp-step__n" aria-hidden="true">١</span><strong>رفع الملف</strong><p>اختر ملفًا من جهازك.</p></li>
     <li class="dp-step"{% if draft and not import_token %} aria-current="step"{% endif %}><span class="dp-step__n" aria-hidden="true">٢</span><strong>مراجعة البيانات</strong><p>راجع الأسماء وأوقات الحصص.</p></li>

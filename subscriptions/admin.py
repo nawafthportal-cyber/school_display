@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from core.models import SubscriptionPlan
+from dashboard.forms import SubscriptionPlanForm
 from .models import (
     SchoolSubscription,
     SubscriptionAuditLog,
@@ -27,6 +28,8 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
     search_fields = ("name", "code", "description", "card_features")
     list_filter = ("is_active", "is_featured")
     ordering = ("sort_order", "price", "id")
+    form = SubscriptionPlanForm
+    exclude = ("disabled_features",)
 
 
 # إدارة اشتراكات المدارس

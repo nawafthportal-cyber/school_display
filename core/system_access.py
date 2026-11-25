@@ -114,7 +114,7 @@ PERMISSION_DEFINITIONS = (
         "category": "billing",
         "category_label": "الاشتراكات والمالية",
         "label": "إدارة الباقات والأسعار",
-        "description": "إضافة الباقات وتعديل محتواها وتسعيرها.",
+        "description": "إضافة الباقات وتعديل أسعارها والخصائص المتاحة للاستخدام.",
         "level": "manage",
         "implies": "plans.view",
     },
