@@ -1,49 +1,39 @@
 <div class="pricing-grid">
     {% for plan in plans %}
-    <article class="price-card reveal{% if plan.is_featured %} popular{% endif %}"
-             data-plan-code="{{ plan.code }}"
-             data-screen-count="{{ plan.max_screens }}"
-             {% if selected_screen_count and plan.max_screens != selected_screen_count %}hidden{% endif %}>
-        {% if plan.badge_text %}
-        <div class="plan-badge">{{ plan.badge_text }}</div>
-        {% endif %}
-        <h3>{{ plan.name }}</h3>
-        {% if plan.description %}<p class="plan-meta">{{ plan.description }}</p>{% endif %}
+    <article class="price-card{% if plan.is_featured %} popular{% endif %}" data-plan-code="{{ plan.code }}">
+        <h3>{{ plan.landing_duration }}</h3>
+        <div class="price-val"><bdi>{{ plan.price|floatformat:"-2g" }}</bdi> <span>ر.س</span></div>
+        <p class="price-period">{{ plan.price_caption }}</p>
         {% if plan.duration_text %}<p class="plan-meta">{{ plan.duration_text }}</p>{% endif %}
-        <div class="price-val">{{ plan.price|floatformat:"-2" }}</div>
-        <span class="price-period">{{ plan.price_caption }}</span>
-        {% if plan.monthly_text %}<span class="price-period">{{ plan.monthly_text }}</span>{% endif %}
-        {% if plan.savings_text %}
-        <div class="plan-savings"><i class="fa-solid fa-piggy-bank"></i> {{ plan.savings_text }}</div>
-        {% endif %}
-        <ul class="feature-list">
-            {% for feature in plan.features %}
-            <li><i class="fa-solid fa-check"></i> {{ feature }}</li>
-            {% endfor %}
-            {% if plan.screen_text %}
-            <li><i class="fa-solid fa-display"></i> {{ plan.screen_text }}</li>
-            {% endif %}
-        </ul>
+        {% if plan.savings_text %}<p class="plan-savings">{{ plan.savings_text }}</p>{% endif %}
         <button
             type="button"
-            class="{% if plan.is_featured %}btn{% else %}btn-outline{% endif %} btn-block"
+            class="button button-primary"
             data-plan="{{ plan.name }}"
             data-plan-code="{{ plan.code }}"
-            data-period="{{ plan.duration_label }}"
-            data-price="{{ plan.price|floatformat:'-2' }}"
+            data-period="{{ plan.landing_duration }}"
+            data-term="{{ plan.duration_label }}"
+            data-price="{{ plan.price|floatformat:'-2u' }}"
+            data-price-display="{{ plan.price|floatformat:'-2g' }}"
             data-is-trial="false"
             data-order-url="{{ plan_order_url }}?plan={{ plan.code|urlencode }}"
             data-user-authenticated="{{ request.user.is_authenticated|yesno:'true,false' }}"
             data-role="open-plan">
-            {{ plan.cta_text }}
+            {% if plan.cta_text == "ابدأ التجربة واختر الباقة" %}اختر الباقة{% else %}{{ plan.cta_text }}{% endif %}
         </button>
+        <details class="price-details">
+            <summary>تفاصيل الباقة</summary>
+            <strong>{{ plan.name }}</strong>
+            {% if plan.badge_text %}<p class="plan-meta">{{ plan.badge_text }}</p>{% endif %}
+            {% if plan.description %}<p class="plan-meta">{{ plan.description }}</p>{% endif %}
+            {% if plan.monthly_text %}<p class="plan-meta">{{ plan.monthly_text }}</p>{% endif %}
+            {% if plan.features or plan.screen_text %}
+            <ul class="feature-list">
+                {% for feature in plan.features %}<li>{{ feature }}</li>{% endfor %}
+                {% if plan.screen_text %}<li>{{ plan.screen_text }}</li>{% endif %}
+            </ul>
+            {% endif %}
+        </details>
     </article>
-    {% empty %}
-    <div class="pricing-empty reveal">
-        <i class="fa-solid fa-tags"></i>
-        <h3>سيتم نشر الباقات قريبًا</h3>
-        <p>يمكنك التواصل معنا للحصول على عرض مناسب.</p>
-        <a class="btn-outline" href="https://wa.me/966537720207" target="_blank" rel="noreferrer">تواصل عبر واتساب</a>
-    </div>
     {% endfor %}
 </div>

@@ -112,15 +112,16 @@ class TrialSignupTests(TestCase):
         self.assertContains(response, 'rel="canonical" href="https://school-display.com/"')
         self.assertContains(response, 'class="skip-link"')
         self.assertContains(response, 'id="heroTrialCta"')
-        self.assertContains(response, 'id="videoLaunch"')
+        self.assertContains(response, 'id="screenPreviewLink" href="#product-gallery"')
+        self.assertContains(response, 'class="hero-price" href="#pricing"')
+        self.assertContains(response, "screen-during-class.webp")
+        self.assertContains(response, "screen-during-break.webp")
+        self.assertContains(response, 'fetchpriority="high"')
+        self.assertContains(response, 'class="showcase-shot active" data-shot="display"')
         self.assertContains(response, "بلا بطاقة بنكية")
         self.assertContains(response, "كل المزايا مشمولة")
         self.assertContains(response, "تنبيهات طوارئ تتصدر الشاشة فوراً")
-        # The hero headline. Its wording is the page's main conversion lever, so
-        # it is pinned here on purpose — update these two lines whenever the
-        # headline is rewritten rather than deleting the assertion.
-        self.assertContains(response, "شاشة مدرستك تعرف")
-        self.assertContains(response, "ماذا تعرض الآن.")
+        self.assertContains(response, "جدول الحصص والإعلانات على شاشات مدرستك")
         self.assertContains(response, "المحتوى المناسب، على الشاشة المناسبة")
         self.assertContains(response, "لوحة إدارة واحدة")
         self.assertContains(response, "هل يمكن تخصيص محتوى كل شاشة بشكل مستقل؟")
@@ -130,12 +131,8 @@ class TrialSignupTests(TestCase):
         self.assertContains(response, "إدارة المحتوى — 299 ر.س شهريًا")
         self.assertNotContains(response, "مجمع تعليمي: حتى 3 مدارس و15 شاشة")
         self.assertContains(response, "عام دراسي")
-        # The saving the annual cycle advertises. The number itself is copy that
-        # moves with pricing, so this pins the badge rather than the wording.
-        self.assertContains(response, 'data-pricing-cycle="annual"')
-        self.assertContains(response, "صمّم باقة مدرستك")
-        self.assertContains(response, "data-pricing-summary-price")
-        self.assertContains(response, "كل شاشة لها محتواها")
+        self.assertContains(response, "الباقات والأسعار")
+        self.assertContains(response, 'id="orderPlanSummary"')
         self.assertContains(response, 'data-form-step="1"')
         self.assertContains(response, 'data-form-step="2"')
         self.assertNotContains(response, "<iframe")
@@ -188,7 +185,7 @@ class TrialSignupTests(TestCase):
         self.assertNotContains(response, "المدارس:")
         self.assertNotContains(response, "باقة مخفية من الهبوط")
 
-    def test_landing_pricing_groups_all_cycles_and_exposes_screen_selector(self):
+    def test_landing_pricing_groups_all_terms_for_each_screen_count(self):
         monthly = SubscriptionPlan.objects.create(
             code="grouped-monthly",
             name="باقة مجمعة شهرية",
@@ -216,20 +213,30 @@ class TrialSignupTests(TestCase):
 
         response = self.client.get(reverse("website:home"))
 
-        self.assertContains(response, 'data-pricing-cycle="monthly"')
-        self.assertContains(response, 'data-pricing-cycle="annual"')
-        self.assertContains(response, 'data-pricing-cycle="semiannual"')
-        self.assertContains(response, 'data-pricing-panel="monthly"')
-        self.assertContains(response, 'data-pricing-panel="annual"')
-        self.assertContains(response, 'data-pricing-panel="semiannual"')
-        self.assertContains(response, f'data-plan-code="{monthly.code}"')
-        self.assertContains(response, f'data-plan-code="{annual.code}"')
-        self.assertContains(response, f'data-plan-code="{semiannual.code}"')
-        for screen_count in range(1, 6):
-            self.assertContains(
-                response,
-                f'data-screen-count-option="{screen_count}"',
-            )
+        groups = dict(response.context["pricing_groups"])
+        terms = {plan["code"]: plan["landing_duration"] for plan in groups[3]}
+        self.assertEqual(terms[monthly.code], "شهر واحد")
+        self.assertEqual(terms[semiannual.code], "6 أشهر")
+        self.assertEqual(terms[annual.code], "سنة كاملة")
+        for plan in (monthly, semiannual, annual):
+            self.assertContains(response, f'data-plan-code="{plan.code}"')
+        self.assertContains(response, 'name="landing-screen-count"')
+
+    def test_landing_starting_price_updates_and_disappears_when_plan_is_inactive(self):
+        monthly_plan = SubscriptionPlan.objects.get(code="school-screen-1-monthly")
+        response = self.client.get(reverse("website:home"))
+        self.assertContains(response, "<strong>119 ر.س</strong>", html=True)
+
+        monthly_plan.price = Decimal("139.00")
+        monthly_plan.save(update_fields=["price"])
+        response = self.client.get(reverse("website:home"))
+        self.assertContains(response, "<strong>139 ر.س</strong>", html=True)
+
+        monthly_plan.is_active = False
+        monthly_plan.save(update_fields=["is_active"])
+        response = self.client.get(reverse("website:home"))
+        self.assertNotContains(response, 'class="hero-price-amount"')
+        self.assertContains(response, 'class="hero-price" href="#pricing"')
 
     def test_landing_pricing_reflects_dashboard_price_update_on_next_request(self):
         plan = SubscriptionPlan.objects.create(
