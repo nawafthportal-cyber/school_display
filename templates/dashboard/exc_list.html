@@ -2,7 +2,8 @@
 
 {% block title %}قسم التميّز{% endblock %}
 {% block page_title %}قسم التميّز{% endblock %}
-{% block page_description %}إدارة بطاقات التميّز وعرضها على شاشات العرض{% endblock %}
+{% block page_area %}النشر على الشاشة{% endblock %}
+{% block page_description %}راجع بطاقات التكريم وفترات عرضها. أضف بطاقة جديدة وحدّد الفترة التي تظهر فيها على شاشات المدرسة.{% endblock %}
 
 {% block page_actions %}
   <div class="dp-toolbar__actions">
@@ -50,7 +51,7 @@
   {% if page.object_list %}
     <div class="dp-section-head">
       <div>
-        <h3>بطاقات التميّز</h3>
+        <h2>بطاقات التميّز</h2>
         <p>كل بطاقة تعرض الاسم، سبب التميّز، الصورة، وفترة العرض.</p>
       </div>
       <span class="dp-pill dp-pill--slate">{{ page.object_list|length }} من {{ page.paginator.count }}</span>

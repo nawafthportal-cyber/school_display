@@ -1,15 +1,19 @@
 {% extends "dashboard/_base.html" %}
 
 {% block title %}لا توجد مدرسة{% endblock %}
-{% block page_title %}لا توجد مدرسة{% endblock %}
-{% block page_description %}حسابك غير مرتبط بمدرسة{% endblock %}
+{% block page_title %}ابدأ بإضافة مدرسة{% endblock %}
+{% block page_area %}المدارس والحساب{% endblock %}
+{% block page_description %}اربط حسابك بمدرسة لتظهر لك شاشاتها وجدولها وإعداداتها.{% endblock %}
 
 {% block content %}
 <div style="max-width:32rem;margin-inline:auto">
   <div class="dp-empty">
     <div class="dp-empty__icon"><i class="fa-solid fa-school-circle-exclamation" aria-hidden="true"></i></div>
-    <h3>لا توجد مدرسة مرتبطة</h3>
-    <p>حسابك غير مرتبط بأي مدرسة نشطة. تواصل مع الإدارة أو الدعم الفني لإضافة مدرسة.</p>
+    <h2>لا توجد مدرسة مرتبطة</h2>
+    <p>يمكنك إنشاء مدرسة جديدة. إذا كانت مدرستك مسجّلة بالفعل، اطلب من الإدارة ربطها بحسابك.</p>
+    {% if not is_system_staff %}
+      <a href="{% url 'dashboard:add_school' %}" class="dp-btn dp-btn--primary">إضافة مدرسة</a>
+    {% endif %}
     <a href="{% url 'dashboard:logout' %}" class="dp-btn dp-btn--ghost">
       <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
       <span>تسجيل الخروج</span>

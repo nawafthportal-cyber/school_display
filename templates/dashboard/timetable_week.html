@@ -2,7 +2,8 @@
 
 {% block title %}جدول الأسبوع للفصل{% endblock %}
 {% block page_title %}جدول الأسبوع للفصل{% endblock %}
-{% block page_description %}عرض أسبوعي كامل للفصل {{ selected_class.name }} مع المواد والمعلمين لكل يوم دراسي{% endblock %}
+{% block page_area %}تشغيل اليوم{% endblock %}
+{% block page_description %}{% if selected_class %}راجع مواد ومعلمي {{ selected_class.name }} خلال أيام الدراسة. افتح الجدول اليومي لتحرير أي حصة.{% else %}اختر فصلًا من الجدول اليومي لمراجعة حصصه على مدار الأسبوع.{% endif %}{% endblock %}
 
 {% block page_actions %}
   <div class="dp-toolbar__actions">

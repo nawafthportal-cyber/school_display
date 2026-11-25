@@ -2,7 +2,8 @@
 {% load static %}
 {% block title %}{% if is_edit %}تعديل الثيم{% else %}إنشاء ثيم خاص{% endif %}{% endblock %}
 {% block page_title %}{% if is_edit %}تعديل: {{ theme.name }}{% else %}ثيم يحمل هوية مدرستك{% endif %}{% endblock %}
-{% block page_description %}خصص الألوان والخطوط والبطاقات وشاهد النتيجة أثناء التعديل{% endblock %}
+{% block page_area %}الشاشات والهوية{% endblock %}
+{% block page_description %}عدّل الألوان والخطوط ومظهر البطاقات، وراجعها في المعاينة. اختر الشاشة التي ستستخدم التصميم من صفحة المظهر اليومي.{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/theme-editor.css' %}?v=2026-11-25-studio"><link rel="stylesheet" href="{% static 'css/custom-display-theme.css' %}">{% endblock %}
 {% block content %}
 <div class="theme-workspace">

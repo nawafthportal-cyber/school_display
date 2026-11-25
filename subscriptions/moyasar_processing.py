@@ -12,7 +12,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .models import MoyasarCheckout, SchoolSubscription, SubscriptionPaymentOperation
-from .trials import close_superseded_trials_quietly
+from .plan_terms import activate_gateway_plan
 
 
 logger = logging.getLogger(__name__)
@@ -232,7 +232,10 @@ def _record_gateway_refund(checkout: MoyasarCheckout, details: dict) -> None:
 def _activate_paid_checkout(checkout: MoyasarCheckout, *, status: str, event_type: str) -> MoyasarCheckout:
     may_activate = checkout.live_mode or bool(getattr(settings, "MOYASAR_ACTIVATE_TEST_PAYMENTS", False))
     if may_activate:
-        if checkout.request_type == "screens":
+        operation = checkout.payment_operation
+        if operation is not None:
+            subscription = operation.subscription
+        elif checkout.request_type == "screens":
             # Tops up the running term; never creates or extends a subscription.
             subscription = _current_subscription_for(checkout)
             if subscription is None:
@@ -240,33 +243,13 @@ def _activate_paid_checkout(checkout: MoyasarCheckout, *, status: str, event_typ
                     "لا يوجد اشتراك ساري لإضافة الشاشات إليه."
                 )
         else:
-            subscription, _created = SchoolSubscription.objects.get_or_create(
-                school=checkout.school,
+            subscription = activate_gateway_plan(
+                school_id=checkout.school_id,
                 plan=checkout.plan,
-                starts_at=checkout.starts_at,
-                defaults={
-                    "status": "active",
-                    "notes": f"Paid via Moyasar {checkout.merchant_reference}",
-                },
+                requested_start=checkout.starts_at,
+                notes=f"Paid via Moyasar {checkout.merchant_reference}",
             )
-            if subscription.status != "active":
-                subscription.status = "active"
-                changed = ["status", "updated_at"]
-                # ``update_fields`` silently drops the ``ends_at`` the model
-                # computes on save. Reviving a row whose term already lapsed
-                # would hand the customer an expired subscription they just
-                # paid for, so give them the full term from today.
-                term_days = int(getattr(checkout.plan, "duration_days", 0) or 0)
-                today = timezone.localdate()
-                if term_days > 0 and (subscription.ends_at is None or subscription.ends_at < today):
-                    subscription.ends_at = today + timedelta(days=term_days)
-                    changed.append("ends_at")
-                subscription.save(update_fields=changed)
 
-            # التجربة المجانية لا يجوز أن تستمر بالعد التنازلي بعد الاشتراك المدفوع.
-            close_superseded_trials_quietly(checkout.school_id)
-
-        operation = checkout.payment_operation
         if operation is None:
             operation = SubscriptionPaymentOperation.objects.create(
                 school=checkout.school,

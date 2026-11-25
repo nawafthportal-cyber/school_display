@@ -115,6 +115,24 @@ class AdminRemediationTests(TestCase):
         self.assertEqual(op.amount, Decimal("60"))
         self.assertTrue(SubscriptionInvoice.objects.get(operation=op).html_snapshot)
 
+    def test_approval_reschedules_an_old_same_plan_quote_and_rejects_a_duplicate(self):
+        today = timezone.localdate()
+        current = SchoolSubscription.objects.create(
+            school=self.school, plan=self.plan,
+            starts_at=today - timedelta(days=20), ends_at=today + timedelta(days=10),
+        )
+        request = self.request()
+        duplicate = self.request()
+
+        approved, changed = process_request(request_id=request.pk, action="approve", actor=self.owner)
+
+        self.assertTrue(changed)
+        self.assertEqual(approved.requested_starts_at, today)
+        self.assertEqual(approved.approved_subscription.starts_at, current.ends_at + timedelta(days=1))
+        with self.assertRaises(ValidationError):
+            process_request(request_id=duplicate.pk, action="approve", actor=self.owner)
+        self.assertEqual(SubscriptionPaymentOperation.objects.filter(school=self.school).count(), 1)
+
     def test_cancelled_subscription_conflict_preserves_all_existing_records(self):
         sub = SchoolSubscription.objects.create(school=self.school, plan=self.plan, starts_at=timezone.localdate(), status="cancelled")
         req = self.request()

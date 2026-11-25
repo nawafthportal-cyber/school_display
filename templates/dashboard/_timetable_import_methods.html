@@ -2,10 +2,10 @@
   <strong>اختر طريقة الاستيراد</strong>
   <div class="dp-toolbar__actions">
     <a href="{% url 'dashboard:school_document_import' %}" class="dp-btn {% if method == 'smart' %}dp-btn--primary{% else %}dp-btn--soft{% endif %}" {% if method == 'smart' %}aria-current="page"{% endif %}>
-      <i class="fa-solid fa-file-image" aria-hidden="true"></i> استيراد ذكي من ملفك
+      <i class="fa-solid fa-file-image" aria-hidden="true"></i> استخدام ملفك الحالي
     </a>
     <a href="{% url 'dashboard:school_data_import' %}" class="dp-btn {% if method == 'excel' %}dp-btn--primary{% else %}dp-btn--soft{% endif %}" {% if method == 'excel' %}aria-current="page"{% endif %}>
-      <i class="fa-solid fa-file-excel" aria-hidden="true"></i> استيراد باستخدام قالب Excel
+      <i class="fa-solid fa-file-excel" aria-hidden="true"></i> استخدام قالب Excel الجاهز
     </a>
   </div>
 </nav>

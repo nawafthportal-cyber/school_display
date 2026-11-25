@@ -2,7 +2,8 @@
 
 {% block title %}تحرير اليوم{% endblock %}
 {% block page_title %}{{ day.day_name }}{% endblock %}
-{% block page_description %}تخصيص الحصص والفسح لهذا اليوم فقط.{% endblock %}
+{% block page_area %}الجدول والبيانات{% endblock %}
+{% block page_description %}اضبط أوقات الحصص والفسح لهذا اليوم من كل أسبوع. تأكّد من ترتيب الأوقات واحفظ تعديلاتك.{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -431,7 +432,7 @@
   </section>
 
   <div class="day-layout">
-    <main class="space-y-5">
+    <div class="space-y-5">
       <form method="post" id="dayForm" class="space-y-5">
         {% csrf_token %}
 
@@ -589,7 +590,7 @@
           </div>
         </div>
       </form>
-    </main>
+    </div>
 
     <aside class="day-side">
       <section class="day-card">

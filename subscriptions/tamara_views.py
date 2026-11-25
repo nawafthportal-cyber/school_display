@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import date, timedelta
+from datetime import timedelta
 
 import jwt
 from django.conf import settings
@@ -22,6 +22,7 @@ from .models import (
     SchoolSubscription,
     TamaraCheckout,
 )
+from .plan_terms import paid_plan_start_date
 from .tamara import (
     TamaraAPIError,
     TamaraClient,
@@ -50,23 +51,6 @@ def _mark_checkout_error(checkout: TamaraCheckout, message: str) -> None:
     checkout.status = "error"
     checkout.error_message = str(message)[:300]
     checkout.save(update_fields=["status", "error_message", "updated_at"])
-
-
-def _renewal_start(school, plan) -> date:
-    today = timezone.localdate()
-    current = (
-        SchoolSubscription.objects.filter(
-            school=school,
-            plan=plan,
-            status="active",
-            starts_at__lte=today,
-        )
-        .order_by("-ends_at", "-starts_at", "-id")
-        .first()
-    )
-    if current and current.ends_at and current.ends_at >= today:
-        return current.ends_at + timedelta(days=1)
-    return today
 
 
 @login_required(login_url="dashboard:login")
@@ -102,14 +86,10 @@ def tamara_start(request):
         messages.error(request, "هذه الخطة مجانية ولا تحتاج إلى دفع عبر تمارا.")
         return redirect("dashboard:my_subscription")
 
-    if request_type == "renewal":
-        has_plan = SchoolSubscription.objects.filter(school=school, plan=plan).exists()
-        if not has_plan:
-            messages.error(request, "لا يمكن تجديد خطة غير مرتبطة بمدرستك.")
-            return redirect("dashboard:my_subscription")
-        starts_at = _renewal_start(school, plan)
-    else:
-        starts_at = timezone.localdate()
+    if request_type == "renewal" and not SchoolSubscription.objects.filter(school=school, plan=plan).exists():
+        messages.error(request, "لا يمكن تجديد خطة غير مرتبطة بمدرستك.")
+        return redirect("dashboard:my_subscription")
+    starts_at = paid_plan_start_date(school.pk, plan.pk)
 
     recent = (
         TamaraCheckout.objects.filter(
@@ -303,7 +283,11 @@ def tamara_return(request, outcome: str):
                     checkout.merchant_reference,
                 )
         if checkout.status in {"authorised", "captured"}:
-            messages.success(request, "اكتمل دفع تمارا وتم تفعيل الاشتراك.")
+            if checkout.subscription_id and checkout.subscription.starts_at > timezone.localdate():
+                starts_at = checkout.subscription.starts_at.isoformat()
+                messages.success(request, f"اكتمل دفع تمارا. تبدأ مدة الاشتراك في {starts_at}.")
+            else:
+                messages.success(request, "اكتمل دفع تمارا وتم تفعيل الاشتراك.")
         else:
             messages.info(request, "استلمنا عودتك من تمارا، وجارٍ تأكيد الدفع تلقائيًا.")
     elif outcome == "cancel":

@@ -24,6 +24,7 @@ from core.tenant_access import authorized_active_school
 from .discounts import DiscountError, quote_discount
 from .models import MoyasarCheckout, SchoolSubscription
 from .moyasar import MoyasarAPIError, MoyasarClient, MoyasarConfigurationError
+from .plan_terms import paid_plan_start_date
 from .pricing import (
     checkout_total,
     normalize_extra_screens,
@@ -71,23 +72,6 @@ def _user_may_checkout(user) -> bool:
 def _active_subscription(school):
     """The running paid subscription a screens-only purchase attaches to."""
     return school_active_paid_subscription(getattr(school, "pk", None))
-
-
-def _renewal_start(school, plan) -> date:
-    today = timezone.localdate()
-    current = (
-        SchoolSubscription.objects.filter(
-            school=school,
-            plan=plan,
-            status="active",
-            starts_at__lte=today,
-        )
-        .order_by("-ends_at", "-starts_at", "-id")
-        .first()
-    )
-    if current and current.ends_at and current.ends_at >= today:
-        return current.ends_at + timedelta(days=1)
-    return today
 
 
 def _screen_addon_window(*, starts_at: date, subscription, requested_days) -> tuple[int, date]:
@@ -187,13 +171,10 @@ def moyasar_start(request):
             messages.error(request, "هذه الخطة مجانية ولا تحتاج إلى بوابة دفع.")
             return redirect("dashboard:my_subscription")
 
-        if request_type == "renewal":
-            if not SchoolSubscription.objects.filter(school=school, plan=plan).exists():
-                messages.error(request, "لا يمكن تجديد خطة غير مرتبطة بمدرستك.")
-                return redirect("dashboard:my_subscription")
-            starts_at = _renewal_start(school, plan)
-        else:
-            starts_at = timezone.localdate()
+        if request_type == "renewal" and not SchoolSubscription.objects.filter(school=school, plan=plan).exists():
+            messages.error(request, "لا يمكن تجديد خطة غير مرتبطة بمدرستك.")
+            return redirect("dashboard:my_subscription")
+        starts_at = paid_plan_start_date(school.pk, plan.pk)
         addon_days = None
         addon_ends_at = None
 
@@ -390,7 +371,12 @@ def moyasar_return(request, reference: str | None = None):
         return redirect("dashboard:my_subscription")
 
     if checkout.status in {"paid", "captured"}:
-        if checkout.payment_operation_id:
+        if checkout.payment_operation_id and checkout.request_type == "screens":
+            messages.success(request, "اكتمل الدفع الإلكتروني وتمت إضافة الشاشات.")
+        elif checkout.payment_operation_id and checkout.subscription_id and checkout.subscription.starts_at > timezone.localdate():
+            starts_at = checkout.subscription.starts_at.isoformat()
+            messages.success(request, f"اكتمل الدفع الإلكتروني. تبدأ مدة الاشتراك في {starts_at}.")
+        elif checkout.payment_operation_id:
             messages.success(request, "اكتمل الدفع الإلكتروني وتم تفعيل الاشتراك.")
         else:
             # Only reachable in test mode, which is restricted to staff accounts.

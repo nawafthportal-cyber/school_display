@@ -1,10 +1,10 @@
 <section class="import-changes dp-stack dp-stack--tight" data-import-changes>
-  <strong>مقارنة الحصص قبل الحفظ</strong>
+  <h2 class="font-bold">مقارنة الحصص قبل الحفظ</h2>
   <p>{{ impact.new_lessons }} إضافة · {{ impact.updated_lessons }} تعديل · {{ impact.moved_lessons }} نقل · {{ impact.deleted_lessons }} حذف · {{ impact.unchanged_lessons }} دون تغيير</p>
   {% if parsed.strategy == 'replace' %}
   <p class="ic-replacement">سيُستبدل جدول حصص المدرسة كاملًا، بما فيه حصص الفصول والأيام الغائبة عن الملف. تبقى قوائم المعلمين والمواد والفصول وتوقيت المدرسة المسجل.</p>
   {% endif %}
-  <p class="ic-help">يُعرض النقل عند وجود تطابق وحيد للفصل والمادة والمعلم بين موضع قديم وجديد. الحالات المتكررة غير المميزة تظهر كإضافة وحذف دون تخمين الربط بينها.</p>
+  <p class="ic-help">راجع عمودي «قبل» و«بعد الاعتماد». يظهر تغيير الموعد كنقل عند وجود حصة مطابقة واحدة للفصل والمادة والمعلم. عند تكرار الحصة قد يظهر التغيير كإضافة وحذف.</p>
   {% if impact.changes %}
   <div class="ic-tools">
     <div class="dp-field"><label for="importChangesSearch">ابحث في التغييرات</label><input id="importChangesSearch" type="search" data-change-search placeholder="الفصل أو المعلم أو المادة"></div>

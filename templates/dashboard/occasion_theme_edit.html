@@ -2,7 +2,8 @@
 {% load static %}
 {% block title %}تخصيص ثيم {{ occasion.name }}{% endblock %}
 {% block page_title %}{% if creating %}تصميم مناسبة جديدة{% else %}اسم وتصميم ثيم المناسبة{% endif %}{% endblock %}
-{% block page_description %}تخصيص {{ occasion.name }} لمدرسة {{ school.name }}{% endblock %}
+{% block page_area %}الشاشات والهوية{% endblock %}
+{% block page_description %}{% if creating %}أدخل اسم المناسبة ونصها، ثم راجع مظهرها في المعاينة قبل الحفظ.{% else %}عدّل تصميم {{ occasion.name }} وراجع معاينته. يظهر التعديل على الشاشات التي تعرض هذه المناسبة.{% endif %}{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/occasion-theme-editor.css' %}?v=2026-11-25-studio">{% endblock %}
 {% block content %}
 <div class="dp-stack occasion-theme-workspace">

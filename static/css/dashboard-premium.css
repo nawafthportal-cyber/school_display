@@ -18,8 +18,8 @@
 .dashboard-shell {
   --dp-ink: #12303d;
   --dp-ink-soft: #40525f;
-  --dp-muted: #6b7a86;
-  --dp-faint: #94a2ad;
+  --dp-muted: #536774;
+  --dp-faint: #62737c;
 
   --dp-teal: #145a6a;
   --dp-teal-deep: #0e3b48;
@@ -30,16 +30,16 @@
   --dp-gold-soft: #d9bf94;
   --dp-gold-wash: rgba(180, 139, 87, 0.13);
 
-  --dp-line: rgba(124, 116, 102, 0.16);
-  --dp-line-soft: rgba(124, 116, 102, 0.1);
+  --dp-line: #dcded7;
+  --dp-line-soft: #eaebe6;
 
   --dp-surface: #ffffff;
-  --dp-surface-tint: #fbfaf8;
-  --dp-surface-sunk: #f6f7f8;
+  --dp-surface-tint: #fbfaf6;
+  --dp-surface-sunk: #edf3f1;
 
   /* Two-part shadow: a tight contact edge plus a wide soft ambient one. A
      single blur reads as a grey smudge; the pair reads as height. */
-  --dp-shadow: 0 1px 2px rgba(18, 48, 61, 0.05), 0 12px 28px -14px rgba(18, 48, 61, 0.28);
+  --dp-shadow: 0 1px 3px rgba(18, 48, 61, 0.06), 0 8px 20px -15px rgba(18, 48, 61, 0.3);
   --dp-shadow-lift: 0 2px 4px rgba(18, 48, 61, 0.06), 0 22px 44px -18px rgba(18, 48, 61, 0.34);
 
   --dp-r-lg: 18px;
@@ -211,13 +211,13 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 2.65rem;
+  min-height: 2.75rem;
   border: 1px solid transparent;
   border-radius: var(--dp-r-sm);
   padding: 0.6rem 0.95rem;
   color: var(--dp-ink);
   font-size: 0.8rem;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1.3;
   white-space: nowrap;
   transition: background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease, transform .18s ease;
@@ -230,10 +230,10 @@
 .dp-btn--primary {
   color: #fffaf3;
   border-color: var(--dp-teal-deep);
-  background: linear-gradient(145deg, #16576a 0%, var(--dp-teal-deep) 100%);
-  box-shadow: 0 10px 22px -12px rgba(14, 59, 72, 0.9);
+  background: var(--dp-teal-deep);
+  box-shadow: 0 4px 10px -6px rgba(14, 59, 72, .7);
 }
-.dp-btn--primary:hover { background: linear-gradient(145deg, #1a6c81 0%, #114a5b 100%); }
+.dp-btn--primary:hover { background: var(--dp-teal); }
 
 .dp-btn--gold {
   color: #3d2b12;
@@ -549,13 +549,13 @@
 .dp-field { display: grid; gap: 0.35rem; min-width: 0; }
 .dp-field > label {
   color: var(--dp-ink-soft);
-  font-size: 0.73rem;
-  font-weight: 900;
+  font-size: 0.86rem;
+  font-weight: 750;
 }
 .dp-field__hint {
-  color: var(--dp-faint);
-  font-size: 0.68rem;
-  font-weight: 650;
+  color: var(--dp-muted);
+  font-size: 0.78rem;
+  font-weight: 550;
   line-height: 1.7;
 }
 .dp-field__error {
@@ -563,8 +563,8 @@
   padding: 0.4rem 0.55rem;
   color: #be123c;
   background: #fff1f2;
-  font-size: 0.68rem;
-  font-weight: 800;
+  font-size: 0.78rem;
+  font-weight: 750;
 }
 
 /* Numeric field with a trailing unit ("دقيقة"), kept outside the input so it
@@ -639,7 +639,7 @@
   box-shadow: var(--dp-shadow);
   font-size: 1.15rem;
 }
-.dp-empty h3, .dp-empty h4 {
+.dp-empty :is(h2, h3, h4) {
   margin: 0.4rem 0 0;
   color: var(--dp-ink);
   font-size: 0.95rem;
@@ -701,19 +701,19 @@
    -------------------------------------------------------------------------- */
 .dp-record {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.75rem;
   border: 1px solid var(--dp-line);
   border-radius: var(--dp-r-md);
   background: #fff;
-  padding: 0.85rem;
+  padding: 1rem;
   box-shadow: var(--dp-shadow);
 }
 /* Records laid out as cards rather than table rows — used where each entry
    carries a paragraph of its own (announcements, excellence cards). */
 .dp-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
-  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
+  gap: 0.85rem;
 }
 
 /* A person's photo (or their initial) beside their name. */
@@ -736,9 +736,9 @@
 }
 
 /* The status block on the leading edge of a record's head. */
-.dp-record__status { flex: 0 0 auto; text-align: end; }
-.dp-record__status strong { display: block; color: var(--dp-ink); font-size: 0.75rem; font-weight: 900; }
-.dp-record__status small { display: block; margin-top: 0.1rem; color: var(--dp-muted); font-size: 0.66rem; font-weight: 650; }
+.dp-record__status { flex: 0 1 auto; text-align: end; }
+.dp-record__status strong { display: block; color: var(--dp-ink); font-size: 0.8rem; font-weight: 800; }
+.dp-record__status small { display: block; margin-top: 0.1rem; color: var(--dp-muted); font-size: 0.72rem; }
 
 /* A hairline on the inline-start edge carries the record's lifecycle state,
    so a list can be skimmed for "what is on air right now". */
@@ -753,7 +753,7 @@
   background: linear-gradient(140deg, rgba(244, 63, 94, 0.06), #fff 58%);
 }
 .dp-record__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; min-width: 0; }
-.dp-record__title { min-width: 0; color: var(--dp-ink); font-size: 0.9rem; font-weight: 900; }
+.dp-record__title { min-width: 0; color: var(--dp-ink); font-size: 1rem; font-weight: 800; overflow-wrap: anywhere; }
 .dp-record__rows { display: grid; gap: 0.3rem; }
 .dp-record__row {
   display: flex;
@@ -763,7 +763,7 @@
   font-size: 0.75rem;
 }
 .dp-record__row dt { color: var(--dp-muted); font-weight: 700; }
-.dp-record__row dd { margin: 0; min-width: 0; color: var(--dp-ink); font-weight: 800; text-align: end; }
+.dp-record__row dd { margin: 0; min-width: 0; color: var(--dp-ink); font-weight: 650; text-align: end; overflow-wrap: anywhere; }
 .dp-record__foot {
   display: flex;
   align-items: center;
@@ -797,7 +797,7 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
 }
 .dashboard-shell .dp-table thead th {
   position: sticky;
@@ -805,10 +805,10 @@
   z-index: 1;
   border-bottom: 1px solid var(--dp-line);
   background: var(--dp-surface-sunk);
-  padding: 0.65rem 0.85rem;
-  color: var(--dp-muted) !important;
-  font-size: 0.71rem;
-  font-weight: 900;
+  padding: 0.75rem 0.9rem;
+  color: var(--dp-ink-soft) !important;
+  font-size: 0.8rem;
+  font-weight: 800;
   text-align: start;
   white-space: nowrap;
 }
@@ -885,6 +885,35 @@
    -------------------------------------------------------------------------- */
 .dp-brandmark { background: linear-gradient(140deg, var(--dp-teal-bright), var(--dp-teal-deep)); }
 .dp-icontile { color: var(--dp-teal); background: var(--dp-teal-wash); }
+.dashboard-brand-link { color: var(--dp-ink); font-size: .95rem; font-weight: 850; line-height: 1.4; }
+.dashboard-brand-school {
+  max-inline-size: clamp(8rem, 24vw, 17rem);
+  overflow: hidden;
+  color: var(--dp-ink-soft);
+  font-size: .75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-skip-link {
+  position: fixed;
+  z-index: 90;
+  inset-block-start: .5rem;
+  inset-inline-start: .5rem;
+  transform: translateY(-160%);
+  padding: .7rem 1rem;
+  border-radius: var(--dp-r-sm);
+  background: var(--dp-teal-deep);
+  color: #fff;
+}
+.dashboard-skip-link:focus { transform: none; }
+.dashboard-main, .dashboard-anchor { scroll-margin-block-start: calc(var(--header-h) + .75rem); }
+.dashboard-shell :is(a, button, summary, [tabindex="0"]):focus-visible {
+  outline: 2px solid var(--dp-teal);
+  outline-offset: 3px;
+}
+.dashboard-table-scroll:focus-visible { outline-offset: -2px; }
+.dashboard-sidebar .sidebar-link:focus-visible { outline-color: var(--dashboard-nav-gold); outline-offset: -3px; }
 
 /* The page header carries the page's primary action beside its title, so a
    page does not need a second titled bar underneath repeating its own name. */
@@ -893,12 +922,54 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.85rem;
+  gap: 1rem;
+  padding: clamp(.95rem, 2.35vw, 1.65rem);
+  border: 1px solid var(--dp-line);
+  border-inline-start: 4px solid var(--dp-gold);
+  border-radius: var(--dp-r-lg);
+  background: linear-gradient(115deg, var(--dp-surface-tint), var(--dp-surface) 72%);
+  box-shadow: var(--dp-shadow);
 }
+.dashboard-page-intro__copy { flex: 1 1 20rem; min-inline-size: 0; }
+.dashboard-page-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .55rem;
+  margin-block-end: .35rem;
+  color: var(--dp-ink-soft);
+  font-size: .75rem;
+  font-weight: 750;
+}
+.dashboard-page-path a { color: var(--dp-teal); text-decoration: underline; text-underline-offset: .2em; }
+.dashboard-page-intro h1 {
+  margin: 0;
+  color: var(--dp-ink);
+  font-size: clamp(1.4rem, 2.65vw, 2rem);
+  font-weight: 850;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.dashboard-page-intro__copy > p {
+  max-inline-size: 52rem;
+  margin-block-start: .4rem;
+  color: var(--dp-ink-soft);
+  font-size: .9rem;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.dashboard-page-intro__copy > p:empty { display: none; }
 .dashboard-page-intro .dp-toolbar__actions { flex: 0 0 auto; }
-@media (max-width: 640px) {
-  .dashboard-page-intro { align-items: stretch; }
+@media (max-width: 639px) {
+  .dashboard-page-intro { align-items: stretch; margin-block-end: 1rem; }
+  .dashboard-page-intro__copy { flex-basis: 100%; }
+  .dashboard-page-intro__copy > p { font-size: .85rem; }
+  .dashboard-page-intro .dp-toolbar__actions { flex-basis: 100%; }
   .dashboard-page-intro .dp-toolbar__actions > .dp-btn { flex: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-shell .dashboard-sidebar { transition: none; }
 }
 
 /* An inline link inside body copy or a table cell. */
@@ -971,24 +1042,26 @@
 }
 .dp-panel__head {
   border-bottom: 1px solid var(--dp-line-soft);
-  background: linear-gradient(180deg, var(--dp-surface-tint), #fff);
-  padding: 0.85rem 1rem;
+  border-start-start-radius: inherit;
+  border-start-end-radius: inherit;
+  background: var(--dp-surface-tint);
+  padding: 1rem 1.15rem;
 }
-.dp-panel__head h3 {
+.dp-panel__head :is(.dp-panel__title, h3) {
   margin: 0;
   color: var(--dp-ink);
-  font-size: 0.92rem;
-  font-weight: 900;
+  font-size: 1rem;
+  font-weight: 800;
   line-height: 1.5;
 }
 .dp-panel__head p {
   margin: 0.2rem 0 0;
   color: var(--dp-muted);
-  font-size: 0.74rem;
-  font-weight: 650;
+  font-size: 0.82rem;
+  font-weight: 550;
   line-height: 1.75;
 }
-.dp-panel__body { display: grid; gap: 0.95rem; padding: 1rem; }
+.dp-panel__body { display: grid; gap: 1rem; padding: 1.15rem; }
 
 /* Field pairs that share a row until the screen gets too narrow. */
 .dp-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.95rem; }
@@ -1154,7 +1227,7 @@
 /* --------------------------------------------------------------------------
    Steps strip — "1. download, 2. preview, 3. import"
    -------------------------------------------------------------------------- */
-.dp-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.7rem; }
+.dp-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem; }
 .dp-step {
   min-width: 0;
   border: 1px solid var(--dp-line);
@@ -1177,8 +1250,15 @@
 .dp-step strong { display: block; margin-top: 0.5rem; color: var(--dp-ink); font-size: 0.82rem; font-weight: 900; }
 .dp-step p { margin: 0.2rem 0 0; color: var(--dp-muted); font-size: 0.73rem; line-height: 1.75; }
 /* The step the user is on right now. */
-.dp-step.is-current { border-color: rgba(20, 90, 106, 0.35); background: linear-gradient(145deg, var(--dp-teal-wash), #fff 60%); }
-.dp-step.is-current .dp-step__n { color: #fffaf3; background: linear-gradient(145deg, #16576a, var(--dp-teal-deep)); }
+.dp-step[aria-current="step"] { border-color: var(--dp-teal); background: var(--dp-surface-sunk); }
+.dp-step[aria-current="step"] .dp-step__n { color: #fffaf3; background: var(--dp-teal-deep); }
+@media (max-width: 639px) {
+  .dp-steps { gap: .4rem; }
+  .dp-step { padding: .55rem .35rem; text-align: center; }
+  .dp-step__n { margin-inline: auto; }
+  .dp-step strong { margin-block-start: .3rem; font-size: .75rem; }
+  .dp-step p { display: none; }
+}
 
 /* --------------------------------------------------------------------------
    Live preview aside — what the manager is about to put on a TV
@@ -1298,9 +1378,6 @@
   .dp-grid-2 { grid-template-columns: 1fr; }
   .dp-preview { border-radius: 14px; padding: 0.85rem; }
   .dp-choice { border-radius: 14px; }
-
-  .dp-hero { border-radius: 16px; padding: 0.95rem; }
-  .dp-hero p { font-size: 0.79rem; line-height: 1.8; }
 
   .dp-hero { border-radius: 16px; padding: 0.95rem; }
   .dp-hero p { font-size: 0.79rem; line-height: 1.8; }

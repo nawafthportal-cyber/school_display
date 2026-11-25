@@ -7,7 +7,7 @@ out separately, with different markup and different wording for the same
 {% endcomment %}
 {% if page.paginator.num_pages > 1 %}
   <nav class="dp-pagination" aria-label="{{ label|default:'ترقيم الصفحات' }}">
-    <span>عرض {{ page.start_index }}-{{ page.end_index }} من {{ page.paginator.count }}</span>
+    <span>عرض <bdi>{{ page.start_index }}–{{ page.end_index }}</bdi> من <bdi>{{ page.paginator.count }}</bdi></span>
     <div class="dp-pagination__pages">
       {% if page.has_previous %}
         <a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ page.previous_page_number }}" rel="prev">السابق</a>
@@ -18,7 +18,7 @@ out separately, with different markup and different wording for the same
         {% elif num == page.paginator.ELLIPSIS %}
           <span>{{ num }}</span>
         {% else %}
-          <a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ num }}">{{ num }}</a>
+          <a href="?{% if query %}{{ query }}&amp;{% endif %}page={{ num }}" aria-label="الصفحة {{ num }}">{{ num }}</a>
         {% endif %}
       {% endfor %}
       {% if page.has_next %}

@@ -1,8 +1,8 @@
 <div class="dp-field">
   <label for="{{ strategy_id }}">طريقة تطبيق الجدول</label>
-  <select id="{{ strategy_id }}" name="strategy" data-import-strategy>
+  <select id="{{ strategy_id }}" name="strategy" data-import-strategy aria-describedby="{{ strategy_id }}-help">
     <option value="merge"{% if selected_strategy != 'replace' %} selected{% endif %}>دمج التعديلات مع الجدول الحالي</option>
     <option value="replace"{% if selected_strategy == 'replace' %} selected{% endif %}>استبدال الجدول كاملًا</option>
   </select>
-  <p class="di-help">الدمج يحتفظ بالحصص الأخرى. الاستبدال يجعل حصص جميع فصول المدرسة وأيامها مطابقة للملف المعتمد، ويحذف الحصص الغائبة عنه. ارفع الجدول كاملًا للاستبدال؛ ستراجع التغييرات والحذف قبل الحفظ.</p>
+  <p id="{{ strategy_id }}-help" class="di-help"><strong>الدمج</strong> يحدّث الحصص الموجودة في الملف ويحتفظ ببقية الجدول. <strong>الاستبدال</strong> يطابق جدول المدرسة كاملًا مع الملف ويحذف الحصص الغائبة عنه. راجع قائمة الحذف قبل الاعتماد.</p>
 </div>

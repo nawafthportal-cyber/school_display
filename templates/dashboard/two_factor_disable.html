@@ -2,8 +2,8 @@
 {% block title %}إلغاء المصادقة الثنائية{% endblock %}
 {% block heading %}تأكيد إلغاء الحماية{% endblock %}
 {% block content %}
-  <div class="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm leading-8 text-rose-100">
-    بعد الإلغاء سيصبح الدخول معتمدًا على كلمة المرور فقط. سيتم تسجيل خروجك، ويمكنك تفعيل المصادقة الثنائية مجددًا من إعدادات الأمان.
+  <div id="security-disable-impact" class="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm leading-8 text-rose-100">
+    سيُسجّل خروجك عند تأكيد الإلغاء. عند تسجيل الدخول مجددًا ستستخدم كلمة المرور وحدها حتى تعيد تفعيل المصادقة الثنائية.
   </div>
 
   <form method="post" class="mt-7 space-y-4" autocomplete="off">
@@ -19,7 +19,7 @@
              class="w-full rounded-xl border border-slate-600 bg-slate-950 px-4 py-3 text-center font-mono text-lg tracking-wider outline-none focus:border-teal-400"
              placeholder="000000">
     </div>
-    <button class="w-full rounded-xl bg-rose-600 px-5 py-3 font-bold hover:bg-rose-500" type="submit">تأكيد الإلغاء وتسجيل الخروج</button>
-    <a href="{% url 'dashboard:two_factor_setup' %}" class="block w-full rounded-xl border border-slate-600 px-5 py-3 text-center font-bold hover:bg-slate-800">تراجع</a>
+    <button aria-describedby="security-disable-impact" class="w-full rounded-xl bg-rose-700 px-5 py-3 font-bold hover:bg-rose-600" type="submit">إلغاء المصادقة وتسجيل الخروج</button>
+    <a href="{% url 'dashboard:two_factor_setup' %}" class="block w-full rounded-xl border border-slate-600 px-5 py-3 text-center font-bold hover:bg-slate-800">الإبقاء على الحماية</a>
   </form>
 {% endblock %}

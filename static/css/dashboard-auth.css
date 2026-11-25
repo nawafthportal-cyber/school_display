@@ -1,0 +1,68 @@
+.school-auth {
+  --auth-ink: #17333d;
+  --auth-action: #0e3b48;
+  --auth-accent: #bd975c;
+  --auth-focus: #176575;
+  background: #f1f1ea;
+  color: var(--auth-ink);
+}
+
+.school-auth--security {
+  --auth-ink: #eff8f6;
+  --auth-focus: #edd0a1;
+  background: #0c232d;
+  color-scheme: dark;
+  font-family: 'IBM Plex Sans Arabic', system-ui, sans-serif;
+}
+
+.school-auth .auth-card,
+.school-auth .dashboard-login-card,
+.school-auth .security-card {
+  border-block-start: 4px solid var(--auth-accent);
+}
+
+.school-auth--security .security-card {
+  border-inline-color: #3b5760;
+  border-block-end-color: #3b5760;
+  background: #142f3a;
+}
+
+.school-auth :is(input, button, a):focus-visible {
+  outline: 2px solid var(--auth-focus);
+  outline-offset: 3px;
+}
+
+.school-auth .security-kicker {
+  color: #edd0a1;
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.school-auth .security-mark {
+  flex: 0 0 auto;
+  border: 1px solid #53737a;
+  background: #244953;
+  color: #edd0a1;
+}
+
+.school-auth .auth-primary-link {
+  display: grid;
+  justify-items: center;
+  align-items: center;
+  min-block-size: 3rem;
+  padding: .65rem 1rem;
+  border-radius: .8rem;
+  background: var(--auth-action);
+  color: #fff;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.school-auth .auth-primary-link:hover { background: #145a6a; }
+.school-auth .auth-secondary-link { min-block-size: 44px; align-items: center; }
+.school-auth .security-code { max-inline-size: 100%; overflow-wrap: anywhere; }
+.school-auth .security-qr { max-inline-size: 14rem; margin-inline: auto; }
+
+@media (prefers-reduced-motion: reduce) {
+  .school-auth .fade-up { animation: none; }
+}

@@ -11,6 +11,7 @@ from .view_helpers import *  # noqa: F401,F403  (shared view layer)
 # After the star import on purpose, so the shared view layer can never shadow
 # these with something else of the same name.
 from decimal import Decimal, InvalidOperation  # noqa: E402
+from subscriptions.plan_terms import paid_plan_start_date  # noqa: E402
 
 
 @system_permission_required("subscriptions.view")
@@ -870,7 +871,7 @@ def my_subscription(request):
                         created_by=request.user,
                         request_type="renewal",
                         plan=plan_obj,
-                        requested_starts_at=timezone.localdate(),
+                        requested_starts_at=paid_plan_start_date(school.pk, plan_obj.pk),
                         amount=getattr(plan_obj, "price", 0) or 0,
                         receipt_image=_shorten_receipt_filename(
                             renew_form.cleaned_data["receipt_image"],
@@ -899,7 +900,7 @@ def my_subscription(request):
                     created_by=request.user,
                     request_type="new",
                     plan=plan_obj,
-                    requested_starts_at=timezone.localdate(),
+                    requested_starts_at=paid_plan_start_date(school.pk, plan_obj.pk),
                     amount=getattr(plan_obj, "price", 0) or 0,
                     receipt_image=_shorten_receipt_filename(
                         new_form.cleaned_data["receipt_image"],

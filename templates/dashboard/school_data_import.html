@@ -3,30 +3,31 @@
 
 {% block title %}استيراد بيانات المدرسة{% endblock %}
 {% block page_title %}استيراد بيانات المدرسة من Excel{% endblock %}
-{% block page_description %}قالب جاهز، معاينة الأخطاء، ثم استيراد ذري وآمن{% endblock %}
+{% block page_area %}الجدول والبيانات{% endblock %}
+{% block page_description %}نزّل قالب Excel وعبّئه، ثم ارفع الملف لمراجعة الأخطاء وتأثير التعديلات قبل اعتمادها.{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/import-changes.css' %}">{% endblock %}
 
 {% block content %}
 <div class="dp-stack">
   {% include 'dashboard/_timetable_import_methods.html' with method='excel' only %}
 
-  <section class="dp-steps">
-    <div class="dp-step{% if not parsed %} is-current{% endif %}">
-      <span class="dp-step__n">١</span>
-      <strong>نزّل القالب</strong>
-      <p>يحوي أوراق المعلمين والفصول والمواد والجدول بالترتيب المطلوب.</p>
-    </div>
-    <div class="dp-step{% if parsed %} is-current{% endif %}">
-      <span class="dp-step__n">٢</span>
-      <strong>ارفع وعاين</strong>
-      <p>لن تُحفظ أي بيانات أثناء المعاينة — هذه خطوة قراءة فقط.</p>
-    </div>
-    <div class="dp-step">
-      <span class="dp-step__n">٣</span>
-      <strong>نفّذ</strong>
-      <p>اختر الدمج أو الاستبدال، وراجع التغييرات، ثم احفظ مع إمكانية التراجع.</p>
-    </div>
-  </section>
+  <ol class="dp-steps" aria-label="مراحل الاستيراد">
+    <li class="dp-step"{% if not parsed and not completed_import %} aria-current="step"{% endif %}>
+      <span class="dp-step__n" aria-hidden="true">١</span>
+      <strong>تنزيل القالب</strong>
+      <p>عبّئ القوائم والجدول في الأوراق المخصصة.</p>
+    </li>
+    <li class="dp-step"{% if parsed and not import_token %} aria-current="step"{% endif %}>
+      <span class="dp-step__n" aria-hidden="true">٢</span>
+      <strong>رفع ومعاينة</strong>
+      <p>راجع نتائج القراءة وأصلح الأخطاء.</p>
+    </li>
+    <li class="dp-step"{% if import_token or completed_import %} aria-current="step"{% endif %}>
+      <span class="dp-step__n" aria-hidden="true">٣</span>
+      <strong>اعتماد التغييرات</strong>
+      <p>راجع الأثر على الجدول ثم احفظ.</p>
+    </li>
+  </ol>
 
   {% if completed_import %}
     <section class="dp-panel" style="border-color:#a7f3d0;background:linear-gradient(135deg,#ecfdf5,#fff)">
