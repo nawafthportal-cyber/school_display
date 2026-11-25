@@ -1196,7 +1196,7 @@ class SystemAdminExperienceTests(TestCase):
                 "name": "باقة متزامنة",
                 "description": "وصف موحد من لوحة إدارة المنصة",
                 "code": self.plan.code,
-                "price": "1777.00",
+                "price": "977.00",
                 "duration_days": "365",
                 "max_screens": "2",
                 "card_badge_text": "الأوفر للمدارس",
@@ -1220,9 +1220,13 @@ class SystemAdminExperienceTests(TestCase):
         self.client.force_login(self.manager)
         manager_response = self.client.get(reverse("dashboard:my_subscription"))
 
+        self.assertContains(landing_response, 'id="pricing-annual"')
+        self.assertContains(landing_response, f'data-plan-code="{self.plan.code}"')
+        self.assertContains(landing_response, "سنة كاملة")
+        self.assertNotContains(landing_response, "باقة متزامنة")
+        self.assertContains(manager_response, "باقة متزامنة")
         for catalog_response in (landing_response, manager_response):
-            self.assertContains(catalog_response, "باقة متزامنة")
-            self.assertContains(catalog_response, "1777")
+            self.assertContains(catalog_response, "977")
             self.assertContains(catalog_response, "عام دراسي — صلاحية 12 شهرًا")
             self.assertContains(catalog_response, "سعر موحد في جميع الواجهات")
 
