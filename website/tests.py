@@ -134,7 +134,7 @@ class TrialSignupTests(TestCase):
         self.assertContains(response, "استورد جدول الحصص من Excel")
         self.assertContains(response, "آخر محتوى محفوظ")
         self.assertContains(response, "اربط التلفاز بالجوال")
-        self.assertContains(response, "إدارة المحتوى — 299 ر.س شهريًا")
+        self.assertNotContains(response, "إدارة المحتوى — 299 ر.س شهريًا")
         self.assertNotContains(response, "مجمع تعليمي: حتى 3 مدارس و15 شاشة")
         self.assertContains(response, "سنة كاملة")
         self.assertContains(response, "الباقات والأسعار")
