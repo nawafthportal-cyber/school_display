@@ -7,7 +7,7 @@
 {% block page_description %}اختر الشاشة والمناسبة، ثم اعرضها الآن أو حدّد موعدها. يمكنك معاينة التصميم قبل أن يظهر على التلفاز.{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/occasion-studio.css' %}"><link rel="stylesheet" href="{% static 'css/screen-live-preview.css' %}">{% endblock %}
 
-{% block extra_head %}<script src="{% static 'js/occasion-assignment.js' %}?v=20261125-nav"></script>{% endblock %}
+{% block extra_head %}<script src="{% static 'js/occasion-assignment.js' %}?v=20261126-apply"></script>{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto pb-12 occasion-page">
@@ -21,13 +21,22 @@
     <div><h2 id="assignmentTitle">عرض مناسبة على شاشة</h2><p>تبقى المناسبة مثبتة حتى تغيّر الاختيار. للعرض بوقت بداية ونهاية، اختر «جدولة» من بطاقة المناسبة.</p></div>
     {% if screens %}
     <form method="post" action="{% url 'dashboard:occasion_assign' %}" data-preset="{% if preset_requested %}1{% else %}0{% endif %}">{% csrf_token %}
-      <label>الشاشة<select name="screen" required><option value="">اختر الشاشة</option>{% for screen in screens %}<option value="{{ screen.pk }}" data-name="{{ screen.name }}" data-key="{{ screen.occasion_theme }}" data-label="{{ screen.occasion_label }}"{% if screen.is_active and screen.short_code %} data-preview="/s/{{ screen.short_code }}/?preview=1"{% endif %}{% if screen.pk == selected_screen.pk %} selected{% endif %}>{{ screen.name }}{% if not screen.is_active %} (معطلة){% endif %}</option>{% endfor %}</select></label>
+      <label>الشاشة<select name="screen" required><option value="">اختر الشاشة</option>{% for screen in screens %}<option value="{{ screen.pk }}" data-name="{{ screen.name }}" data-key="{{ screen.occasion_theme }}" data-label="{{ screen.occasion_label }}" data-connection-message="{{ screen.occasion_connection_message }}"{% if screen.is_active and screen.short_code %} data-preview="/s/{{ screen.short_code }}/?preview=1"{% endif %}{% if screen.pk == selected_screen.pk %} selected{% endif %}>{{ screen.name }}{% if not screen.is_active %} (معطلة){% endif %}</option>{% endfor %}</select></label>
       <label>المناسبة أو وضع العرض<select name="occasion" required><option value="">اختر المناسبة</option>{% for key,label in occasion_choices %}<option value="{{ key }}"{% if key == selected_key %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
       <button class="occasion-primary" type="submit">حفظ اختيار الشاشة</button>
     </form>
-    <div class="occasion-assigned"{% if not selected_screen %} hidden{% endif %} aria-live="polite"><span>إعداد <span data-assigned-screen>{{ selected_screen.name }}</span> المحفوظ <strong>{{ selected_screen.occasion_label }}</strong></span>
-      <a data-live-preview-open data-preview-name="{{ selected_screen.name }}"{% if selected_screen.is_active and selected_screen.short_code %} href="/s/{{ selected_screen.short_code }}/?preview=1"{% else %} hidden{% endif %}>معاينة هذه الشاشة</a></div>
-    {% else %}<a href="{% url 'dashboard:screen_create' %}">إضافة شاشة للمدرسة</a>{% endif %}
+    <div class="occasion-assigned"{% if not selected_screen %} hidden{% endif %} aria-live="polite">
+      <span>إعداد <span data-assigned-screen>{{ selected_screen.name }}</span> المحفوظ <strong>{{ selected_screen.occasion_label }}</strong></span>
+      <a data-live-preview-open data-preview-name="{{ selected_screen.name }}"{% if selected_screen.is_active and selected_screen.short_code %} href="/s/{{ selected_screen.short_code }}/?preview=1"{% else %} hidden{% endif %}>معاينة هذه الشاشة</a>
+      <span class="occasion-assigned-status" data-assigned-connection>{{ selected_screen.occasion_connection_message }}</span>
+    </div>
+    {% elif customization_enabled %}
+      <p>أضف شاشة للمدرسة حتى تتمكن من عرض المناسبة عليها.</p>
+      <a href="{% url 'dashboard:screen_create' %}">إضافة شاشة للمدرسة</a>
+    {% else %}
+      <p>تخصيص الشاشات غير متاح في اشتراك المدرسة الحالي.</p>
+      <a href="{% url 'dashboard:my_subscription' %}">مراجعة الاشتراك</a>
+    {% endif %}
   </section>
 
   {% if upcoming_occasions %}
@@ -74,7 +83,7 @@
           <h2>{{ item.name }}</h2>
           {% if item.original_name and item.is_custom %}<p>تصميم المدرسة لمناسبة {{ item.original_name }}</p>{% endif %}
           {% if not item.school_event %}<p>{{ item.body }}</p>{% endif %}
-          <a data-screen-link href="?occasion={{ item.key }}{% if selected_screen %}&amp;screen={{ selected_screen.pk }}{% endif %}#occasion-assignment" aria-label="عرض {{ item.name }} على شاشة">عرض على شاشة</a>
+          <a data-screen-link data-occasion-apply="{{ item.key }}" data-occasion-name="{{ item.name }}" href="?occasion={{ item.key }}{% if selected_screen %}&amp;screen={{ selected_screen.pk }}{% endif %}#occasion-assignment" aria-label="عرض {{ item.name }} على شاشة" aria-haspopup="dialog">عرض على شاشة</a>
           <div class="occasion-card-tools">
             <a data-screen-link href="{% url 'dashboard:occasion_theme_edit' item.key %}{% if selected_screen %}?screen={{ selected_screen.pk }}{% endif %}">تعديل التصميم</a>
             <a data-screen-link href="{% url 'dashboard:ann_create' %}?template={{ item.key }}{% if selected_screen %}&amp;screen={{ selected_screen.pk }}{% endif %}">جدولة المناسبة</a>
@@ -83,6 +92,41 @@
       </article>
     {% endfor %}
   </div>
+
+  <dialog id="occasionApplyDialog" class="occasion-apply-dialog" aria-labelledby="occasionApplyTitle" aria-describedby="occasionApplyDescription">
+    <header>
+      <h2 id="occasionApplyTitle">عرض على شاشة</h2>
+      <p id="occasionApplyDescription">المناسبة المختارة <strong data-occasion-selected-name></strong></p>
+    </header>
+    {% if screens %}
+      <form method="post" action="{% url 'dashboard:occasion_assign' %}">
+        {% csrf_token %}
+        <input type="hidden" name="occasion" value="">
+        <label for="occasionApplyScreen">الشاشة المستهدفة</label>
+        <select name="screen" id="occasionApplyScreen" required>
+          <option value="">اختر الشاشة</option>
+          {% for screen in screens %}
+          <option value="{{ screen.pk }}" data-connection-message="{{ screen.occasion_connection_message }}">{{ screen.name }}{% if not screen.is_active %} (معطلة){% endif %}</option>
+          {% endfor %}
+        </select>
+        <p class="occasion-apply-status" data-occasion-connection role="status"></p>
+        <div class="occasion-apply-actions">
+          <button type="submit" class="occasion-primary" disabled>عرض الآن</button>
+          <button type="button" class="dp-btn dp-btn--soft" data-occasion-apply-close>إلغاء</button>
+        </div>
+      </form>
+    {% else %}
+      <p>{% if customization_enabled %}أضف شاشة للمدرسة حتى تتمكن من عرض المناسبة عليها.{% else %}تخصيص الشاشات غير متاح في اشتراك المدرسة الحالي.{% endif %}</p>
+      <div class="occasion-apply-actions">
+        {% if customization_enabled %}
+          <a class="occasion-primary" href="{% url 'dashboard:screen_create' %}">إضافة شاشة</a>
+        {% else %}
+          <a class="occasion-primary" href="{% url 'dashboard:my_subscription' %}">مراجعة الاشتراك</a>
+        {% endif %}
+        <button type="button" class="dp-btn dp-btn--soft" data-occasion-apply-close>إغلاق</button>
+      </div>
+    {% endif %}
+  </dialog>
 </div>
 
 <style>

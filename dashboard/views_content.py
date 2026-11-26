@@ -337,16 +337,32 @@ def occasion_templates(request):
     cards = cards_for_school(school.pk)
     choices = [(key, label) for key, label in occasions.screen_choices() if key in ("auto", "off")]
     choices.extend((card["key"], card["name"]) for card in cards)
+    customization_enabled = "screen_customization" not in school_disabled_features(school.pk)
     screens = (
         list(DisplayScreen.objects.filter(school=school).order_by("name"))
-        if "screen_customization" not in school_disabled_features(school.pk) else []
+        if customization_enabled else []
     )
     labels = dict(choices)
+    now = timezone.now()
+    seen_at = presence_map(screens)
+    connection_messages = {
+        "live": "الشاشة متصلة. سيظهر التغيير بعد تحديث العرض.",
+        "offline": "الشاشة منقطعة. سيظهر التغيير عند عودة الاتصال.",
+        "waiting": "الشاشة بانتظار الربط. سيظهر التغيير بعد ربط جهاز العرض.",
+        "pending": "لا يوجد اتصال حديث. سيظهر التغيير عند اتصال الشاشة.",
+        "disabled": "الشاشة معطلة. سيظهر التغيير بعد تفعيلها واتصالها.",
+    }
     for screen in screens:
         screen.occasion_label = labels.get(screen.occasion_theme, "")
-    selected_screen = next((s for s in screens if str(s.pk) == request.GET.get("screen")), None)
+        state = display_connection_state(screen, seen_at[screen.pk], now=now)
+        screen.occasion_connection_message = connection_messages[state]
+    screen_id = request.GET.get("screen")
+    selected_screen = next((s for s in screens if str(s.pk) == screen_id), None)
     selected_key = request.GET.get("occasion", "")
-    if selected_key not in labels:
+    preset_requested = selected_key in labels
+    if preset_requested and not screen_id and len(screens) == 1:
+        selected_screen = screens[0]
+    if not preset_requested:
         selected_key = selected_screen.occasion_theme if selected_screen else ""
     return render(
         request,
@@ -354,7 +370,8 @@ def occasion_templates(request):
         {
             "occasion_cards": sorted(cards, key=lambda item: not item["school_event"]),
             "screens": screens, "selected_screen": selected_screen, "selected_key": selected_key,
-            "occasion_choices": choices, "preset_requested": request.GET.get("occasion") in labels,
+            "occasion_choices": choices, "preset_requested": preset_requested,
+            "customization_enabled": customization_enabled,
             "upcoming_occasions": occasions.upcoming(timezone.localdate(), lead_days=60),
         },
     )

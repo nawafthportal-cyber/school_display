@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
+from core.display_presence import display_is_live
 from core.display_themes import effective_custom_theme, theme_payload
 from core.models import DisplayScreen
 from schedule.models import DisplayTheme, SchoolSettings
@@ -116,6 +117,10 @@ def occasion_assign(request):
         screen.save(update_fields=["occasion_theme"])
         transaction.on_commit(lambda: _refresh_school_displays(school, target_screen=screen))
     messages.success(request, f"حُفظ إعداد «{labels[key]}» لشاشة «{screen.name}».")
+    if not screen.is_active:
+        messages.info(request, "ستستقبل الشاشة التغيير بعد تفعيلها واتصالها.")
+    elif not display_is_live(screen):
+        messages.info(request, "ستستقبل الشاشة التغيير عند اتصالها.")
     return redirect(reverse("dashboard:occasion_templates") + f"?screen={screen.pk}#occasion-assignment")
 
 

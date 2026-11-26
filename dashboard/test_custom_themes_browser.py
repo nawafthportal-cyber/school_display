@@ -80,6 +80,30 @@ class CustomThemeBrowserTests(StaticLiveServerTestCase):
         self.assertLessEqual(self.page.evaluate("document.documentElement.scrollWidth"), 390)
         self.assertEqual(self.errors, [])
 
+    def test_occasion_card_opens_screen_picker_and_assigns_the_theme(self):
+        self.page.set_viewport_size({"width": 390, "height": 844})
+        self.page.goto(self.live_server_url + "/dashboard/occasion-templates/")
+        card_action = self.page.get_by_role("link", name="عرض يوم التأسيس على شاشة", exact=True)
+        dialog = self.page.get_by_role("dialog", name="عرض على شاشة", exact=True)
+        card_action.click()
+        expect(dialog).to_be_visible()
+        expect(dialog).to_contain_text("يوم التأسيس")
+        expect(dialog.get_by_role("combobox", name="الشاشة المستهدفة")).to_have_value(str(self.screen_id))
+        expect(dialog.get_by_role("status")).to_contain_text("بانتظار الربط")
+        dialog.get_by_role("button", name="إلغاء").click()
+        expect(dialog).to_be_hidden()
+        expect(card_action).to_be_focused()
+        expect(self.page.locator('#occasion-assignment select[name="screen"]')).to_have_value("")
+
+        card_action.press("Enter")
+        dialog.get_by_role("button", name="عرض الآن", exact=True).click()
+        self.page.wait_for_url(f"**/dashboard/occasion-templates/?screen={self.screen_id}#occasion-assignment")
+        expect(self.page.locator(".occasion-assigned strong")).to_have_text("يوم التأسيس")
+        expect(self.page.locator("[data-assigned-connection]")).to_contain_text("بانتظار الربط")
+        self.page.goto(self.live_server_url + f"/s/{self.short_code}/?preview=1")
+        expect(self.page.locator("body")).to_have_attribute("data-occasion-theme", "founding_day", timeout=10000)
+        self.assertEqual(self.errors, [])
+
     def test_preview_renders_each_device_at_its_native_viewport(self):
         self.page.goto(self.live_server_url + "/dashboard/screens/")
         self.page.locator("[data-live-preview-open]").first.click()

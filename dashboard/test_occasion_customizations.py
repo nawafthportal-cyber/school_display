@@ -88,6 +88,24 @@ class OccasionCustomizationTests(TestCase):
         self.assertNotContains(self.client.get(reverse("dashboard:occasion_templates")), foreign_key)
         self.assertFalse(DisplayScreen.objects.exclude(occasion_theme="auto").exists())
 
+    def test_card_link_presets_the_only_screen_and_offline_status_without_applying(self):
+        screen = DisplayScreen.objects.create(
+            school=self.school, name="شاشة المدخل", bound_device_id="occasion-test-tv",
+            last_seen=timezone.now() - timedelta(hours=1),
+        )
+        url = reverse("dashboard:occasion_templates")
+        response = self.client.get(url, {"occasion": "founding_day"})
+        self.assertEqual(response.context["selected_screen"], screen)
+        self.assertContains(response, "الشاشة منقطعة. سيظهر التغيير عند عودة الاتصال.")
+        self.assertContains(response, 'data-occasion-apply="founding_day"')
+        self.assertContains(response, f'?occasion=founding_day&amp;screen={screen.pk}#occasion-assignment')
+        screen.refresh_from_db()
+        self.assertEqual(screen.occasion_theme, "auto")
+
+        DisplayScreen.objects.create(school=self.school, name="شاشة المسرح")
+        response = self.client.get(url, {"occasion": "founding_day"})
+        self.assertIsNone(response.context["selected_screen"])
+
     def test_custom_edits_keep_the_event_key_and_duplicate_names_are_rejected(self):
         create = reverse("dashboard:occasion_theme_create")
         self.client.post(create, self.payload(name="معرض العلوم"))

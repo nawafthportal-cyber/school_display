@@ -25,6 +25,29 @@
 .occasion-assigned { margin-top: 1rem; padding-block-start: .8rem; border-top: 1px solid #dfebea; display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font-size: .85rem; }
 .occasion-assigned strong { margin-inline: .35rem; }
 .occasion-assigned[hidden], .occasion-assigned a[hidden] { display:none; }
+.occasion-assigned-status { flex-basis: 100%; color: #485f69; line-height: 1.75; }
+.occasion-apply-dialog {
+  inset: 0;
+  width: min(30rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  margin: auto;
+  padding: clamp(1rem, 4vw, 1.7rem);
+  border: 1px solid #cfdfde;
+  border-radius: 1.2rem;
+  background: #fff;
+  color: #183e49;
+  box-shadow: 0 18px 60px #122d4347;
+}
+.occasion-apply-dialog::backdrop { background: #1226389e; }
+.occasion-apply-dialog h2 { margin: 0; font-size: 1.2rem; font-weight: 850; }
+.occasion-apply-dialog p { margin: .5rem 0; color: #485f69; font-size: .87rem; line-height: 1.7; }
+.occasion-apply-dialog form { display: grid; gap: .6rem; margin-block-start: 1rem; }
+.occasion-apply-dialog label { font-size: .88rem; font-weight: 750; }
+.occasion-apply-dialog select { width: 100%; min-height: 44px; border: 1px solid #b9cdcf; border-radius: .7rem; padding-inline: .7rem; }
+.occasion-apply-dialog .occasion-apply-status:not(:empty) { padding: .6rem .75rem; border-radius: .65rem; background: #f0f6f6; }
+.occasion-apply-dialog .occasion-apply-status:empty { margin: 0; }
+.occasion-apply-actions { display: flex; flex-wrap: wrap; gap: .55rem; margin-block-start: .4rem; }
+.occasion-apply-actions button:disabled { opacity: .55; cursor: not-allowed; }
 .occasion-card-tools, .occasion-assigned a { color: #125969; font-weight: 750; }
 .occasion-card-tools { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; }
 .occasion-card-tools a { padding: .6rem .3rem; font-size: .82rem; }
