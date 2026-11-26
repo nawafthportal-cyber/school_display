@@ -418,8 +418,9 @@ class PaidPlanJourneyTests(TestCase):
         response = self.client.get(self._order_url(), follow=True)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, f"تم اختيار {self.plan.name}")
-        self.assertContains(response, f'value="{self.plan.pk}" selected')
+        self.assertEqual(response.context["selected_checkout_plan"]["id"], self.plan.pk)
+        self.assertContains(response, f'data-plan-code="{self.plan.code}" checked required')
+        self.assertContains(response, f'data-checkout-plan value="{self.plan.pk}"')
 
     def test_login_honors_paid_plan_next_even_when_onboarding_is_pending(self):
         user, _school = self._account()
