@@ -339,7 +339,7 @@ img { display: block; max-width: 100%; }
 .price-details summary { font-weight: 700; color: var(--teal); }
 .plan-savings { color: var(--teal); font-weight: 700; }
 .feature-list { margin: 5px 0 0; padding-inline-start: 18px; color: var(--muted); }
-.pricing-empty, .pricing-note { margin-block-start: 12px; color: var(--muted); font-size: .9rem; }
+.pricing-empty { margin-block-start: 12px; color: var(--muted); font-size: .9rem; }
 .pricing-empty .button { margin-block-start: 7px; }
 
 .faq-layout { display: grid; grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); gap: 25px; }
