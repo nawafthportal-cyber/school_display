@@ -466,21 +466,36 @@ class CustomerExperienceRegressionTests(TestCase):
         self.assertNotContains(response, "internal mobile")
         self.assertNotContains(response, "مدرسة مدرسة التجربة")
         self.assertContains(response, "data-plan-option")
-        self.assertContains(response, 'id="plan-filter-search"')
-        self.assertContains(response, 'id="plan-filter-duration"')
-        self.assertContains(response, 'id="plan-filter-screens"')
+        self.assertContains(response, "<legend>مدة الاشتراك</legend>", html=True)
+        self.assertNotContains(response, 'id="plan-filter-screens"')
+        self.assertNotContains(response, "data-manager-screen-count")
         self.assertContains(response, 'data-payment-hub="new"')
         self.assertContains(response, 'data-payment-hub="renewal"')
         self.assertContains(response, 'data-payment-choice="new"', count=3)
         self.assertContains(response, 'data-payment-choice="renewal"', count=3)
-        self.assertContains(response, "خطوة واحدة واضحة")
+        self.assertContains(response, "مقارنة الباقات")
         self.assertContains(response, "ربط شاشة الآن")
         self.assertContains(response, reverse("dashboard:screen_list"))
-        self.assertContains(response, "dashboard-form-shell col-span-full")
-        self.assertNotContains(response, "lg:col-span-12")
+        self.assertContains(response, 'id="current-screen-limit"')
         self.assertContains(response, "الخيار المناسب لتشغيل شاشات المدرسة")
         self.assertContains(response, "الأكثر طلباً")
         self.assertNotContains(response, "المدارس:")
+
+    def test_subscription_shows_the_effective_screen_limit_with_the_current_grant(self):
+        current = SchoolSubscription.objects.get(school=self.school)
+        SubscriptionScreenAddon.objects.create(
+            subscription=current,
+            screens_added=2,
+            pricing_strategy="manual_bundle",
+            bundle_price=Decimal("0.00"),
+            starts_at=timezone.localdate(),
+            status="paid",
+        )
+
+        response = self.client.get(reverse("dashboard:my_subscription"))
+
+        self.assertEqual(response.context["current_screen_limit"], 5)
+        self.assertContains(response, '<dd id="current-screen-limit"><bdi>5</bdi> شاشات</dd>', html=True)
 
     def test_inactive_legacy_plan_keeps_access_but_requires_new_plan_for_renewal(self):
         subscription = SchoolSubscription.objects.select_related("plan").get(school=self.school)

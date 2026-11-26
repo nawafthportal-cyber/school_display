@@ -1,0 +1,25 @@
+<li class="subscription-history__item">
+  <div>
+    <strong>{{ checkout.plan.name }}</strong>
+    <small>
+      {% if provider == "tamara" %}تمارا{% else %}ميسر{% endif %} · {{ checkout.get_request_type_display }}
+      · <bdi>{{ checkout.created_at|date:"Y-m-d H:i" }}</bdi> · <bdi>#{{ checkout.merchant_reference|slice:"-8:" }}</bdi>
+    </small>
+    {% if provider == "moyasar" and checkout.status == "paid" and not checkout.payment_operation_id %}
+      <small>دفعة اختبار.</small>
+    {% elif checkout.status == "captured" or checkout.status == "authorised" or checkout.status == "paid" %}
+      {% if checkout.request_type == "screens" %}
+        <small>تم تأكيد إضافة الشاشات.</small>
+      {% elif checkout.subscription.starts_at > today %}
+        <small>تبدأ الفترة في <bdi>{{ checkout.subscription.starts_at|date:"Y-m-d" }}</bdi>.</small>
+      {% endif %}
+    {% endif %}
+  </div>
+  <span class="subscription-history__state" data-state="{{ checkout.status }}">{{ checkout.get_status_display }}</span>
+  <strong class="subscription-history__total"><bdi>{{ checkout.amount|floatformat:"-2g" }}</bdi> ر.س</strong>
+  {% if provider == "moyasar" and checkout.status == "initiated" and moyasar_available %}
+    <a href="{% url 'subscriptions:moyasar_checkout' reference=checkout.merchant_reference %}" class="dp-btn dp-btn--soft">متابعة الدفع</a>
+  {% elif provider == "tamara" and checkout.status == "new" and checkout.checkout_url %}
+    <a href="{{ checkout.checkout_url }}" class="dp-btn dp-btn--soft">متابعة الدفع عبر تمارا</a>
+  {% endif %}
+</li>

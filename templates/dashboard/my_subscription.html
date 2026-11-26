@@ -1,1978 +1,217 @@
 {% extends "dashboard/_base.html" %}
-{% load static %}
-{% load l10n %}
+{% load static l10n %}
 
 {% block title %}اشتراكي{% endblock %}
-{% block page_title %}تفاصيل اشتراك المدرسة{% endblock %}
+{% block page_title %}اشتراك المدرسة{% endblock %}
 {% block page_area %}المدارس والحساب{% endblock %}
-{% block page_description %}راجع الباقة وحد الشاشات وتاريخ الانتهاء. من هنا تجد خيارات التجديد، وزيادة الشاشات، وسجل المدفوعات والفواتير.{% endblock %}
+{% block page_description %}تابع اشتراكك، قارن الباقات حسب المدة، وراجع مدفوعات مدرستك وفواتيرها.{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/dashboard-subscription.css' %}">{% endblock %}
+{% block extra_js %}<script defer src="{% static 'js/dashboard-subscription.js' %}"></script>{% endblock %}
+
 {% block page_actions %}
-  <div class="dp-toolbar__actions">
-    <a href="#renewal-section" class="dp-btn dp-btn--primary">خيارات الاشتراك</a>
-    <a href="#subscription-history" class="dp-btn dp-btn--soft">سجل المدفوعات</a>
-  </div>
+<div class="dp-toolbar__actions">
+  <a href="#renewal-section" class="dp-btn dp-btn--primary">عرض الباقات</a>
+  <a href="#subscription-history" class="dp-btn dp-btn--soft">الفواتير والمدفوعات</a>
+</div>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto space-y-8 animate-fade-in-up">
-
-  {# --- تنبيهات هامة (Alerts Section) --- #}
-
-  {# 0. توثيق البريد الإلكتروني — مطلوب قبل الدفع لضمان وصول الفاتورة #}
-  {% if not email_verified %}
-    <div class="dashboard-info-band group relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-50 to-cyan-50 border border-sky-200 p-1 shadow-sm">
-      <div class="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-sky-200/40 rounded-full blur-3xl"></div>
-      <div class="relative flex flex-col sm:flex-row items-center sm:items-start gap-4 p-5 md:p-6">
-        <div class="flex-shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white text-sky-500 shadow-sm flex items-center justify-center text-2xl md:text-3xl ring-4 ring-sky-100">
-          ✉️
-        </div>
-        <div class="flex-1 text-center sm:text-right">
-          <h3 class="text-base md:text-lg font-black text-sky-900">أكّد بريدك الإلكتروني قبل الدفع</h3>
-          <p class="mt-1 text-sm leading-relaxed text-sky-800/80">
-            {% if account_email %}
-              تحقق من رابط التأكيد المرسل إلى <bdi class="font-bold">{{ account_email }}</bdi>.
-              التأكيد يضمن وصول الفاتورة وتنبيهات التجديد، وهو مطلوب لإتمام الدفع الإلكتروني.
-            {% else %}
-              لا يوجد بريد إلكتروني مسجل على حسابك. أضِف بريدك من الإعدادات لتتمكن من استلام الفواتير وإتمام الدفع.
-            {% endif %}
-          </p>
-        </div>
-        {% if account_email %}
-          <form method="post" action="{% url 'subscriptions:resend_email_verification' %}" class="flex-shrink-0">
-            {% csrf_token %}
-            <button type="submit"
-                    class="rounded-xl bg-sky-600 px-5 py-3 text-sm font-bold text-white shadow-lg transition hover:bg-sky-700 active:scale-95">
-              إعادة إرسال الرابط
-            </button>
-          </form>
-        {% elif current_status_code == "active" %}
-          <a href="{% url 'dashboard:settings' %}#contact" class="dp-btn dp-btn--soft">إضافة البريد الإلكتروني</a>
-        {% endif %}
+<div class="subscription-page" data-subscription-page data-initial-tab="{{ active_request_tab }}">
+  <section class="subscription-overview" aria-labelledby="subscriptionOverview">
+    <div class="subscription-overview__head">
+      <div>
+        <p class="subscription-overview__label">{{ school.name }}</p>
+        <h2 id="subscriptionOverview">{% if subscription %}{{ subscription.plan.name }}{% else %}لا يوجد اشتراك سارٍ{% endif %}</h2>
       </div>
+      <span class="subscription-status {% if current_subscription %}subscription-status--active{% endif %}">
+        {% if current_subscription %}{{ current_status_label }}{% elif upcoming_subscription %}يبدأ قريبًا{% else %}بانتظار الاشتراك{% endif %}
+      </span>
     </div>
-  {% endif %}
-
-  {# 1. تنبيه اشتراك قادم #}
-  {% if upcoming_subscription %}
-    <div class="dashboard-info-band group relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-1 shadow-sm hover:shadow-md transition-all duration-300">
-      <div class="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-amber-200/40 rounded-full blur-3xl group-hover:bg-amber-300/40 transition-colors"></div>
-      <div class="relative flex flex-col sm:flex-row items-center sm:items-start gap-4 p-5 md:p-6">
-        <div class="flex-shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-white text-amber-500 shadow-sm flex items-center justify-center text-2xl md:text-3xl ring-4 ring-amber-100">
-          ⏳
-        </div>
-        <div class="flex-1 text-center sm:text-right space-y-1">
-          <h4 class="font-bold text-amber-900 text-lg">اشتراك قادم في الانتظار</h4>
-          <p class="text-amber-800 text-sm md:text-base leading-relaxed">
-            سيبدأ تفعيل اشتراك <span class="font-bold border-b border-amber-400/50">{{ upcoming_subscription.plan.name }}</span>
-            بتاريخ <bdi class="font-mono font-bold bg-amber-100/50 px-1 rounded">{{ upcoming_subscription.display_starts_at|default:upcoming_subscription.starts_at|date:"Y-m-d" }}</bdi>.
-            {% if upcoming_subscription.status == "active" %}يبدأ تلقائيًا في هذا التاريخ.{% endif %}
-          </p>
-        </div>
+    {% if subscription %}
+    <dl class="subscription-metrics">
+      <div><dt>تاريخ البدء</dt><dd><bdi>{{ subscription.display_starts_at|date:"Y-m-d"|default:"—" }}</bdi></dd></div>
+      <div><dt>تاريخ الانتهاء</dt><dd>{% if subscription.display_ends_at %}<bdi>{{ subscription.display_ends_at|date:"Y-m-d" }}</bdi>{% else %}مفتوح المدة{% endif %}</dd></div>
+      {% if current_subscription %}
+      <div>
+        <dt>حدّ الشاشات الحالي</dt>
+        <dd id="current-screen-limit">
+          {% if current_screen_limit is None %}غير محدود
+          {% elif current_screen_limit == 1 %}شاشة واحدة
+          {% elif current_screen_limit == 2 %}شاشتان
+          {% else %}<bdi>{{ current_screen_limit }}</bdi> {% if current_screen_limit >= 3 and current_screen_limit <= 10 %}شاشات{% else %}شاشة{% endif %}
+          {% endif %}
+        </dd>
       </div>
-    </div>
-  {% endif %}
-
-  {# 2. حالة الاشتراك الحالي #}
-  {% if current_subscription %}
-    {% if current_status_code == "expired" %}
-      <!-- Expired Alert -->
-      <div class="rounded-2xl bg-gradient-to-br from-rose-600 to-red-600 text-white shadow-sm overflow-hidden relative">
-        <div class="absolute opacity-10 top-0 left-0 w-full h-full bg-white"></div>
-        <div class="relative p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 text-center md:text-right">
-          <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-4xl shadow-inner backdrop-blur-sm animate-pulse">
-            ⚠️
-          </div>
-          <div class="flex-1 space-y-2">
-            <h3 class="text-2xl font-black tracking-tight">انتهت صلاحية الاشتراك!</h3>
-            <p class="text-rose-100 text-sm md:text-lg font-medium opacity-90">
-              توقفت بعض المميزات عن العمل. لضمان استمرار ظهور شاشة مدرستك، يرجى تجديد الاشتراك الآن.
-            </p>
-          </div>
-          <button data-action="scroll-to" data-target="#renewal-section" class="flex-shrink-0 bg-white text-rose-600 hover:bg-rose-50 px-6 py-3 rounded-xl font-bold shadow-lg transition transform hover:-translate-y-1 active:scale-95">
-            تجديد الاشتراك الآن ⚡
-          </button>
-        </div>
-      </div>
-
-    {% elif current_status_code == "cancelled" %}
-      <!-- Cancelled Alert -->
-      <div class="rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 text-white shadow-sm overflow-hidden relative border border-slate-600">
-        <div class="relative p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 text-center md:text-right">
-          <div class="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-4xl shadow-inner backdrop-blur-sm">
-            🚫
-          </div>
-          <div class="flex-1 space-y-2">
-            <h3 class="text-xl md:text-2xl font-black">الاشتراك ملغي</h3>
-            <p class="text-slate-300 text-sm md:text-base">
-              تم إيقاف الاشتراك من قبل الإدارة. يرجى التواصل معنا أو تقديم طلب اشتراك جديد لإعادة التفعيل.
-            </p>
-          </div>
-          <button data-action="scroll-to" data-target="#renewal-section" class="flex-shrink-0 bg-white/10 hover:bg-white/20 text-white border border-white/30 px-6 py-3 rounded-xl font-bold transition">
-            طلب اشتراك جديد
-          </button>
-        </div>
-      </div>
+      {% endif %}
+      <div><dt>حالة الشاشات</dt><dd>{{ screen_status_label }}</dd></div>
+    </dl>
+    {% else %}
+      <p class="subscription-overview__copy">اختر مدة الاشتراك لبدء تشغيل شاشات المدرسة والوصول إلى مزايا العرض.</p>
     {% endif %}
+    {% if current_subscription %}
+      {% if screens_total_count == 0 or screens_active_count == 0 or screens_live_count < screens_active_count %}
+        <a class="subscription-overview__link" href="{% url 'dashboard:screen_list' %}">{% if screens_total_count == 0 %}إضافة شاشة الآن{% elif screens_active_count == 0 %}إدارة الشاشات{% else %}ربط شاشة الآن{% endif %}</a>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  {% if upcoming_subscription %}
+  <div class="subscription-notice">
+    <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+    <div><strong>اشتراك مجدول</strong><p>{{ upcoming_subscription.plan.name }} تبدأ في <bdi>{{ upcoming_subscription.display_starts_at|date:"Y-m-d" }}</bdi>.</p></div>
+  </div>
   {% endif %}
 
+  <section id="renewal-section" class="dashboard-anchor subscription-panel" aria-labelledby="subscriptionPlans">
+    <header class="subscription-panel__head">
+      <div>
+        <h2 id="subscriptionPlans">الباقات والاشتراك</h2>
+        <p>اختر المدة التي تناسب مدرستك، ثم راجع الإجمالي ووسيلة الدفع.</p>
+      </div>
+    </header>
 
-  {% include "subscriptions/_feature_status.html" %}
-
-  {# --- بطاقة تفاصيل الاشتراك (Main Subscription Card) --- #}
-  {% if subscription %}
-    <div class="dashboard-form-shell bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">
-      <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-800 via-teal-600 to-amber-500"></div>
-      
-      <div class="px-6 md:px-10 py-8">
-        <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8 border-b border-slate-100 pb-6">
-          <div class="space-y-2">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-900 text-xs font-bold tracking-wide uppercase">
-              الباقة الحالية
-            </div>
-            <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900">
-              {{ subscription.plan.name }}
-            </h2>
-            <p class="text-slate-500 text-sm">{{ school.name }}</p>
-          </div>
-          
-          <div class="flex flex-col items-center md:items-end gap-2 text-center md:text-left">
-            <div class="px-4 py-1.5 rounded-full text-sm font-bold shadow-sm border 
-              {% if current_status_code == 'active' %} bg-emerald-100 text-emerald-700 border-emerald-200
-              {% elif current_status_code == 'expired' %} bg-rose-100 text-rose-700 border-rose-200
-              {% else %} bg-slate-100 text-slate-700 border-slate-200 {% endif %}">
-              <span class="w-2 h-2 rounded-full bg-current inline-block ml-1"></span>
-              {{ current_status_label }}
-            </div>
-            <p class="text-xs text-slate-400 font-mono" dir="ltr">{{ today }}</p>
-          </div>
-        </div>
-
-        <!-- Grid Info -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <!-- Start Date -->
-          <div class="group p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-slate-100 hover:border-slate-200 transition-all duration-300">
-            <div class="flex items-center gap-3 mb-2">
-              <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-lg shadow-sm group-hover:scale-110 transition-transform">📅</div>
-              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">تاريخ البدء</p>
-            </div>
-            <p class="text-lg font-bold text-slate-800 font-mono">
-              {{ subscription.display_starts_at|default:subscription.starts_at }}
-            </p>
-          </div>
-
-          <!-- End Date -->
-          <div class="group p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-slate-100 hover:border-slate-200 transition-all duration-300">
-            <div class="flex items-center gap-3 mb-2">
-              <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-lg shadow-sm group-hover:scale-110 transition-transform">🏁</div>
-              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">تاريخ الانتهاء</p>
-            </div>
-            <p class="text-lg font-bold text-slate-800 font-mono">
-              {% if subscription.display_ends_at %}
-                {{ subscription.display_ends_at }}
-              {% else %}
-                <span class="text-emerald-600">♾️ مفتوح المدة</span>
-              {% endif %}
-            </p>
-          </div>
-
-          <!-- System Status -->
-          <div class="group p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-slate-100 hover:border-slate-200 transition-all duration-300">
-            <div class="flex items-center gap-3 mb-2">
-              <div class="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-lg shadow-sm group-hover:scale-110 transition-transform">🖥️</div>
-              <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">حالة الشاشات</p>
-            </div>
-            <p class="text-sm font-semibold {{ screen_status_class }} leading-snug">
-              {{ screen_status_label }}
-            </p>
-            {% if screens_live_count < screens_active_count or screens_total_count == 0 %}
-              <a href="{% url 'dashboard:screen_list' %}" class="mt-3 inline-flex items-center gap-2 rounded-xl border border-teal-100 bg-white px-3 py-2 text-xs font-black text-teal-900 shadow-sm transition hover:bg-teal-50 hover:text-teal-900">
-                <span aria-hidden="true">↗</span>
-                {% if screens_total_count == 0 %}إضافة شاشة الآن{% elif screens_active_count == 0 %}تفعيل الشاشات{% else %}ربط شاشة الآن{% endif %}
-              </a>
-            {% endif %}
-          </div>
-        </div>
-
-        {# --- شراء شاشات إضافية على الاشتراك الجاري --- #}
-        {% if screen_addon_offer %}
-        <div id="screen-addon-purchase" class="mt-6 rounded-2xl border border-teal-100 bg-gradient-to-l from-teal-50/70 to-white p-5 md:p-6">
-          <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-
-            <div class="flex items-start gap-4">
-              <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm ring-4 ring-teal-50">➕</div>
-              <div>
-                <h3 class="text-base font-black text-slate-900">تحتاج شاشة إضافية؟</h3>
-                <p class="mt-1 text-sm leading-relaxed text-slate-600">
-                  أضِف شاشات إلى اشتراكك الحالي فوراً لمدة محددة، وتُفعّل الشاشات مباشرة بعد اكتمال الدفع الإلكتروني.
-                </p>
-                <p class="mt-2 text-xs font-bold text-teal-900">
-                  السعر محسوب حسب باقة {{ screen_addon_offer.plan_name }}
-                  {% if screen_addon_offer.ends_at %}ولا يتجاوز {{ screen_addon_offer.ends_at|date:"Y-m-d" }}{% endif %}
-                </p>
-              </div>
-            </div>
-
-            <form method="post" action="{% url 'subscriptions:moyasar_start' %}"
-                  class="flex w-full flex-wrap items-end gap-3 lg:w-auto"
-                  data-screen-addon-form>
-              {% csrf_token %}
-              <input type="hidden" name="request_type" value="screens">
-              <div>
-                <label for="addon-screens" class="mb-1 block text-[11px] font-bold text-slate-500">عدد الشاشات</label>
-                <input type="number" id="addon-screens" name="extra_screens"
-                       value="1" min="1" max="{{ screen_addon_offer.max_screens }}" required
-                       data-screen-addon-count
-                       class="w-24 rounded-xl border border-slate-200 px-3 py-3 text-center text-lg font-black text-slate-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100">
-              </div>
-              <div>
-                <label for="addon-duration-days" class="mb-1 block text-[11px] font-bold text-slate-500">مدة الإضافة</label>
-                <select id="addon-duration-days" name="addon_duration_days" required
-                        data-screen-addon-duration
-                        class="w-40 rounded-xl border border-slate-200 px-3 py-3 text-sm font-black text-slate-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100">
-                  {% for option in screen_addon_offer.duration_options %}
-                    <option value="{{ option.days }}" data-unit-price="{{ option.unit_price|unlocalize }}">
-                      {{ option.label }} - {{ option.unit_price }} ر.س/شاشة
-                    </option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="min-w-[8rem] rounded-xl border border-teal-100 bg-white px-4 py-2.5 text-center shadow-sm">
-                <span class="block text-[11px] font-bold text-slate-500">الإجمالي</span>
-                <strong class="block text-sm font-black text-teal-900" data-screen-addon-total>
-                  {{ screen_addon_offer.default_option.unit_price }} ر.س
-                </strong>
-              </div>
-              <button type="submit"
-                      class="w-full rounded-xl bg-teal-800 px-6 py-3.5 font-black text-white shadow-lg transition hover:bg-teal-900 active:scale-[.98] sm:w-auto">
-                الدفع الإلكتروني
-              </button>
-            </form>
-
-          </div>
-        </div>
-        {{ screen_addon_offer.price_matrix|json_script:"screen-addon-price-matrix" }}
+    {% if not email_verified %}
+    <div class="subscription-notice subscription-notice--email">
+      <i class="fa-regular fa-envelope" aria-hidden="true"></i>
+      <div>
+        <strong>أكّد بريدك الإلكتروني قبل الدفع</strong>
+        {% if account_email %}
+          <p>أرسلنا رابط التأكيد إلى <bdi>{{ account_email }}</bdi>. بعد التأكيد يمكنك الدفع الإلكتروني واستلام الفاتورة.</p>
+        {% else %}
+          <p>أضف بريدًا إلكترونيًا لحسابك لاستلام الفواتير وإتمام الدفع الإلكتروني.</p>
         {% endif %}
-
       </div>
+      {% if account_email %}
+        <form method="post" action="{% url 'subscriptions:resend_email_verification' %}">
+          {% csrf_token %}
+          <button type="submit" class="dp-btn dp-btn--soft">إعادة إرسال الرابط</button>
+        </form>
+      {% elif current_status_code == "active" %}
+        <a href="{% url 'dashboard:settings' %}#contact" class="dp-btn dp-btn--soft">إضافة البريد الإلكتروني</a>
+      {% endif %}
     </div>
-  {% else %}
-    {# --- حالة عدم وجود اشتراك (Empty State) --- #}
-    <div class="relative group overflow-hidden rounded-[2rem] bg-slate-900 shadow-2xl transition-all duration-500 hover:shadow-teal-950/20 py-20 px-8 border border-white/10">
-      
-      <!-- الخلفية المتحركة -->
-      <div class="absolute inset-0">
-        <div class="absolute inset-0 bg-gradient-to-br from-teal-800/20 via-slate-900 to-slate-900"></div>
-        <div class="absolute -top-[20%] -right-[10%] w-[600px] h-[600px] rounded-full bg-teal-700/10 blur-[120px] mix-blend-screen animate-pulse-slow"></div>
-        <div class="absolute -bottom-[20%] -left-[10%] w-[500px] h-[500px] rounded-full bg-amber-500/10 blur-[100px] mix-blend-screen"></div>
-        <!-- نمط شبكي خفيف -->
-        <div class="absolute inset-0 bg-white/5 mix-blend-overlay"></div>
-      </div>
+    {% endif %}
 
-      <div class="relative z-10 px-6 py-8 md:py-10 text-center space-y-8 max-w-4xl mx-auto">
-        
-        <!-- أيقونة التاج الذهبي -->
-        <div class="inline-flex relative group-hover:-translate-y-2 transition-transform duration-500">
-          <div class="absolute inset-0 bg-amber-400 blur-2xl opacity-20 rounded-full"></div>
-          <div class="relative w-28 h-28 bg-gradient-to-br from-amber-100 to-amber-300 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20 border border-amber-200/50 transform rotate-3">
-             <span class="text-6xl filter drop-shadow-md">👑</span>
-          </div>
-          <div class="absolute -right-3 -top-3 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm animate-bounce text-teal-800 text-xl">✨</div>
-        </div>
-
-        <div class="space-y-4">
-            <h2 class="text-4xl md:text-6xl font-black text-white tracking-tight leading-tight">
-            ارتقِ بمدرستك إلى <br class="hidden md:block" />
-            <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-yellow-400">المستوى الاحترافي</span>
-            </h2>
-
-            <p class="text-slate-300 text-lg md:text-xl font-light max-w-2xl mx-auto leading-relaxed">
-            شاشات العرض هي واجهة مدرستك الحديثة. قم بتفعيل اشتراكك الآن وافتح عالماً من الإمكانيات الرقمية التي تبهر الزوار وتسهل التواصل.
-            </p>
-        </div>
-
-        <!-- المميزات السريعة -->
-        <div class="flex flex-wrap justify-center gap-4 mb-2 text-sm font-medium text-slate-400">
-          <span class="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-            <span class="text-emerald-400 font-bold text-lg">✓</span> تصاميم احترافية غير محدودة
-          </span>
-          <span class="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-            <span class="text-emerald-400 font-bold text-lg">✓</span> تحكم كامل في الشاشات عن بعد
-          </span>
-          <span class="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-            <span class="text-emerald-400 font-bold text-lg">✓</span> دعم فني مميز واستجابة سريعة
-          </span>
-        </div>
-
-        <div class="pt-4">
-            <button data-action="scroll-to" data-target="#renewal-section" 
-            class="group relative inline-flex items-center justify-center gap-4 px-12 py-5 bg-gradient-to-r from-teal-800 to-teal-600 hover:from-teal-700 hover:to-teal-500 text-white rounded-2xl font-bold text-xl shadow-xl shadow-teal-700/30 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-teal-700/50 focus:ring-4 focus:ring-teal-700/40 outline-none">
-            <span>اشترك الآن وابدأ فوراً</span>
-            <svg class="w-6 h-6 transition-transform duration-300 group-hover:translate-x-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-            <!-- Shinning effect -->
-            <div class="absolute inset-0 rounded-2xl overflow-hidden">
-                 <div class="absolute top-0 -left-full w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 group-hover:animate-shimmer"></div>
-            </div>
-            </button>
-            <p class="mt-4 text-sm text-slate-500 font-medium">خطط مرنة تناسب جميع المدارس • تفعيل فوري</p>
-        </div>
-      </div>
+    {% if renewal_plan_details and not renewal_plan_details.is_free %}
+    <div class="subscription-tabs" role="tablist" aria-label="خيارات الاشتراك">
+      <button type="button" id="catalog-tab" role="tab" data-subscription-tab="new" aria-controls="tab-new" aria-selected="{% if active_request_tab == 'new' %}true{% else %}false{% endif %}">مقارنة الباقات</button>
+      <button type="button" id="renew-tab" role="tab" data-subscription-tab="renewal" aria-controls="tab-renewal" aria-selected="{% if active_request_tab == 'renewal' %}true{% else %}false{% endif %}">تجديد باقتي الحالية</button>
     </div>
-  {% endif %}
+    {% endif %}
 
-
-  {# --- قسم التجديد والدفع (Renewal/Banking Section) --- #}
-  <div id="renewal-section" class="dashboard-anchor grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8">
-    
-    <!-- ملخص طرق الدفع -->
-    {% comment %}Legacy payment overview retained temporarily for content reference; the unified hub below is the only rendered checkout UI.
-      <div class="space-y-2 mb-6">
-        <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-          <span class="text-rose-500">💳</span>
-          اختر طريقة الدفع المناسبة
-        </h3>
-        <p class="text-sm leading-6 text-slate-500">راجع الخطة والمبلغ أولًا، ثم اختر الدفع الإلكتروني عبر البطاقات أو Apple Pay أو Google Pay أو التحويل البنكي.</p>
-      </div>
-
-      {% if moyasar_available %}
-      <div class="rounded-2xl border border-slate-300 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 text-white shadow-sm">
-        <div class="flex items-start gap-4">
-          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-950 shadow-sm">{% include "dashboard/_electronic_payment_icon.html" %}</div>
-          <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <p class="font-black">الدفع الإلكتروني</p>
-              <span class="rounded-full bg-emerald-400/20 px-2.5 py-1 text-[10px] font-black text-emerald-200">مدى · Visa · Mastercard</span>
-              {% if not moyasar_live_mode %}
-              <span class="rounded-full bg-amber-400/20 px-2.5 py-1 text-[10px] font-black text-amber-200">اختبار لمدير النظام</span>
-              {% endif %}
-            </div>
-            <p class="mt-2 text-xs leading-6 text-slate-300">دفع آمن بالبطاقة، ثم تحقق خلفي من الحالة والمبلغ والعملة قبل تفعيل الاشتراك.</p>
-          </div>
-        </div>
-      </div>
-      {% elif moyasar_pending_activation %}
-      <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-        <div class="flex items-start gap-3">
-          <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">{% include "dashboard/_electronic_payment_icon.html" %}</span>
-          <div>
-            <p class="font-black text-amber-950">الدفع الإلكتروني قيد التفعيل</p>
-            <p class="mt-1 text-xs leading-6 text-amber-800">اكتمل الربط التقني، وستظهر وسائل الدفع الإلكترونية المتاحة تلقائيًا بعد اعتماد الحساب.</p>
-          </div>
-        </div>
+    <div id="tab-new" {% if renewal_plan_details and not renewal_plan_details.is_free %}role="tabpanel" aria-labelledby="catalog-tab"{% endif %} {% if active_request_tab == 'renewal' and renewal_plan_details and not renewal_plan_details.is_free %}hidden{% endif %}>
+      {{ plans_map|json_script:"plans-map" }}
+      {% if renewal_requires_new_plan %}
+      <div class="subscription-notice">
+        <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+        <div><strong>اختيار باقة التجديد</strong><p>يبقى اشتراكك الحالي فعالًا حتى نهايته. اختر من الباقات المتاحة لتقديم طلب الفترة التالية.</p></div>
       </div>
       {% endif %}
-
-
-      <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="mb-4 flex items-center justify-between gap-3 px-1">
-          <div>
-            <h4 class="font-black text-slate-800">التحويل البنكي</h4>
-            <p class="mt-1 text-xs text-slate-500">خيار يدوي يتطلب رفع صورة الإيصال ومراجعة الإدارة.</p>
-          </div>
-          <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">مراجعة يدوية</span>
-        </div>
-
-      <!-- Credit Card Style -->
-      <div class="dashboard-bank-card relative w-full aspect-[1.586/1] rounded-2xl bg-slate-900 p-6 md:p-8 text-white shadow-sm overflow-hidden">
-        
-        <div class="relative z-10 flex flex-col justify-between h-full">
-          <div class="flex justify-between items-start">
-            <div class="space-y-1">
-              <p class="text-xs text-emerald-400 font-bold tracking-widest uppercase">اسم البنك</p>
-              <h4 class="text-xl font-bold tracking-wide">Al Rajhi Bank</h4>
-              <p class="text-[10px] text-slate-400">مصرف الراجحي</p>
-            </div>
-            <!-- Chip Icon -->
-            <div class="w-12 h-9 rounded bg-gradient-to-br from-amber-200 to-amber-400 border border-amber-500/50 flex relative overflow-hidden opacity-90">
-               <div class="absolute top-1/2 left-0 w-full h-[1px] bg-amber-600/50"></div>
-               <div class="absolute left-1/2 top-0 w-[1px] h-full bg-amber-600/50"></div>
-            </div>
-          </div>
-
-          <div class="space-y-4">
-            <div>
-              <div class="flex justify-between items-end mb-1">
-                <p class="text-[10px] text-slate-400 uppercase tracking-wider">رقم الآيبان (IBAN)</p>
-                <button data-copy="SA8580000660608016220957" class="text-[10px] bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-emerald-300 transition flex items-center gap-1 group">
-                   <span class="copy-text">نسخ</span>
-                   <span class="text-lg leading-none opacity-0 group-hover:opacity-100 transition-opacity">📋</span>
-                </button>
-              </div>
-              <p class="font-mono text-sm md:text-lg tracking-wider text-slate-100 select-all" dir="ltr">SA85 8000 0660 6080 1622 0957</p>
-            </div>
-          </div>
-          
-          <div class="flex justify-between items-end">
-             <div>
-                <p class="text-[10px] text-slate-400 uppercase">اسم المستفيد</p>
-                <p class="font-medium text-sm md:text-base tracking-wide">MANSOUR ALGHAMDI</p>
-             </div>
-             <div>
-                <p class="text-[10px] text-slate-400 uppercase text-right">رقم الحساب</p>
-                <p class="font-mono font-bold text-sm select-all">660000010006086220957</p>
-             </div>
-          </div>
-        </div>
-      </div>
-
-       <div class="rounded-xl bg-amber-50 border border-amber-100 p-4 flex items-center gap-3">
-         <div class="text-lg">💡</div>
-         <p class="text-xs text-amber-900 leading-relaxed">احتفظ بصورة إيصال التحويل، ثم افتح خيار التحويل في النموذج وارفع الصورة لإرسال الطلب.</p>
-       </div>
-      </div>
-    {% endcomment %}
-
-
-    <!-- الجانب الأيسر: نموذج الطلب -->
-    <div class="dashboard-form-shell col-span-full bg-white rounded-[1.75rem] shadow-sm border border-slate-200 p-5 md:p-8">
-      <div class="mb-7 flex flex-col gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <span class="inline-flex items-center gap-2 rounded-full bg-teal-50 px-3 py-1 text-[10px] font-black text-teal-900">
-            <span class="h-1.5 w-1.5 rounded-full bg-teal-700"></span> مركز الاشتراك والدفع
-          </span>
-          <h3 class="mt-3 text-xl font-black text-slate-900 md:text-2xl">اختر الباقة، ثم وسيلة الدفع</h3>
-          <p class="mt-1 text-xs leading-6 text-slate-500">خطوة واحدة واضحة؛ لن تظهر لك إلا تفاصيل الوسيلة التي تختارها.</p>
-        </div>
-        <div class="flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800">
-          <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 text-white">✓</span>
-          اتصال آمن وتحقق من المبلغ
-        </div>
-      </div>
-      {% if requested_plan %}
-      <div class="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900" role="status">
-        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 font-black text-white">✓</span>
-        <div>
-          <p class="font-black">تم اختيار {{ requested_plan.name }}</p>
-          <p class="mt-1 text-xs leading-6">راجع تفاصيل الباقة أدناه، ثم اختر طريقة الدفع المناسبة لإكمال الاشتراك.</p>
-        </div>
-      </div>
-      {% endif %}
-      
-      <!-- Tabs Layout -->
-      <div class="dashboard-tab-strip flex p-1.5 bg-slate-100 rounded-2xl mb-8" role="tablist" aria-label="نوع طلب الاشتراك">
-        <button
-          type="button"
-          data-tab="renewal"
-          role="tab"
-          aria-controls="tab-renewal"
-          class="request-tab-btn flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300 text-center flex items-center justify-center gap-2"
-        >
-          <span>🔄</span> تجديد اشتراك
-        </button>
-        <button
-          type="button"
-          data-tab="new"
-          role="tab"
-          aria-controls="tab-new"
-          class="request-tab-btn flex-1 py-3 rounded-xl text-sm font-bold transition-all duration-300 text-center flex items-center justify-center gap-2"
-        >
-          <span>✨</span> اشتراك جديد
-        </button>
-      </div>
-
-      <!-- Tab Content: Renewal -->
-        <div id="tab-renewal" class="{% if active_request_tab != 'renewal' %}hidden{% endif %} animate-fade-in">
-          {% if subscription %}
-            <div class="mb-6 p-4 bg-teal-50 rounded-2xl border border-teal-100 flex items-center justify-between">
-               <div>
-                 <p class="text-xs text-teal-500 font-bold uppercase mb-1">الخطة الحالية</p>
-                 <p class="text-lg font-bold text-teal-950">{{ subscription.plan.name }}</p>
-               </div>
-               <div class="text-left">
-                  {% if renewal_plan_details %}
-                     <p class="text-2xl font-black text-teal-900">{{ renewal_plan_details.price|default:"—" }} <span class="text-xs font-medium text-teal-500">ر.س</span></p>
-                     <p class="text-[10px] text-teal-500">{{ renewal_plan_details.duration_label }}</p>
-                  {% endif %}
-               </div>
-            </div>
-
-            {% if renewal_requires_new_plan %}
-            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
-              <p class="font-black">تم تحديث باقات المنصة</p>
-              <p class="mt-1 text-xs leading-6">يبقى اشتراكك الحالي فعالًا حتى نهايته. عند التجديد اختر الباقة الجديدة المناسبة لعدد شاشات المدرسة.</p>
-              <button type="button" data-action="click-target" data-target="[data-tab=new]" class="mt-4 rounded-xl bg-amber-900 px-5 py-3 text-sm font-black text-white">اختيار باقة التجديد</button>
-            </div>
-            {% elif renewal_plan_details and not renewal_plan_details.is_free %}
-            <section
-              class="payment-hub"
-              data-payment-hub="renewal"
-              data-default-method="{% if renew_form.receipt_image.errors or renew_form.transfer_note.errors %}bank{% elif moyasar_available %}moyasar{% elif tamara_available %}tamara{% else %}bank{% endif %}"
-            >
-              <div class="mb-4">
-                <h4 class="font-black text-slate-900">كيف تفضّل الدفع؟</h4>
-                <p class="mt-1 text-xs leading-6 text-slate-500">اختر وسيلة واحدة، وستظهر تفاصيلها هنا مباشرة.</p>
-              </div>
-              {% include "dashboard/_payment_method_selector.html" with payment_scope="renewal" %}
-              <div class="mt-5">
-
-            {% if moyasar_available and renewal_plan_details.price %}
-            <div class="rounded-2xl border border-slate-300 bg-slate-50 p-5" data-payment-panel="renewal" data-payment-method="moyasar">
-              <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex items-center gap-3">
-                  <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">{% include "dashboard/_electronic_payment_icon.html" %}</span>
-                  <div>
-                    <p class="font-black text-slate-900">الدفع الإلكتروني</p>
-                    {% include "dashboard/_payment_card_brands.html" %}
-                  </div>
-                </div>
-                <p class="text-lg font-black text-slate-900">{{ renewal_plan_details.price }} <span class="text-xs text-slate-500">ر.س</span></p>
-              </div>
-              <form method="post" action="{% url 'subscriptions:moyasar_start' %}" class="mt-4">
-                {% csrf_token %}
-                <input type="hidden" name="request_type" value="renewal">
-                <input type="hidden" name="plan_id" value="{{ renewal_plan_details.id }}">
-                <div class="mb-3">
-                  <label for="renewal-discount-code" class="mb-1 block text-xs font-bold text-slate-600">كود الخصم (اختياري)</label>
-                  <input type="text" name="discount_code" id="renewal-discount-code" dir="ltr" autocomplete="off"
-                         class="w-full rounded-xl border border-slate-200 px-4 py-3 text-center font-bold uppercase tracking-widest text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none"
-                         placeholder="مثال: SAVE20">
-                </div>
-                <button type="submit" class="w-full rounded-xl bg-slate-900 px-5 py-4 font-black text-white transition hover:bg-slate-700 active:scale-[.99]">
-                  متابعة الدفع الإلكتروني <span aria-hidden="true">←</span>
-                </button>
-              </form>
-              {% if not moyasar_live_mode %}<p class="mt-3 text-center text-[11px] text-amber-700">بيئة اختبار؛ لن يُفعّل اشتراك حقيقي.</p>{% endif %}
-            </div>
-            {% endif %}
-
-            {% if tamara_available and renewal_plan_details.price %}
-            <div class="tamara-checkout-card rounded-2xl border border-rose-200 bg-rose-50/50 p-5" data-payment-panel="renewal" data-payment-method="tamara">
-              <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex items-center gap-3">
-                  <img src="{% static 'img/tamara-app-icon.png' %}" alt="" width="40" height="40" class="h-10 w-10 rounded-xl">
-                  <div>
-                    <p class="font-black text-slate-900">الدفع عبر تمارا</p>
-                    <p class="mt-0.5 text-xs text-slate-500">انتقال آمن إلى تمارا وتفعيل تلقائي بعد التأكيد</p>
-                  </div>
-                </div>
-                <p class="text-lg font-black text-slate-900">{{ renewal_plan_details.price }} <span class="text-xs text-slate-500">ر.س</span></p>
-              </div>
-              <form method="post" action="{% url 'subscriptions:tamara_start' %}" class="mt-4">
-                {% csrf_token %}
-                <input type="hidden" name="request_type" value="renewal">
-                <input type="hidden" name="plan_id" value="{{ renewal_plan_details.id }}">
-                <button type="submit" class="tamara-pay-button w-full rounded-xl px-5 py-4 font-black text-white transition active:scale-[.99]">
-                  متابعة الدفع عبر تمارا <span aria-hidden="true">←</span>
-                </button>
-              </form>
-              <p class="mt-3 text-center text-[11px] text-slate-500">تعرض تمارا الخيارات النهائية حسب أهلية الحساب.</p>
-            </div>
-            {% endif %}
-
-
-            <details class="bank-transfer-details rounded-2xl border border-slate-200 bg-slate-50" data-payment-panel="renewal" data-payment-method="bank" open>
-              <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 font-black text-slate-800">
-                <span>استخدام التحويل البنكي بدلًا من ذلك ورفع الإيصال</span>
-                <span class="details-chevron text-slate-400" aria-hidden="true">⌄</span>
-              </summary>
-              <form method="post" enctype="multipart/form-data" class="space-y-5 border-t border-slate-200 bg-white p-5">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="renewal">
-              {% include "dashboard/_bank_transfer_account.html" %}
-              
-              <div class="space-y-1">
-                <label class="block text-sm font-bold text-slate-700" for="{{ renew_form.receipt_image.id_for_label }}">صورة الإيصال</label>
-                <div class="relative">
-                   {{ renew_form.receipt_image }}
-                   <!-- Custom file input styling can be added via JS or CSS, keeping default for compatibility but styled wrappers -->
-                </div>
-                <p class="text-[11px] text-slate-400">يرجى رفع صورة واضحة بصيغة JPG أو PNG أو WEBP.</p>
-                 {% if renew_form.receipt_image.errors %}
-                   <p class="text-xs text-red-500 mt-1">{{ renew_form.receipt_image.errors }}</p>
-                 {% endif %}
-              </div>
-
-               <div class="space-y-1">
-                <label class="block text-sm font-bold text-slate-700" for="{{ renew_form.transfer_note.id_for_label }}">ملاحظات (اختياري)</label>
-                {{ renew_form.transfer_note }}
-                 {% if renew_form.transfer_note.errors %}
-                   <p class="text-xs text-red-500 mt-1">{{ renew_form.transfer_note.errors }}</p>
-                 {% endif %}
-              </div>
-
-              <button type="submit" class="w-full py-4 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2">
-                <span>إرسال الإيصال للمراجعة</span>
-                <span>🚀</span>
-              </button>
-              </form>
-            </details>
-              </div>
-            </section>
-            {% else %}
-              <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900">
-                <p class="font-black">الباقة الحالية لا تتطلب بوابة دفع</p>
-                <p class="mt-1 text-xs leading-6">يمكنك التواصل مع الدعم لتجديد الباقة المجانية أو اختيار باقة جديدة من التبويب المجاور.</p>
-              </div>
-            {% endif %}
-          {% else %}
-             <div class="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-               <p class="text-slate-500 mb-2">لا يوجد اشتراك حالي لتجديده.</p>
-               <button data-action="click-target" data-target="[data-tab=new]" class="text-teal-800 font-bold hover:underline">انتقل لطلب اشتراك جديد</button>
-             </div>
-          {% endif %}
-        </div>
-
-      <!-- Tab Content: New Subscription -->
-      <div id="tab-new" class="{% if active_request_tab != 'new' %}hidden{% endif %} animate-fade-in">
-        {{ plans_map|json_script:"plans-map" }}
-
-        {% if current_status_code == "active" and current_subscription.plan.price > 0 and current_subscription.ends_at %}
-          <div class="dp-note mb-4">
-            <i class="fa-regular fa-calendar" aria-hidden="true"></i>
-            <div>
-              <strong>متى تبدأ مدة الباقة؟</strong>
-              <p>إذا اخترت باقتك الحالية نفسها، تبدأ المدة المدفوعة بعد آخر فترة مؤكدة لهذه الباقة. تبدأ الباقة المختلفة عند تأكيد الدفع أو اعتماد التحويل.</p>
-            </div>
-          </div>
-        {% endif %}
-
-        <div class="mb-5">
-          {% if available_plan_cards %}
-          <section class="school-plan-builder" data-school-plan-builder data-default-screens="{{ screens_total_count|default:1 }}">
-            <div class="school-plan-builder-head">
-              <div class="school-plan-builder-title">
-                <span aria-hidden="true">✦</span>
-                <div>
-                  <p>صمّم اشتراك مدرستك</p>
-                  <small>اختر المدة وعدد الشاشات، وسنحدد الباقة المطابقة تلقائيًا</small>
-                </div>
-              </div>
-              <button id="plan-advanced-toggle" type="button" class="school-plan-advanced-toggle" aria-expanded="false" aria-controls="plan-advanced-tools">
-                استعراض كل الباقات
-              </button>
-            </div>
-
-            <div class="school-plan-builder-grid">
-              <div class="school-plan-builder-step">
-                <div class="school-plan-step-label"><span>1</span><div><strong>مدة الاشتراك</strong><small>اختر المرونة أو الوفر</small></div></div>
-                <div class="school-plan-cycle-options" role="tablist" aria-label="مدة الاشتراك">
-                  <button type="button" class="school-plan-cycle is-active" data-manager-plan-cycle="monthly" aria-selected="true" role="tab"><span>شهري</span><small>مرن</small></button>
-                  <button type="button" class="school-plan-cycle" data-manager-plan-cycle="semiannual" aria-selected="false" role="tab"><span>6 أشهر</span><small>وفر 5%</small></button>
-                  <button type="button" class="school-plan-cycle" data-manager-plan-cycle="annual" aria-selected="false" role="tab"><span>عام دراسي</span><small>الأوفر</small></button>
-                </div>
-              </div>
-
-              <div class="school-plan-builder-step">
-                <div class="school-plan-step-label"><span>2</span><div><strong>عدد الشاشات</strong><small>لكل شاشة محتواها المستقل</small></div></div>
-                <div class="school-plan-screen-options" role="tablist" aria-label="عدد الشاشات">
-                  <button type="button" class="school-plan-screen is-active" data-manager-screen-count="1" aria-selected="true" aria-label="شاشة واحدة" role="tab"><span>▣</span><strong>1</strong><small>شاشة</small></button>
-                  <button type="button" class="school-plan-screen" data-manager-screen-count="2" aria-selected="false" aria-label="شاشتان" role="tab"><span>▣</span><strong>2</strong><small>شاشتان</small></button>
-                  <button type="button" class="school-plan-screen" data-manager-screen-count="3" aria-selected="false" aria-label="3 شاشات" role="tab"><span>▣</span><strong>3</strong><small>شاشات</small></button>
-                  <button type="button" class="school-plan-screen" data-manager-screen-count="4" aria-selected="false" aria-label="4 شاشات" role="tab"><span>▣</span><strong>4</strong><small>شاشات</small></button>
-                  <button type="button" class="school-plan-screen" data-manager-screen-count="5" aria-selected="false" aria-label="5 شاشات" role="tab"><span>▣</span><strong>5</strong><small>شاشات</small></button>
-                </div>
-              </div>
-            </div>
-
-            <div class="school-plan-choice-summary" aria-live="polite">
-              <span class="school-plan-choice-check" aria-hidden="true">✓</span>
-              <div><small>الباقة المناسبة لاختيارك</small><strong id="manager-plan-choice-label">شهري · شاشة واحدة</strong></div>
-              <span class="school-plan-choice-hint">تم تحديدها تلقائيًا ↓</span>
-            </div>
-          </section>
-
-          <div id="plan-advanced-tools" class="hidden">
-          <div class="plan-filter-shell mb-4" aria-label="فلترة باقات الاشتراك">
-            <div class="plan-search-field">
-              <span aria-hidden="true">⌕</span>
-              <input id="plan-filter-search" type="search" placeholder="ابحث باسم الباقة أو وصفها..." autocomplete="off" aria-label="البحث في الباقات">
-            </div>
-            <select id="plan-filter-duration" class="plan-filter-select" aria-label="تصفية حسب المدة">
-              <option value="all">كل المدد</option>
-              <option value="short">شهري</option>
-              <option value="half">6 أشهر</option>
-              <option value="annual">عام دراسي</option>
-              <option value="other">مدد أخرى</option>
-            </select>
-            <select id="plan-filter-screens" class="plan-filter-select" aria-label="تصفية حسب عدد الشاشات">
-              <option value="0">كل حدود الشاشات</option>
-              <option value="1">شاشة واحدة فأكثر</option>
-              <option value="2">شاشتان فأكثر</option>
-              <option value="3">3 شاشات فأكثر</option>
-              <option value="5">5 شاشات فأكثر</option>
-            </select>
-            <button id="plan-filter-reset" type="button" class="plan-filter-reset">إعادة الضبط</button>
-            <div class="plan-price-filters" role="group" aria-label="تصفية حسب السعر">
-              <button type="button" class="plan-filter-chip is-active" data-plan-price-filter="all" aria-pressed="true">الكل</button>
-              <button type="button" class="plan-filter-chip" data-plan-price-filter="paid" aria-pressed="false">مدفوعة</button>
-              <button type="button" class="plan-filter-chip" data-plan-price-filter="free" aria-pressed="false">مجانية</button>
-              <span id="plan-visible-count" class="mr-auto text-[11px] font-black text-slate-500" aria-live="polite"></span>
-            </div>
-          </div>
-          </div>
-          {% endif %}
-          <div class="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h4 class="font-black text-slate-900">الباقة المحددة</h4>
-              <p class="mt-1 text-xs leading-6 text-slate-500">السعر والمزايا محدثة مباشرة من إدارة المنصة.</p>
-            </div>
-            <span class="hidden text-[11px] font-bold text-teal-800 sm:inline">جميع مزايا النظام مشمولة</span>
-          </div>
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-2" id="plan-options-grid">
+      {% if available_plan_cards %}
+      <form method="get" action="{% url 'dashboard:my_subscription' %}#subscription-checkout">
+        <fieldset class="subscription-plan-fieldset">
+          <legend>مدة الاشتراك</legend>
+          {% if new_form.plan.errors %}<div class="subscription-field-error">{{ new_form.plan.errors }}</div>{% endif %}
+          <div class="subscription-plans" id="plan-options-grid">
             {% for plan in available_plan_cards %}
-              <button
-                type="button"
-                data-plan-option
-                data-plan-id="{{ plan.id }}"
-                data-plan-code="{{ plan.code }}"
-                data-plan-price="{{ plan.price }}"
-                data-plan-duration="{{ plan.duration_days }}"
-                data-plan-max-screens="{% if plan.max_screens is not None %}{{ plan.max_screens }}{% endif %}"
-                aria-pressed="false"
-                class="manager-plan-option group relative rounded-2xl border p-4 text-right transition-all {% if plan.is_featured %}border-teal-300 bg-teal-50/60{% else %}border-slate-200 bg-white hover:border-teal-200 hover:bg-teal-50/30{% endif %}"
-              >
-                {% if plan.badge_text %}
-                  <span class="absolute left-3 top-3 rounded-full {% if plan.is_trial %}bg-emerald-600{% else %}bg-teal-800{% endif %} px-2.5 py-1 text-[10px] font-black text-white">{{ plan.badge_text }}</span>
-                {% endif %}
-                <div class="pl-20">
-                  <p class="font-black text-slate-900">{{ plan.name }}</p>
-                  {% if plan.description %}<p class="mt-1 text-xs leading-5 text-slate-500">{{ plan.description }}</p>{% endif %}
-                  {% if plan.duration_text %}<p class="mt-2 text-[11px] font-black text-teal-900">{{ plan.duration_text }}</p>{% endif %}
-                  {% if plan.monthly_text %}<p class="mt-1 text-[10px] font-bold leading-5 text-emerald-700">{{ plan.monthly_text }}</p>{% endif %}
-                </div>
-                <div class="mt-4 flex items-end justify-between gap-3 border-t border-slate-100 pt-3">
-                  <div>
-                    <strong class="text-2xl font-black text-teal-900">{{ plan.price|floatformat:"-2" }}</strong>
-                    <span class="text-[10px] font-bold text-slate-500">{{ plan.price_caption }}</span>
-                  </div>
-                  <div class="flex gap-2 text-[10px] font-bold text-slate-600">
-                    {% if plan.screen_text %}<span class="rounded-lg bg-slate-50 px-2 py-1.5">{{ plan.screen_text }}</span>{% endif %}
-                  </div>
-                </div>
-              </button>
-            {% empty %}
-              <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500 md:col-span-2">
-                لا توجد باقات متاحة حالياً. تواصل مع الدعم لاختيار الاشتراك المناسب.
-              </div>
+            <label class="subscription-plan{% if plan.is_free %} subscription-plan--free{% endif %}">
+              <input class="subscription-plan__radio" type="radio" name="plan" value="{{ plan.code }}" data-plan-option data-plan-id="{{ plan.id|unlocalize }}" data-plan-code="{{ plan.code }}" {% if selected_checkout_plan.id == plan.id %}checked{% endif %} required>
+              <span class="subscription-plan__card">
+                <span class="subscription-plan__header">
+                  <span class="subscription-plan__name">{{ plan.name }}</span>
+                  <span class="subscription-plan__indicator" aria-hidden="true"></span>
+                </span>
+                <span class="subscription-plan__duration">{{ plan.duration_text|default:plan.duration_label }}</span>
+                <span class="subscription-plan__price">{% if plan.is_free %}<bdi>مجانًا</bdi>{% else %}<bdi>{{ plan.price|floatformat:"-2g" }}</bdi> <small>ر.س</small>{% endif %}</span>
+                {% if plan.badge_text and plan.is_featured %}<span class="subscription-plan__badge">{{ plan.badge_text }}</span>{% endif %}
+                {% if plan.description %}<span class="subscription-plan__description">{{ plan.description }}</span>{% endif %}
+                {% if plan.monthly_text and not plan.is_free %}<span class="subscription-plan__note">{{ plan.monthly_text }}</span>{% endif %}
+              </span>
+            </label>
             {% endfor %}
           </div>
-          {% if available_plan_cards %}<div id="plan-filter-empty" class="hidden rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-            <span class="text-3xl" aria-hidden="true">⌕</span>
-            <h5 class="mt-2 font-black text-slate-800">لا توجد باقة مطابقة</h5>
-            <p class="mt-1 text-xs text-slate-500">جرّب تغيير المدة أو عدد الشاشات أو أعد ضبط الفلتر.</p>
-          </div>{% endif %}
-        </div>
+        </fieldset>
+        <noscript><button class="dp-btn dp-btn--primary" type="submit">عرض تفاصيل الدفع للباقة</button></noscript>
+      </form>
+      {% if current_subscription and current_subscription.plan.price > 0 and current_subscription.ends_at %}
+      <details class="subscription-term-note">
+        <summary>متى تبدأ مدة الباقة؟</summary>
+        <p>عند تجديد باقتك الحالية، تبدأ الفترة المدفوعة بعد آخر فترة مؤكدة للباقة. عند اختيار باقة مختلفة، تبدأ عند تأكيد الدفع أو اعتماد التحويل.</p>
+      </details>
+      {% endif %}
+      {% else %}
+        <p class="subscription-empty">لا توجد باقات متاحة حاليًا.</p>
+      {% endif %}
 
-        <!-- Plan Details Card -->
-        <div class="mb-6 p-5 bg-gradient-to-br from-teal-700 to-amber-600 rounded-2xl text-white shadow-lg relative overflow-hidden">
-          <div class="relative z-10 flex justify-between items-center text-center">
-            <div>
-               <p class="text-teal-200 text-xs mb-1">السعر</p>
-               <p class="text-2xl font-bold"><span id="plan-price">—</span> <span class="text-xs font-normal opacity-70">ر.س</span></p>
-            </div>
-            <div class="w-px h-10 bg-white/20"></div>
-            <div>
-               <p class="text-teal-200 text-xs mb-1">المدة</p>
-               <p class="text-xl font-bold" id="plan-duration">—</p>
-            </div>
-            <div class="w-px h-10 bg-white/20"></div>
-            <div>
-               <p class="text-teal-200 text-xs mb-1">الشاشات</p>
-               <p class="text-xl font-bold" id="plan-max-screens">—</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="mb-5 space-y-1" data-plan-select-wrapper>
-          <label class="block text-sm font-bold text-slate-700" for="{{ new_form.plan.id_for_label }}">اختر الباقة</label>
-          {{ new_form.plan }}
-          {% if new_form.plan.errors %}
-            <p class="text-xs text-red-500 mt-1">{{ new_form.plan.errors }}</p>
-          {% endif %}
-        </div>
-
-        <div id="payment-plan-prompt" class="rounded-2xl border border-dashed border-teal-200 bg-teal-50/60 px-5 py-6 text-center">
-          <span class="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-800 text-xl text-white">↓</span>
-          <p class="mt-3 font-black text-teal-950">اختر باقة لعرض وسائل الدفع</p>
-          <p class="mt-1 text-xs leading-6 text-teal-900">بعد اختيار الباقة ستظهر خيارات الدفع الإلكتروني والتحويل البنكي في مكان واحد.</p>
-        </div>
-
-        <section
-          id="new-payment-hub"
-          class="payment-hub hidden"
-          data-payment-hub="new"
-          data-default-method="{% if new_form.receipt_image.errors or new_form.transfer_note.errors %}bank{% elif moyasar_available %}moyasar{% elif tamara_available %}tamara{% else %}bank{% endif %}"
-        >
-          <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h4 class="font-black text-slate-900">اختر وسيلة الدفع</h4>
-              <p class="mt-1 text-xs leading-6 text-slate-500">سيتم تحديث المبلغ والخطة تلقائيًا قبل الانتقال للبوابة.</p>
-            </div>
-            <div class="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700">
-              الإجمالي: <span id="payment-hub-total">—</span> ر.س
-            </div>
-          </div>
-          {% include "dashboard/_payment_method_selector.html" with payment_scope="new" %}
-          <div class="mt-5">
-
-        {% if moyasar_available %}
-        <div id="moyasar-new-card" class="rounded-2xl border border-slate-300 bg-slate-50 p-5" data-payment-panel="new" data-payment-method="moyasar">
-          <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex items-center gap-3">
-              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">{% include "dashboard/_electronic_payment_icon.html" %}</span>
-              <div>
-                <p class="font-black text-slate-900">الدفع الإلكتروني</p>
-                <p id="moyasar-plan-copy" class="mt-1 text-xs text-slate-500">اختر باقة مدفوعة للمتابعة</p>
-              </div>
-            </div>
-            <div class="rounded-xl bg-white px-4 py-3 text-center ring-1 ring-slate-200">
-              <p class="text-[10px] font-bold text-slate-500">الإجمالي</p>
-              <p class="mt-1 text-lg font-black text-slate-900"><span id="moyasar-total">—</span> <span class="text-xs">ر.س</span></p>
-            </div>
-          </div>
-          <form method="post" action="{% url 'subscriptions:moyasar_start' %}" id="moyasar-new-form" class="mt-4">
-            {% csrf_token %}
-            <input type="hidden" name="request_type" value="new">
-            <input type="hidden" name="plan_id" id="moyasar-plan-id" value="">
-            <div class="mb-3">
-              <label for="moyasar-discount-code" class="mb-1 block text-xs font-bold text-slate-600">كود الخصم (اختياري)</label>
-              <input type="text" name="discount_code" id="moyasar-discount-code" dir="ltr" autocomplete="off"
-                     class="w-full rounded-xl border border-slate-200 px-4 py-3 text-center font-bold uppercase tracking-widest text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none"
-                     placeholder="مثال: SAVE20">
-              <p class="mt-1 text-[11px] text-slate-500">يُتحقق من الكود ويُطبق الخصم على الإجمالي في صفحة الدفع التالية.</p>
-            </div>
-            <button type="submit" id="moyasar-new-submit" class="w-full rounded-xl bg-slate-900 px-5 py-4 font-black text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[.99]" disabled>
-              متابعة الدفع الإلكتروني <span aria-hidden="true">←</span>
-            </button>
-          </form>
-          {% if not moyasar_live_mode %}<p class="mt-3 text-center text-[11px] text-amber-700">بيئة اختبار؛ لن يُفعّل اشتراك حقيقي.</p>{% endif %}
-        </div>
-        {% endif %}
-
-        {% if tamara_available %}
-        <div id="tamara-new-card" class="tamara-checkout-card rounded-2xl border border-rose-200 bg-rose-50/50 p-5" data-payment-panel="new" data-payment-method="tamara">
-          <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex items-center gap-3">
-              <img src="{% static 'img/tamara-app-icon.png' %}" alt="" width="40" height="40" class="h-10 w-10 rounded-xl">
-              <div>
-                <p class="font-black text-slate-900">الدفع عبر تمارا</p>
-                <p id="tamara-plan-copy" class="mt-1 text-xs text-slate-500">اختر باقة مدفوعة للمتابعة</p>
-              </div>
-            </div>
-            <div class="rounded-xl bg-white px-4 py-3 text-center ring-1 ring-rose-100">
-              <p class="text-[10px] font-bold text-slate-500">الإجمالي</p>
-              <p class="mt-1 text-lg font-black text-slate-900"><span id="tamara-total">—</span> <span class="text-xs">ر.س</span></p>
-            </div>
-          </div>
-          <form method="post" action="{% url 'subscriptions:tamara_start' %}" class="mt-4">
-            {% csrf_token %}
-            <input type="hidden" name="request_type" value="new">
-            <input type="hidden" name="plan_id" id="tamara-plan-id" value="">
-            <button type="submit" id="tamara-new-submit" class="tamara-pay-button w-full rounded-xl px-5 py-4 font-black text-white transition disabled:cursor-not-allowed disabled:opacity-50 active:scale-[.99]" disabled>
-              متابعة الدفع عبر تمارا <span aria-hidden="true">←</span>
-            </button>
-          </form>
-          {% if tamara_environment == "sandbox" %}<p class="mt-3 text-center text-[11px] text-amber-700">بيئة Tamara التجريبية.</p>{% endif %}
-        </div>
-        {% endif %}
-
-
-        <div id="free-plan-card" class="mb-6 hidden rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-          <div class="flex items-start gap-3">
-            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-lg text-white">✓</span>
-            <div>
-              <p class="font-black text-emerald-950">هذه الباقة مجانية</p>
-              <p class="mt-1 text-xs leading-6 text-emerald-800">لا تحتاج إلى دفع إلكتروني أو تحويل بنكي أو رفع إيصال. يمكنك بدء الطلب مباشرة.</p>
-            </div>
-          </div>
-          <form method="post" class="mt-4">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="new">
-            <input type="hidden" name="new-plan" id="free-new-plan-id" value="">
-            <button type="submit" class="w-full rounded-xl bg-emerald-600 px-5 py-4 font-black text-white transition hover:bg-emerald-700 active:scale-[.99]">بدء الباقة المجانية</button>
-          </form>
-        </div>
-
-        <details id="new-bank-details" class="bank-transfer-details rounded-2xl border border-slate-200 bg-slate-50" data-payment-panel="new" data-payment-method="bank" open>
-          <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 font-black text-slate-800">
-            <span>استخدام التحويل البنكي بدلًا من ذلك ورفع الإيصال</span>
-            <span class="details-chevron text-slate-400" aria-hidden="true">⌄</span>
-          </summary>
-          <form method="post" enctype="multipart/form-data" class="space-y-5 border-t border-slate-200 bg-white p-5" id="new-bank-transfer-form">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="new">
-            <input type="hidden" name="new-plan" id="bank-new-plan-id" value="">
-            {% include "dashboard/_bank_transfer_account.html" %}
-
-            <div class="space-y-1">
-              <label class="block text-sm font-bold text-slate-700" for="{{ new_form.receipt_image.id_for_label }}">صورة الإيصال</label>
-              {{ new_form.receipt_image }}
-              {% if new_form.receipt_image.errors %}
-                <p class="text-xs text-red-500 mt-1">{{ new_form.receipt_image.errors }}</p>
-              {% endif %}
-              <p class="text-[11px] text-slate-400">ارفع صورة واضحة بصيغة JPG أو PNG أو WEBP.</p>
-            </div>
-
-            <div class="space-y-1">
-              <label class="block text-sm font-bold text-slate-700" for="{{ new_form.transfer_note.id_for_label }}">ملاحظات (اختياري)</label>
-              {{ new_form.transfer_note }}
-              {% if new_form.transfer_note.errors %}
-                <p class="text-xs text-red-500 mt-1">{{ new_form.transfer_note.errors }}</p>
-              {% endif %}
-            </div>
-
-            <button type="submit" class="w-full py-4 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2">
-              <span>إرسال الإيصال للمراجعة</span>
-              <span>✨</span>
-            </button>
-          </form>
-        </details>
-          </div>
-        </section>
+      <div id="subscription-checkout" class="dashboard-anchor" {% if not available_plan_cards %}hidden{% endif %}>
+        <p id="payment-plan-prompt" class="subscription-empty" {% if selected_checkout_plan %}hidden{% endif %}>اختر إحدى الباقات لعرض الإجمالي ووسائل الدفع.</p>
+        {% include "dashboard/_subscription_checkout.html" with payment_scope="new" plan_details=selected_checkout_plan form=new_form %}
       </div>
-
     </div>
-  </div>
 
+    {% if renewal_plan_details and not renewal_plan_details.is_free %}
+    <div id="tab-renewal" role="tabpanel" aria-labelledby="renew-tab" {% if active_request_tab != 'renewal' %}hidden{% endif %}>
+      {% include "dashboard/_subscription_checkout.html" with payment_scope="renewal" plan_details=renewal_plan_details form=renew_form %}
+    </div>
+    {% endif %}
+  </section>
+
+  {% if current_subscription %}
+    {% include "subscriptions/_feature_status.html" %}
+  {% endif %}
+
+  {% if screen_addon_offer %}
+  <details id="screen-addon-purchase" class="dashboard-anchor subscription-panel subscription-addon">
+    <summary><strong>تحتاج شاشة إضافية؟</strong> <span>إضافة مؤقتة على اشتراكك الساري</span></summary>
+    <p>اختر مدة الإضافة. تُفعّل الشاشات بعد تأكيد الدفع ضمن فترة اشتراكك الحالي.</p>
+    <form method="post" action="{% url 'subscriptions:moyasar_start' %}" data-screen-addon-form>
+      {% csrf_token %}
+      <input type="hidden" name="request_type" value="screens">
+      <label for="addon-screens">عدد الشاشات الإضافية
+        <input type="number" class="dp-input" id="addon-screens" name="extra_screens" value="1" min="1" max="{{ screen_addon_offer.max_screens }}" required data-screen-addon-count>
+      </label>
+      <label for="addon-duration-days">مدة الإضافة
+        <select class="dp-input" id="addon-duration-days" name="addon_duration_days" required data-screen-addon-duration>
+          {% for option in screen_addon_offer.duration_options %}
+            <option value="{{ option.days }}" data-unit-price="{{ option.unit_price|unlocalize }}">{{ option.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div><span>الإجمالي</span> <strong data-screen-addon-total>{{ screen_addon_offer.default_option.unit_price|floatformat:"-2g" }} ر.س</strong></div>
+      <button type="submit" class="dp-btn dp-btn--primary">متابعة دفع الإضافة</button>
+    </form>
+    {{ screen_addon_offer.price_matrix|json_script:"screen-addon-price-matrix" }}
+  </details>
+  {% endif %}
+
+  <section id="subscription-history" class="dashboard-anchor subscription-panel" aria-labelledby="subscriptionHistoryTitle">
+    <header class="subscription-panel__head">
+      <div><h2 id="subscriptionHistoryTitle">سجل المدفوعات والفواتير</h2><p>راجع حالة كل عملية وافتح فاتورتها عند توفرها.</p></div>
+    </header>
+    <ul class="subscription-history">
+      {% for row in subscription_history %}
+      <li class="subscription-history__item">
+        <div><strong>{{ row.plan_name }}</strong><small><bdi>{{ row.date|date:"Y-m-d" }}</bdi>{% if row.payment_method_label %} · {{ row.payment_method_label }}{% endif %}</small></div>
+        <span class="subscription-history__state" data-state="{{ row.status_code }}">{{ row.status_label|default:"—" }}</span>
+        <strong class="subscription-history__total">{% if row.amount is not None %}<bdi>{{ row.amount|floatformat:"-2g" }}</bdi> ر.س{% else %}—{% endif %}</strong>
+        {% if row.invoice_url %}
+          <a href="{{ row.invoice_url }}" target="_blank" rel="noopener" class="dp-btn dp-btn--soft">عرض الفاتورة</a>
+        {% endif %}
+      </li>
+      {% empty %}
+      <li class="subscription-empty">لا يوجد سجل سابق.</li>
+      {% endfor %}
+    </ul>
+  </section>
 
   {% if moyasar_checkouts or tamara_checkouts %}
-  <div class="dashboard-section-card mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-    <div class="flex flex-col gap-1 border-b border-slate-100 bg-slate-50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h4 class="font-black text-slate-800">المدفوعات الإلكترونية</h4>
-        <p class="mt-1 text-xs text-slate-500">آخر محاولات الدفع عبر ميسر وتمارا وحالة التحقق الخلفي.</p>
-      </div>
-      <span class="text-xs font-bold text-slate-500">أحدث العمليات</span>
-    </div>
-    <div class="divide-y divide-slate-100">
-      {% for checkout in moyasar_checkouts %}
-      <div class="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-2">
-            <p class="font-bold text-slate-800">{{ checkout.plan.name }}</p>
-            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{{ checkout.get_request_type_display }}</span>
-            {% if not checkout.live_mode %}<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">اختبار</span>{% endif %}
-          </div>
-          <p class="mt-1 text-xs text-slate-500">{{ checkout.created_at|date:"Y-m-d H:i" }} · مرجع <span dir="ltr">#{{ checkout.merchant_reference|slice:"-8:" }}</span></p>
-          {% if checkout.status == 'paid' or checkout.status == 'captured' %}
-            {% if checkout.payment_operation_id %}
-              {% if checkout.request_type == 'screens' %}
-                <p class="mt-2 text-xs text-emerald-700">تم تأكيد الدفع وإضافة الشاشات.</p>
-              {% elif checkout.subscription.starts_at > today %}
-                <p class="mt-2 text-xs text-emerald-700">تم تأكيد الدفع. يبدأ الاشتراك في <bdi>{{ checkout.subscription.starts_at|date:"Y-m-d" }}</bdi>.</p>
-              {% else %}
-                <p class="mt-2 text-xs text-emerald-700">تم التحقق وتفعيل الاشتراك.</p>
-              {% endif %}
-            {% else %}
-            <p class="mt-2 text-xs text-amber-700">نجحت عملية الاختبار دون تفعيل اشتراك حقيقي.</p>
-            {% endif %}
-          {% elif checkout.status == 'failed' %}
-          <p class="mt-2 text-xs text-rose-700">لم تكتمل عملية الدفع ولم يُفعّل الاشتراك.</p>
-          {% endif %}
-        </div>
-        <div class="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-          <p class="font-black text-slate-800">{{ checkout.amount }} ر.س</p>
-          <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-black {% if checkout.status == 'paid' or checkout.status == 'captured' %}bg-emerald-100 text-emerald-800{% elif checkout.status == 'failed' or checkout.status == 'voided' or checkout.status == 'error' %}bg-rose-100 text-rose-800{% else %}bg-amber-100 text-amber-800{% endif %}">{{ checkout.get_status_display }}</span>
-          {% if checkout.status == 'initiated' and moyasar_available %}
-          <a href="{% url 'subscriptions:moyasar_checkout' reference=checkout.merchant_reference %}" class="rounded-lg bg-slate-900 px-3 py-2 text-xs font-black text-white transition hover:bg-slate-700">متابعة الدفع</a>
-          {% endif %}
-        </div>
-      </div>
-      {% endfor %}
-      {% for checkout in tamara_checkouts %}
-      <div class="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-2">
-            <p class="font-bold text-slate-800">{{ checkout.plan.name }}</p>
-            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{{ checkout.get_request_type_display }}</span>
-            <span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">تمارا</span>
-            {% if tamara_environment == 'sandbox' %}<span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">اختبار</span>{% endif %}
-          </div>
-          <p class="mt-1 text-xs text-slate-500">{{ checkout.created_at|date:"Y-m-d H:i" }} · مرجع <span dir="ltr">#{{ checkout.merchant_reference|slice:"-8:" }}</span></p>
-          {% if checkout.status == 'authorised' or checkout.status == 'captured' %}
-          {% if checkout.subscription.starts_at > today %}
-          <p class="mt-2 text-xs text-emerald-700">تم تأكيد الدفع. يبدأ الاشتراك في <bdi>{{ checkout.subscription.starts_at|date:"Y-m-d" }}</bdi>.</p>
-          {% else %}
-          <p class="mt-2 text-xs text-emerald-700">تم التحقق وتفعيل الاشتراك.</p>
-          {% endif %}
-          {% elif checkout.status == 'declined' or checkout.status == 'canceled' or checkout.status == 'expired' %}
-          <p class="mt-2 text-xs text-rose-700">لم تكتمل عملية تمارا ولم يُفعّل الاشتراك.</p>
-          {% endif %}
-        </div>
-        <div class="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-          <p class="font-black text-slate-800">{{ checkout.amount }} ر.س</p>
-          <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-black {% if checkout.status == 'authorised' or checkout.status == 'captured' %}bg-emerald-100 text-emerald-800{% elif checkout.status == 'declined' or checkout.status == 'canceled' or checkout.status == 'expired' or checkout.status == 'refunded' or checkout.status == 'error' %}bg-rose-100 text-rose-800{% else %}bg-amber-100 text-amber-800{% endif %}">{{ checkout.get_status_display }}</span>
-          {% if checkout.status == 'new' and checkout.checkout_url %}
-          <a href="{{ checkout.checkout_url }}" class="rounded-lg bg-rose-500 px-3 py-2 text-xs font-black text-white transition hover:bg-rose-600">متابعة الدفع عبر تمارا</a>
-          {% endif %}
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
+  <section class="subscription-panel" aria-labelledby="electronicHistoryTitle">
+    <header class="subscription-panel__head"><div><h2 id="electronicHistoryTitle">متابعة عمليات الدفع الإلكتروني</h2><p>تحقق من آخر محاولات الدفع أو تابع عملية معلّقة.</p></div></header>
+    <ul class="subscription-history">
+      {% for checkout in moyasar_checkouts %}{% include "dashboard/_subscription_checkout_history.html" with provider="moyasar" %}{% endfor %}
+      {% for checkout in tamara_checkouts %}{% include "dashboard/_subscription_checkout_history.html" with provider="tamara" %}{% endfor %}
+    </ul>
+  </section>
   {% endif %}
-
-
-
-  {# --- سجل الطلبات (History Table) --- #}
-  <div id="subscription-history" class="dashboard-anchor dashboard-section-card bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mt-8">
-     <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-        <h2 class="font-bold text-slate-800">سجل المدفوعات والفواتير</h2>
-     </div>
-     <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-           <thead class="bg-slate-50 text-slate-500 font-medium">
-              <tr>
-                 <th class="px-6 py-4 text-right">التاريخ</th>
-                  <th class="px-6 py-4 text-right">طريقة الدفع</th>
-                 <th class="px-6 py-4 text-right">الخطة</th>
-                 <th class="px-6 py-4 text-right">المبلغ</th>
-                 <th class="px-6 py-4 text-right">الحالة</th>
-                 <th class="px-6 py-4 text-right">الفاتورة</th>
-              </tr>
-           </thead>
-            <tbody class="divide-y divide-slate-100">
-            {% for row in subscription_history %}
-              <tr class="hover:bg-slate-50 transition-colors">
-                <td class="px-6 py-4 font-mono text-slate-600">{{ row.date|date:"Y-m-d" }}</td>
-                 <td class="px-6 py-4 font-bold text-slate-800">{{ row.payment_method_label|default:"—" }}</td>
-                <td class="px-6 py-4 text-slate-600">{{ row.plan_name }}</td>
-                <td class="px-6 py-4 font-mono text-slate-700">
-                 {% if row.amount is not None %}{{ row.amount }} ر.س{% else %}<span class="text-slate-300">—</span>{% endif %}
-                </td>
-                <td class="px-6 py-4">
-                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold
-                  {% if row.status_code == 'approved' or row.status_code == 'active' %}bg-emerald-100 text-emerald-700
-                  {% elif row.status_code == 'rejected' or row.status_code == 'expired' or row.status_code == 'cancelled' %}bg-rose-100 text-rose-700
-                  {% elif row.status_code == 'under_review' or row.status_code == 'pending' or row.status_code == 'submitted' %}bg-amber-100 text-amber-700
-                  {% else %}bg-slate-100 text-slate-700{% endif %}">
-                    {{ row.status_label|default:"—" }}
-                  </span>
-                </td>
-                <td class="px-6 py-4">
-                  {% if row.invoice_url %}
-                    <a href="{{ row.invoice_url }}" target="_blank" class="inline-flex items-center gap-1 text-xs font-bold text-teal-800 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-2 py-1 rounded transition">
-                      <span>🧾</span> عرض
-                    </a>
-                  {% else %}
-                    <span class="text-slate-300">—</span>
-                  {% endif %}
-                </td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td colspan="6" class="px-6 py-10 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
-                  <span class="text-3xl grayscale opacity-50">📭</span>
-                  <span>لا يوجد سجل سابق</span>
-                </td>
-              </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-     </div>
-  </div>
-
 </div>
-
-<script nonce="{{ csp_nonce }}">
-  (function () {
-    // --- Tabs Logic ---
-    function setActiveTab(tab) {
-      var renewal = document.getElementById('tab-renewal');
-      var fresh = document.getElementById('tab-new');
-      if (!renewal || !fresh) return;
-
-      if (tab === 'new') {
-        renewal.classList.add('hidden');
-        fresh.classList.remove('hidden');
-      } else {
-        fresh.classList.add('hidden');
-        renewal.classList.remove('hidden');
-      }
-
-      var btns = document.querySelectorAll('.request-tab-btn');
-      btns.forEach(function (b) {
-        var isActive = b.getAttribute('data-tab') === tab;
-        b.setAttribute('aria-selected', isActive ? 'true' : 'false');
-        b.setAttribute('tabindex', isActive ? '0' : '-1');
-        if (isActive) {
-          b.classList.add('is-active');
-        } else {
-          b.classList.remove('is-active');
-        }
-      });
-    }
-
-    // Attach click handlers
-    document.querySelectorAll('.request-tab-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        setActiveTab(btn.getAttribute('data-tab') || 'renewal');
-      });
-    });
-
-    // --- Dynamic Plan Details (New Subscription) ---
-    function formatMoney(value) {
-      var number = Number(value || 0);
-      if (!isFinite(number)) return '—';
-      try {
-        return new Intl.NumberFormat('ar-SA', {
-          minimumFractionDigits: number % 1 ? 2 : 0,
-          maximumFractionDigits: 2
-        }).format(number);
-      } catch (e) {
-        return number.toFixed(number % 1 ? 2 : 0);
-      }
-    }
-
-    document.querySelectorAll('[data-screen-addon-form]').forEach(function (form) {
-      var countInput = form.querySelector('[data-screen-addon-count]');
-      var durationSelect = form.querySelector('[data-screen-addon-duration]');
-      var totalEl = form.querySelector('[data-screen-addon-total]');
-      var priceMatrix = {};
-      var matrixScript = document.getElementById('screen-addon-price-matrix');
-      if (matrixScript) {
-        try { priceMatrix = JSON.parse(matrixScript.textContent || '{}'); } catch (e) { priceMatrix = {}; }
-      }
-      function updateScreenAddonTotal() {
-        var selected = durationSelect && durationSelect.options[durationSelect.selectedIndex];
-        var rawUnit = String(selected && selected.getAttribute('data-unit-price') || '0').replace(',', '.');
-        var unit = Number(rawUnit || 0);
-        var count = Number(countInput && countInput.value || 1);
-        if (!isFinite(count) || count < 1) count = 1;
-        count = Math.floor(count);
-        var duration = String(durationSelect && durationSelect.value || '');
-        var matrixValue = priceMatrix[duration] && priceMatrix[duration][String(count)];
-        var total = matrixValue !== undefined ? Number(String(matrixValue).replace(',', '.')) : unit * count;
-        if (totalEl) totalEl.textContent = formatMoney(total) + ' ر.س';
-      }
-      if (countInput) countInput.addEventListener('input', updateScreenAddonTotal);
-      if (durationSelect) durationSelect.addEventListener('change', updateScreenAddonTotal);
-      updateScreenAddonTotal();
-    });
-
-    // --- Unified payment method selector ---
-    function activatePaymentMethod(hub, method) {
-      if (!hub) return;
-      var choices = Array.prototype.slice.call(hub.querySelectorAll('[data-payment-choice]'));
-      var requested = choices.find(function (choice) {
-        return choice.getAttribute('data-payment-method') === method && !choice.disabled;
-      });
-      var activeChoice = requested || choices.find(function (choice) { return !choice.disabled; });
-      var activeMethod = activeChoice ? activeChoice.getAttribute('data-payment-method') : 'bank';
-
-      choices.forEach(function (choice) {
-        var isActive = choice === activeChoice;
-        choice.classList.toggle('is-active', isActive);
-        choice.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-      });
-      hub.querySelectorAll('[data-payment-panel]').forEach(function (panel) {
-        var isActive = panel.getAttribute('data-payment-method') === activeMethod;
-        panel.classList.toggle('hidden', !isActive);
-        panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
-        if (isActive && panel.tagName === 'DETAILS') panel.open = true;
-      });
-      hub.setAttribute('data-active-payment-method', activeMethod || '');
-    }
-
-    document.querySelectorAll('[data-payment-hub]').forEach(function (hub) {
-      hub.querySelectorAll('[data-payment-choice]').forEach(function (choice) {
-        choice.addEventListener('click', function () {
-          if (!choice.disabled) activatePaymentMethod(hub, choice.getAttribute('data-payment-method'));
-        });
-      });
-      activatePaymentMethod(hub, hub.getAttribute('data-default-method') || 'bank');
-      hub.classList.add('is-ready');
-    });
-
-    function updatePlanDetails() {
-      var script = document.getElementById('plans-map');
-      if (!script) return;
-      var plans = {};
-      try { plans = JSON.parse(script.textContent || '{}'); } catch (e) { plans = {}; }
-
-      var select = document.querySelector('select[name="new-plan"]'); 
-      if (!select) select = document.querySelector('#tab-new select');
-
-      if (!select) return;
-
-      var planId = select.value;
-      var d = plans[String(planId)] || null;
-
-      document.querySelectorAll('[data-plan-option]').forEach(function (button) {
-        var isSelected = String(button.getAttribute('data-plan-id') || '') === String(planId || '');
-        button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-        button.classList.toggle('ring-2', isSelected);
-        button.classList.toggle('ring-teal-700', isSelected);
-        button.classList.toggle('border-teal-700', isSelected);
-        button.classList.toggle('shadow-md', isSelected);
-      });
-
-      var moyasarPlan = document.getElementById('moyasar-plan-id');
-      var moyasarSubmit = document.getElementById('moyasar-new-submit');
-      var moyasarCard = document.getElementById('moyasar-new-card');
-      var moyasarCopy = document.getElementById('moyasar-plan-copy');
-      var moyasarTotal = document.getElementById('moyasar-total');
-      var tamaraPlan = document.getElementById('tamara-plan-id');
-      var tamaraSubmit = document.getElementById('tamara-new-submit');
-      var tamaraCard = document.getElementById('tamara-new-card');
-      var tamaraCopy = document.getElementById('tamara-plan-copy');
-      var tamaraTotal = document.getElementById('tamara-total');
-      var bankPlan = document.getElementById('bank-new-plan-id');
-      var bankDetails = document.getElementById('new-bank-details');
-      var freeCard = document.getElementById('free-plan-card');
-      var freePlan = document.getElementById('free-new-plan-id');
-      var paymentHub = document.getElementById('new-payment-hub');
-      var paymentPrompt = document.getElementById('payment-plan-prompt');
-      var paymentHubTotal = document.getElementById('payment-hub-total');
-      var paidAmount = d ? Number(d.price || 0) : 0;
-      if (moyasarPlan) moyasarPlan.value = planId || '';
-      if (tamaraPlan) tamaraPlan.value = planId || '';
-      if (bankPlan) bankPlan.value = planId || '';
-      if (freePlan) freePlan.value = planId || '';
-      if (moyasarSubmit) moyasarSubmit.disabled = !planId || !d || paidAmount <= 0;
-      if (tamaraSubmit) tamaraSubmit.disabled = !planId || !d || paidAmount <= 0;
-      if (moyasarCard) moyasarCard.classList.toggle('hidden', !!d && paidAmount <= 0);
-      if (tamaraCard) tamaraCard.classList.toggle('hidden', !!d && paidAmount <= 0);
-      if (freeCard) freeCard.classList.toggle('hidden', !d || paidAmount > 0);
-      if (bankDetails) bankDetails.classList.toggle('hidden', !!d && paidAmount <= 0);
-      if (paymentHub) {
-        paymentHub.classList.toggle('hidden', !d);
-        paymentHub.classList.toggle('is-free', !!d && paidAmount <= 0);
-        paymentHub.setAttribute('data-has-plan', d ? 'true' : 'false');
-      }
-      if (paymentPrompt) paymentPrompt.classList.toggle('hidden', !!d);
-      if (paymentHubTotal) paymentHubTotal.textContent = d ? formatMoney(paidAmount) : '—';
-      if (moyasarCopy) moyasarCopy.textContent = d && d.name ? String(d.name) : 'اختر باقة مدفوعة للمتابعة';
-      if (moyasarTotal) moyasarTotal.textContent = paidAmount > 0 ? formatMoney(paidAmount) : '—';
-      if (tamaraCopy) tamaraCopy.textContent = d && d.name ? String(d.name) : 'اختر باقة مدفوعة للمتابعة';
-      if (tamaraTotal) tamaraTotal.textContent = paidAmount > 0 ? formatMoney(paidAmount) : '—';
-      if (paymentHub && d && paidAmount > 0) {
-        activatePaymentMethod(paymentHub, paymentHub.getAttribute('data-active-payment-method') || paymentHub.getAttribute('data-default-method') || 'bank');
-      }
-
-      var priceEl = document.getElementById('plan-price');
-      var durEl = document.getElementById('plan-duration');
-      var maxEl = document.getElementById('plan-max-screens');
-      if (!priceEl || !durEl || !maxEl) return;
-
-      if (!d) {
-        priceEl.textContent = '—';
-        durEl.textContent = '—';
-        maxEl.textContent = '—';
-        return;
-      }
-
-      priceEl.textContent = (d.price !== undefined && d.price !== null && d.price !== '') ? d.price : 'مجاني';
-      durEl.textContent = d.duration_label || '—';
-      maxEl.textContent = (d.max_screens !== undefined && d.max_screens !== null) ? String(d.max_screens) : 'غير محدود';
-    }
-
-    var planSelect = document.querySelector('select[name="new-plan"]') || document.querySelector('#tab-new select');
-    if (planSelect) {
-      planSelect.addEventListener('change', updatePlanDetails);
-      document.querySelectorAll('[data-plan-option]').forEach(function (button) {
-        button.addEventListener('click', function () {
-          planSelect.value = button.getAttribute('data-plan-id') || '';
-          planSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-      });
-      var selectWrapper = document.querySelector('[data-plan-select-wrapper]');
-      if (selectWrapper && document.querySelector('[data-plan-option]')) {
-        selectWrapper.classList.add('sr-only');
-      }
-      updatePlanDetails();
-    }
-
-    // --- Guided plan builder and advanced filters ---
-    var planBuilder = document.querySelector('[data-school-plan-builder]');
-    var planAdvancedToggle = document.getElementById('plan-advanced-toggle');
-    var planAdvancedTools = document.getElementById('plan-advanced-tools');
-    var planChoiceLabel = document.getElementById('manager-plan-choice-label');
-    var managerCycleButtons = document.querySelectorAll('[data-manager-plan-cycle]');
-    var managerScreenButtons = document.querySelectorAll('[data-manager-screen-count]');
-    var planSearch = document.getElementById('plan-filter-search');
-    var durationFilter = document.getElementById('plan-filter-duration');
-    var screensFilter = document.getElementById('plan-filter-screens');
-    var filterReset = document.getElementById('plan-filter-reset');
-    var filterEmpty = document.getElementById('plan-filter-empty');
-    var visibleCount = document.getElementById('plan-visible-count');
-    var priceMode = 'all';
-    var advancedPlanMode = false;
-    var selectedManagerCycle = 'monthly';
-    var defaultManagerScreens = Number(planBuilder && planBuilder.getAttribute('data-default-screens') || 1);
-    var selectedManagerScreens = String(Math.min(5, Math.max(1, defaultManagerScreens || 1)));
-
-    function managerCycleLabel(cycle) {
-      if (cycle === 'semiannual') return '6 أشهر';
-      if (cycle === 'annual') return 'عام دراسي';
-      return 'شهري';
-    }
-
-    function managerScreenLabel(count) {
-      if (count === '1') return 'شاشة واحدة';
-      if (count === '2') return 'شاشتان';
-      return count + ' شاشات';
-    }
-
-    function syncPlanBuilderControls() {
-      managerCycleButtons.forEach(function (button) {
-        var active = button.getAttribute('data-manager-plan-cycle') === selectedManagerCycle;
-        button.classList.toggle('is-active', active);
-        button.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-      managerScreenButtons.forEach(function (button) {
-        var active = button.getAttribute('data-manager-screen-count') === selectedManagerScreens;
-        button.classList.toggle('is-active', active);
-        button.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-      if (planChoiceLabel) {
-        planChoiceLabel.textContent = managerCycleLabel(selectedManagerCycle) + ' · ' + managerScreenLabel(selectedManagerScreens);
-      }
-    }
-
-    function applyGuidedPlanSelection(selectMatch) {
-      var expectedCode = 'school-screen-' + selectedManagerScreens + '-' + selectedManagerCycle;
-      var matchedButton = null;
-
-      document.querySelectorAll('[data-plan-option]').forEach(function (button) {
-        var matches = button.getAttribute('data-plan-code') === expectedCode;
-        button.classList.toggle('hidden', !matches);
-        if (matches) matchedButton = button;
-      });
-
-      syncPlanBuilderControls();
-      if (filterEmpty) filterEmpty.classList.toggle('hidden', !!matchedButton);
-      if (visibleCount) visibleCount.textContent = matchedButton ? 'باقة واحدة' : 'لا توجد باقة';
-
-      if (selectMatch && matchedButton && planSelect) {
-        var matchedId = matchedButton.getAttribute('data-plan-id') || '';
-        if (String(planSelect.value || '') !== String(matchedId)) {
-          planSelect.value = matchedId;
-          planSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        } else {
-          updatePlanDetails();
-        }
-      }
-    }
-
-    function setAdvancedPlanMode(enabled) {
-      advancedPlanMode = !!enabled;
-      if (planAdvancedTools) planAdvancedTools.classList.toggle('hidden', !advancedPlanMode);
-      if (planAdvancedToggle) {
-        planAdvancedToggle.setAttribute('aria-expanded', advancedPlanMode ? 'true' : 'false');
-        planAdvancedToggle.textContent = advancedPlanMode ? 'العودة للاختيار السريع' : 'استعراض كل الباقات';
-      }
-      if (advancedPlanMode) {
-        applyPlanFilters();
-      } else {
-        applyGuidedPlanSelection(true);
-      }
-    }
-
-    function durationMatches(days, mode) {
-      if (mode === 'all') return true;
-      if (mode === 'short') return days > 0 && days <= 100;
-      if (mode === 'half') return days > 100 && days <= 200;
-      if (mode === 'annual') return days >= 300 && days <= 400;
-      return days <= 0 || (days > 200 && (days < 300 || days > 400));
-    }
-
-    function applyPlanFilters() {
-      if (!advancedPlanMode) {
-        applyGuidedPlanSelection(false);
-        return;
-      }
-      var query = String(planSearch && planSearch.value || '').trim().toLocaleLowerCase('ar');
-      var durationMode = durationFilter ? durationFilter.value : 'all';
-      var requiredScreens = Number(screensFilter && screensFilter.value || 0);
-      var shown = 0;
-      var selectedStillVisible = true;
-
-      document.querySelectorAll('[data-plan-option]').forEach(function (button) {
-        var price = Number(button.getAttribute('data-plan-price') || 0);
-        var days = Number(button.getAttribute('data-plan-duration') || 0);
-        var maxRaw = button.getAttribute('data-plan-max-screens');
-        var maxScreens = maxRaw === '' || maxRaw === null ? Infinity : Number(maxRaw || 0);
-        var searchable = String(button.textContent || '').toLocaleLowerCase('ar');
-        var matches = (!query || searchable.indexOf(query) !== -1)
-          && durationMatches(days, durationMode)
-          && (!requiredScreens || maxScreens >= requiredScreens)
-          && (priceMode === 'all' || (priceMode === 'free' ? price <= 0 : price > 0));
-        button.classList.toggle('hidden', !matches);
-        if (matches) shown += 1;
-        if (planSelect && String(planSelect.value || '') === String(button.getAttribute('data-plan-id') || '') && !matches) {
-          selectedStillVisible = false;
-        }
-      });
-
-      if (planSelect && planSelect.value && !selectedStillVisible) {
-        planSelect.value = '';
-        planSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      if (filterEmpty) filterEmpty.classList.toggle('hidden', shown !== 0);
-      if (visibleCount) visibleCount.textContent = shown + (shown === 1 ? ' باقة' : ' باقات');
-    }
-
-    managerCycleButtons.forEach(function (button) {
-      button.addEventListener('click', function () {
-        selectedManagerCycle = button.getAttribute('data-manager-plan-cycle') || 'monthly';
-        if (advancedPlanMode) setAdvancedPlanMode(false);
-        else applyGuidedPlanSelection(true);
-      });
-    });
-
-    managerScreenButtons.forEach(function (button) {
-      button.addEventListener('click', function () {
-        selectedManagerScreens = button.getAttribute('data-manager-screen-count') || '1';
-        if (advancedPlanMode) setAdvancedPlanMode(false);
-        else applyGuidedPlanSelection(true);
-      });
-    });
-
-    if (planAdvancedToggle) {
-      planAdvancedToggle.addEventListener('click', function () {
-        setAdvancedPlanMode(!advancedPlanMode);
-      });
-    }
-
-    document.querySelectorAll('[data-plan-price-filter]').forEach(function (chip) {
-      chip.addEventListener('click', function () {
-        priceMode = chip.getAttribute('data-plan-price-filter') || 'all';
-        document.querySelectorAll('[data-plan-price-filter]').forEach(function (item) {
-          var active = item === chip;
-          item.classList.toggle('is-active', active);
-          item.setAttribute('aria-pressed', active ? 'true' : 'false');
-        });
-        applyPlanFilters();
-      });
-    });
-    if (planSearch) planSearch.addEventListener('input', applyPlanFilters);
-    if (durationFilter) durationFilter.addEventListener('change', applyPlanFilters);
-    if (screensFilter) screensFilter.addEventListener('change', applyPlanFilters);
-    if (filterReset) {
-      filterReset.addEventListener('click', function () {
-        if (planSearch) planSearch.value = '';
-        if (durationFilter) durationFilter.value = 'all';
-        if (screensFilter) screensFilter.value = '0';
-        priceMode = 'all';
-        document.querySelectorAll('[data-plan-price-filter]').forEach(function (chip) {
-          var active = chip.getAttribute('data-plan-price-filter') === 'all';
-          chip.classList.toggle('is-active', active);
-          chip.setAttribute('aria-pressed', active ? 'true' : 'false');
-        });
-        applyPlanFilters();
-      });
-    }
-    var initiallySelectedPlan = planSelect && planSelect.value
-      ? document.querySelector('[data-plan-option][data-plan-id="' + planSelect.value + '"]')
-      : null;
-    var initiallySelectedCode = initiallySelectedPlan ? String(initiallySelectedPlan.getAttribute('data-plan-code') || '') : '';
-    var officialCodeMatch = initiallySelectedCode.match(/^school-screen-([1-5])-(monthly|semiannual|annual)$/);
-    if (officialCodeMatch) {
-      selectedManagerScreens = officialCodeMatch[1];
-      selectedManagerCycle = officialCodeMatch[2];
-    } else if (initiallySelectedPlan) {
-      advancedPlanMode = true;
-    }
-    setAdvancedPlanMode(advancedPlanMode);
-
-    // Initialize Tab
-    setActiveTab('{% if active_request_tab == "new" %}new{% else %}renewal{% endif %}');
-  })();
-
-  // --- Copy Clipboard Tool ---
-  function copyToClipboard(text, button) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function() {
-        showCopyFeedback(button, true);
-      }).catch(function() {
-        fallbackCopy(text, button);
-      });
-    } else {
-      fallbackCopy(text, button);
-    }
-  }
-
-  function fallbackCopy(text, button) {
-    var textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-      var success = document.execCommand('copy');
-      showCopyFeedback(button, success);
-    } catch (e) {
-      showCopyFeedback(button, false);
-    }
-    document.body.removeChild(textarea);
-  }
-
-  function showCopyFeedback(button, success) {
-    var textSpan = button.querySelector('.copy-text');
-    var originalText = textSpan ? textSpan.textContent : 'نسخ';
-    
-    if(textSpan) textSpan.textContent = success ? 'تم!' : 'فشل';
-    button.classList.add(success ? 'bg-emerald-500' : 'bg-red-500', 'text-white');
-    button.classList.remove('bg-white/10', 'text-emerald-300');
-    
-    setTimeout(function() {
-      if(textSpan) textSpan.textContent = originalText;
-      button.classList.remove(success ? 'bg-emerald-500' : 'bg-red-500', 'text-white');
-      button.classList.add('bg-white/10', 'text-emerald-300');
-    }, 2000);
-  }
-
-  // Bound here rather than with an inline onclick so the page satisfies CSP.
-  document.addEventListener('click', function (event) {
-    var trigger = event.target.closest('[data-copy]');
-    if (trigger) { copyToClipboard(trigger.getAttribute('data-copy'), trigger); }
-  });
-</script>
-
-<style>
-  @keyframes shimmer {
-    100% { transform: translateX(-100%) skewX(-12deg); }
-  }
-  .animate-shimmer {
-    animation: shimmer 2s infinite linear;
-  }
-  .animate-fade-in-up {
-    animation: fadeInUp 0.6s ease-out;
-  }
-  @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .animate-bounce-slow {
-    animation: bounce 2s infinite;
-  }
-  .school-plan-builder {
-    position: relative;
-    isolation: isolate;
-    overflow: hidden;
-    margin-bottom: 1rem;
-    padding: 1.15rem;
-    border: 1px solid rgba(255, 255, 255, .1);
-    border-radius: 1.45rem;
-    background:
-      radial-gradient(circle at 10% 0%, rgba(245, 158, 11, .2), transparent 30%),
-      radial-gradient(circle at 95% 100%, rgba(16, 185, 129, .15), transparent 30%),
-      linear-gradient(145deg, #0f172a, #172554 62%, #111827);
-    color: #fff;
-    box-shadow: 0 22px 55px rgba(15, 23, 42, .2);
-  }
-  .school-plan-builder::before {
-    content: '';
-    position: absolute;
-    z-index: -1;
-    inset: 0;
-    pointer-events: none;
-    background-image: linear-gradient(rgba(255, 255, 255, .025) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .025) 1px, transparent 1px);
-    background-size: 32px 32px;
-  }
-  .school-plan-builder-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    padding-bottom: .9rem;
-    border-bottom: 1px solid rgba(255, 255, 255, .1);
-  }
-  .school-plan-builder-title {
-    display: flex;
-    align-items: center;
-    gap: .7rem;
-  }
-  .school-plan-builder-title > span {
-    display: inline-flex;
-    width: 2.5rem;
-    height: 2.5rem;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    border-radius: .85rem;
-    background: linear-gradient(135deg, #fde68a, #f59e0b);
-    color: #172554;
-    font-size: 1.05rem;
-    font-weight: 900;
-    box-shadow: 0 10px 22px rgba(245, 158, 11, .22);
-  }
-  .school-plan-builder-title p {
-    font-size: .98rem;
-    font-weight: 900;
-  }
-  .school-plan-builder-title small {
-    display: block;
-    margin-top: .15rem;
-    color: rgba(255, 255, 255, .58);
-    font-size: .68rem;
-    font-weight: 700;
-  }
-  .school-plan-advanced-toggle {
-    flex: 0 0 auto;
-    border: 1px solid rgba(255, 255, 255, .14);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, .07);
-    padding: .55rem .85rem;
-    color: rgba(255, 255, 255, .75);
-    font-size: .66rem;
-    font-weight: 900;
-    transition: border-color .2s ease, background .2s ease, color .2s ease;
-  }
-  .school-plan-advanced-toggle:hover {
-    border-color: rgba(253, 230, 138, .5);
-    background: rgba(255, 255, 255, .11);
-    color: #fff;
-  }
-  .school-plan-builder-grid {
-    display: grid;
-    grid-template-columns: 1.08fr .92fr;
-    gap: .85rem;
-  }
-  .school-plan-builder-step {
-    min-width: 0;
-    padding: .85rem;
-    border: 1px solid rgba(255, 255, 255, .08);
-    border-radius: 1.05rem;
-    background: rgba(255, 255, 255, .045);
-  }
-  .school-plan-step-label {
-    display: flex;
-    align-items: center;
-    gap: .55rem;
-    margin-bottom: .7rem;
-  }
-  .school-plan-step-label > span {
-    display: inline-flex;
-    width: 1.65rem;
-    height: 1.65rem;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    border-radius: .55rem;
-    background: rgba(255, 255, 255, .11);
-    color: #fde68a;
-    font-size: .68rem;
-    font-weight: 900;
-  }
-  .school-plan-step-label strong,
-  .school-plan-step-label small {
-    display: block;
-  }
-  .school-plan-step-label strong { font-size: .78rem; }
-  .school-plan-step-label small {
-    margin-top: .1rem;
-    color: rgba(255, 255, 255, .48);
-    font-size: .6rem;
-    font-weight: 700;
-  }
-  .school-plan-cycle-options,
-  .school-plan-screen-options {
-    display: grid;
-    gap: .45rem;
-  }
-  .school-plan-cycle-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .school-plan-screen-options { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .school-plan-cycle,
-  .school-plan-screen {
-    min-width: 0;
-    border: 1px solid rgba(255, 255, 255, .09);
-    background: rgba(255, 255, 255, .055);
-    color: rgba(255, 255, 255, .67);
-    transition: transform .2s ease, border-color .2s ease, background .2s ease, color .2s ease, box-shadow .2s ease;
-  }
-  .school-plan-cycle:hover,
-  .school-plan-screen:hover {
-    transform: translateY(-2px);
-    border-color: rgba(253, 230, 138, .35);
-    color: #fff;
-  }
-  .school-plan-cycle {
-    min-height: 4.2rem;
-    padding: .65rem .45rem;
-    border-radius: .85rem;
-    text-align: center;
-  }
-  .school-plan-cycle span,
-  .school-plan-cycle small,
-  .school-plan-screen span,
-  .school-plan-screen strong,
-  .school-plan-screen small { display: block; }
-  .school-plan-cycle span {
-    font-size: .76rem;
-    font-weight: 900;
-  }
-  .school-plan-cycle small {
-    margin-top: .3rem;
-    color: inherit;
-    font-size: .58rem;
-    font-weight: 800;
-  }
-  .school-plan-screen {
-    min-height: 4.2rem;
-    padding: .55rem .2rem;
-    border-radius: .8rem;
-    text-align: center;
-  }
-  .school-plan-screen > span { font-size: .72rem; }
-  .school-plan-screen strong {
-    margin-top: .2rem;
-    font-size: .88rem;
-  }
-  .school-plan-screen small {
-    margin-top: .1rem;
-    color: inherit;
-    font-size: .5rem;
-    font-weight: 800;
-  }
-  .school-plan-cycle.is-active,
-  .school-plan-screen.is-active {
-    border-color: #fde68a;
-    background: linear-gradient(145deg, #fde68a, #fbbf24);
-    color: #172554;
-    box-shadow: 0 10px 25px rgba(245, 158, 11, .18);
-  }
-  .school-plan-choice-summary {
-    display: flex;
-    align-items: center;
-    gap: .7rem;
-    margin-top: .85rem;
-    padding: .75rem .85rem;
-    border-radius: .95rem;
-    background: rgba(255, 255, 255, .075);
-    color: #fff;
-  }
-  .school-plan-choice-check {
-    display: inline-flex;
-    width: 1.75rem;
-    height: 1.75rem;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    background: #10b981;
-    font-size: .68rem;
-    font-weight: 900;
-  }
-  .school-plan-choice-summary small,
-  .school-plan-choice-summary strong { display: block; }
-  .school-plan-choice-summary small {
-    color: rgba(255, 255, 255, .5);
-    font-size: .55rem;
-    font-weight: 800;
-  }
-  .school-plan-choice-summary strong {
-    margin-top: .1rem;
-    font-size: .76rem;
-  }
-  .school-plan-choice-hint {
-    margin-right: auto;
-    color: #a7f3d0;
-    font-size: .6rem;
-    font-weight: 900;
-  }
-  .manager-plan-option:not(.hidden) {
-    grid-column: 1 / -1;
-    animation: managerPlanIn .26s ease-out;
-  }
-  @keyframes managerPlanIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .plan-filter-shell {
-    display: grid;
-    grid-template-columns: minmax(14rem, 1.5fr) minmax(9rem, .7fr) minmax(10rem, .8fr) auto;
-    gap: .65rem;
-    padding: .85rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 1.15rem;
-    background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
-  }
-  .plan-search-field {
-    display: flex;
-    align-items: center;
-    gap: .6rem;
-    min-height: 2.85rem;
-    padding: 0 .85rem;
-    border: 1px solid #e2e8f0;
-    border-radius: .85rem;
-    background: #fff;
-    color: #64748b;
-  }
-  .plan-search-field input {
-    width: 100%;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: #0f172a;
-    font-size: .75rem;
-  }
-  .plan-filter-select,
-  .plan-filter-reset {
-    min-height: 2.85rem;
-    border: 1px solid #e2e8f0;
-    border-radius: .85rem;
-    background: #fff;
-    padding: 0 .75rem;
-    color: #334155;
-    font-size: .72rem;
-    font-weight: 800;
-  }
-  .plan-filter-reset {
-    color: #145a6a;
-    transition: background .2s ease, border-color .2s ease;
-  }
-  .plan-filter-reset:hover { border-color: #c7d2fe; background: #eef2ff; }
-  .plan-price-filters {
-    grid-column: 1 / -1;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: .45rem;
-    padding-top: .15rem;
-  }
-  .plan-filter-chip {
-    border: 1px solid #e2e8f0;
-    border-radius: 999px;
-    background: #fff;
-    padding: .4rem .8rem;
-    color: #64748b;
-    font-size: .65rem;
-    font-weight: 900;
-    transition: .2s ease;
-  }
-  .plan-filter-chip.is-active {
-    border-color: #145a6a;
-    background: #145a6a;
-    color: #fff;
-    box-shadow: 0 7px 18px rgba(20, 90, 106, .18);
-  }
-  .payment-hub {
-    border: 1px solid #e2e8f0;
-    border-radius: 1.4rem;
-    background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
-    padding: 1rem;
-  }
-  .payment-method-selector {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: .65rem;
-  }
-  .payment-method-choice {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: .7rem;
-    min-height: 5.3rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 1rem;
-    background: #fff;
-    padding: .8rem;
-    color: #334155;
-    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
-  }
-  .payment-method-choice:hover:not(:disabled) {
-    transform: translateY(-2px);
-    border-color: #c7d2fe;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, .08);
-  }
-  .payment-method-choice.is-active {
-    border-color: #1c7a8f;
-    background: linear-gradient(135deg, #eef2ff 0%, #fff 75%);
-    box-shadow: 0 0 0 3px rgba(20, 90, 106, .13), 0 12px 28px rgba(20, 90, 106, .12);
-  }
-  .payment-method-choice.is-active::after {
-    content: '✓';
-    position: absolute;
-    top: -.4rem;
-    left: -.4rem;
-    display: flex;
-    width: 1.45rem;
-    height: 1.45rem;
-    align-items: center;
-    justify-content: center;
-    border: 3px solid #fff;
-    border-radius: 999px;
-    background: #145a6a;
-    color: #fff;
-    font-size: .58rem;
-    font-weight: 900;
-  }
-  .payment-method-choice:disabled { cursor: not-allowed; opacity: .58; background: #f8fafc; }
-  .payment-method-logo {
-    display: flex;
-    width: 2.55rem;
-    height: 2.55rem;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    border-radius: .85rem;
-    color: #fff;
-    font-size: 1rem;
-    font-weight: 900;
-  }
-  .payment-method-logo-moyasar { background: #0f172a; }
-  .payment-method-logo-tamara { overflow: hidden; }
-  .payment-method-logo-tamara img { display: block; width: 100%; height: 100%; object-fit: contain; }
-  .payment-method-logo-bank { background: #059669; }
-  .payment-card-brands {
-    display: inline-flex;
-    align-items: center;
-    gap: .3rem;
-    margin-top: .35rem;
-    vertical-align: middle;
-  }
-  .payment-card-brand {
-    display: flex;
-    width: 2.85rem;
-    height: 1.65rem;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #e2e8f0;
-    border-radius: .4rem;
-    background: #fff;
-  }
-  .payment-card-brand img { display: block; width: 80%; height: 75%; object-fit: contain; }
-  .tamara-pay-button {
-    background: linear-gradient(135deg, #ff5a78, #e11d48);
-    box-shadow: 0 12px 24px rgba(225, 29, 72, .18);
-  }
-  .tamara-pay-button:hover:not(:disabled) { filter: brightness(.96); }
-  .payment-method-status {
-    position: absolute;
-    top: .45rem;
-    left: .5rem;
-    border-radius: 999px;
-    background: #f1f5f9;
-    padding: .2rem .45rem;
-    color: #64748b;
-    font-size: .48rem;
-    font-weight: 900;
-  }
-  .payment-method-status.is-ready { background: #dcfce7; color: #047857; }
-  .payment-method-status.is-pending { background: #fef3c7; color: #b45309; }
-  .payment-method-status.is-manual { background: #e0f2fe; color: #0369a1; }
-  .payment-hub.is-free .payment-method-selector,
-  .payment-hub.is-free [data-payment-panel] { display: none !important; }
-  .bank-account-summary {
-    border-radius: 1rem;
-    background: radial-gradient(circle at top left, rgba(16, 185, 129, .18), transparent 45%), #0f172a;
-    padding: 1rem;
-    box-shadow: 0 14px 30px rgba(15, 23, 42, .13);
-  }
-  .bank-transfer-details summary::-webkit-details-marker,
-  .bank-transfer-details[open] .details-chevron,
-  .details-chevron {
-    transition: transform .2s ease;
-  }
-  @media (max-width: 640px) {
-    .school-plan-builder { padding: .85rem; border-radius: 1.15rem; }
-    .school-plan-builder-head { align-items: flex-start; }
-    .school-plan-builder-title small { max-width: 13rem; }
-    .school-plan-advanced-toggle { padding: .45rem .65rem; font-size: .58rem; }
-    .school-plan-builder-grid { grid-template-columns: 1fr; }
-    .school-plan-choice-hint { display: none; }
-    .school-plan-cycle { min-height: 3.8rem; }
-    .school-plan-screen { min-height: 3.8rem; }
-    .plan-filter-shell { grid-template-columns: 1fr; }
-    .plan-price-filters { grid-column: 1; }
-    .payment-method-selector { grid-template-columns: 1fr; }
-    .payment-method-choice { min-height: 4.8rem; }
-  }
-</style>
 {% endblock %}

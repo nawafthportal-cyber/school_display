@@ -7,10 +7,11 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import DisplayScreen, School, SupportTicket
+from core.models import DisplayScreen, School, SubscriptionPlan, SupportTicket
 from notices.models import Announcement
 from schedule.models import ClassLesson, DisplayTheme, SchoolSettings, Subject
 from subscriptions.models import SchoolSubscription
@@ -59,6 +60,16 @@ class SchoolDashboardBrowserTests(StaticLiveServerTestCase):
         fixture = fixtures.ManagerTemplateRenderTests
         school = fixture.school
         plan = SchoolSubscription.objects.get(school=school).plan
+        SubscriptionPlan.objects.update(is_active=False)
+        self.checkout_plans = [
+            SubscriptionPlan.objects.create(code=code, name=name, duration_days=days, price=price, max_screens=limit)
+            for code, name, days, price, limit in (
+                ("school-monthly", "الباقة الشهرية", 30, 139, 3),
+                ("school-semiannual", "الباقة النصف سنوية", 180, 650, 4),
+                ("school-annual", "الباقة السنوية", 365, 1100, 5),
+            )
+        ]
+        SchoolSubscription.objects.filter(school=school).update(plan=self.checkout_plans[0])
         other = School.objects.create(name="مدرسة أخرى مسموحة للمدير", slug="responsive-other")
         fixture.user.profile.schools.add(other)
         SchoolSettings.objects.create(school=other, name=other.name)
@@ -174,6 +185,37 @@ class SchoolDashboardBrowserTests(StaticLiveServerTestCase):
                         self.assertLessEqual(facts["overflow"], 1, facts)
                         self.assertEqual(facts["outside"], [], facts)
                         self.assertEqual(facts["unlabelled"], [], facts)
+
+    @override_settings(
+        MOYASAR_ENABLED=True, MOYASAR_LIVE_MODE=True,
+        MOYASAR_PUBLISHABLE_KEY="pk_test_subscription_layout", MOYASAR_SECRET_KEY="sk_test_subscription_layout",
+        TAMARA_ENABLED=True, TAMARA_API_TOKEN="test-catalog", TAMARA_NOTIFICATION_TOKEN="test-catalog",
+    )
+    def test_subscription_catalog_connects_each_duration_to_its_payment_forms(self):
+        path = dict(self.pages)["my_subscription"]
+        self.assert_page_fits(path, 320)
+        self.assertEqual(self.page.locator("[data-plan-option]").count(), 3)
+        self.assertEqual(self.page.locator("[data-manager-screen-count]").count(), 0)
+        hub = self.page.locator("#new-payment-hub")
+        self.assertTrue(hub.is_hidden())
+
+        for plan in self.checkout_plans:
+            option = self.page.locator(".subscription-plan").filter(has_text=plan.name)
+            option.click()
+            self.assertTrue(option.locator("input").is_checked())
+            self.assertTrue(hub.is_visible())
+            self.assertIn(plan.name, hub.locator("[data-checkout-summary]").inner_text())
+            self.assertEqual(hub.locator("#moyasar-plan-id").input_value(), str(plan.pk))
+            self.assertEqual(hub.locator("#tamara-plan-id").input_value(), str(plan.pk))
+            self.assertEqual(hub.locator("#bank-new-plan-id").input_value(), str(plan.pk))
+            total = hub.locator("[data-checkout-total]").inner_text()
+            self.assertEqual("".join(str(int(digit)) for digit in total if digit.isdecimal()), str(plan.price))
+
+        hub.locator('[data-payment-choice][data-payment-method="bank"]').click()
+        self.assertTrue(hub.locator('[data-payment-panel][data-payment-method="bank"]').is_visible())
+        self.assertTrue(hub.locator('[data-payment-panel][data-payment-method="moyasar"]').is_hidden())
+        self.assert_page_fits(f"{path}?plan=school-semiannual#renewal-section", 390)
+        self.assertEqual(hub.locator("#bank-new-plan-id").input_value(), str(self.checkout_plans[1].pk))
 
     def test_autosave_persists_clear_and_restore_through_the_real_endpoint(self):
         path = dict(self.pages)["timetable_day_filtered"]
