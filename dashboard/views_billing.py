@@ -11,6 +11,7 @@ from .view_helpers import *  # noqa: F401,F403  (shared view layer)
 # After the star import on purpose, so the shared view layer can never shadow
 # these with something else of the same name.
 from decimal import Decimal, InvalidOperation  # noqa: E402
+from subscriptions.access import school_max_screens  # noqa: E402
 from subscriptions.features import effective_feature_subscription, subscription_feature_rows  # noqa: E402
 from subscriptions.plan_terms import paid_plan_start_date  # noqa: E402
 
@@ -789,7 +790,10 @@ def my_subscription(request):
         except Exception:
             return None
 
-    available_plan_cards = plan_cards(available_plans)
+    available_plan_cards = sorted(
+        plan_cards(available_plans),
+        key=lambda card: (card["is_free"], card["duration_days"]),
+    )
     plans_map = {
         str(details["id"]): details
         for details in available_plan_cards
@@ -804,7 +808,6 @@ def my_subscription(request):
                 plan
                 for plan in available_plans
                 if getattr(plan, "code", "") == requested_plan_code
-                and (getattr(plan, "price", 0) or 0) > 0
             ),
             None,
         )
@@ -825,11 +828,7 @@ def my_subscription(request):
     )
     renewal_plan_obj = None if renewal_requires_new_plan else renewal_source_plan
 
-    active_request_tab = (
-        "new"
-        if requested_plan is not None
-        else ("renewal" if renewal_plan_obj is not None else "new")
-    )
+    active_request_tab = "new"
 
     if request.method == "POST":
         action = (request.POST.get("action") or "").strip()
@@ -1246,6 +1245,8 @@ def my_subscription(request):
             "plans_map": plans_map,
             "available_plan_cards": available_plan_cards,
             "requested_plan": requested_plan,
+            "selected_checkout_plan": plans_map.get(str(new_form["plan"].value())),
+            "current_screen_limit": school_max_screens(school.pk) if current_subscription else 0,
             "screens_total_count": screens_total_count,
             "screens_active_count": screens_active_count,
             "screens_live_count": screens_live_count,

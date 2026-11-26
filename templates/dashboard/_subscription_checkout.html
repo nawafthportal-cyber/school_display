@@ -1,0 +1,89 @@
+{% load l10n %}
+<section
+  class="subscription-checkout payment-hub"
+  id="{% if payment_scope == 'new' %}new-payment-hub{% else %}renewal-payment-hub{% endif %}"
+  data-payment-hub="{{ payment_scope }}"
+  data-default-method="{% if form.receipt_image.errors or form.transfer_note.errors %}bank{% elif moyasar_available %}moyasar{% elif tamara_available %}tamara{% else %}bank{% endif %}"
+  {% if plan_details.is_free %}data-free-plan{% endif %}
+  {% if not plan_details %}hidden{% endif %}
+>
+  <header class="subscription-checkout__head">
+    <div>
+      <h3 data-checkout-heading>{% if plan_details.is_free %}طلب الباقة المجانية{% else %}وسيلة الدفع{% endif %}</h3>
+      <p aria-live="polite" data-checkout-summary>{% if plan_details %}{{ plan_details.name }} · {{ plan_details.duration_label }}{% endif %}</p>
+    </div>
+    <div class="subscription-checkout__total" aria-live="polite">
+      <span>إجمالي الباقة</span>
+      <strong data-checkout-total>{% if plan_details.is_free %}مجانًا{% elif plan_details %}<bdi>{{ plan_details.price|floatformat:"-2g" }}</bdi> ر.س{% endif %}</strong>
+    </div>
+  </header>
+
+  <div data-paid-checkout {% if plan_details.is_free %}hidden{% endif %}>
+    {% include "dashboard/_payment_method_selector.html" %}
+    <div class="subscription-payment-panels">
+      {% if moyasar_available %}
+      <section class="subscription-payment-panel" data-payment-panel="{{ payment_scope }}" data-payment-method="moyasar">
+        <h4>الدفع الإلكتروني</h4>
+        {% include "dashboard/_payment_card_brands.html" %}
+        <form method="post" action="{% url 'subscriptions:moyasar_start' %}">
+          {% csrf_token %}
+          <input type="hidden" name="request_type" value="{{ payment_scope }}">
+          <input type="hidden" name="plan_id" {% if payment_scope == "new" %}id="moyasar-plan-id" data-checkout-plan{% endif %} value="{{ plan_details.id|default_if_none:''|unlocalize }}">
+          <label for="{{ payment_scope }}-moyasar-discount">كود الخصم (اختياري)</label>
+          <input class="dp-input" type="text" name="discount_code" id="{{ payment_scope }}-moyasar-discount" dir="ltr" autocomplete="off">
+          <button type="submit" class="dp-btn dp-btn--primary">متابعة الدفع الإلكتروني</button>
+        </form>
+        {% if not moyasar_live_mode %}<p class="subscription-checkout__caution">بيئة اختبار؛ لن يُفعّل اشتراك حقيقي.</p>{% endif %}
+      </section>
+      {% endif %}
+
+      {% if tamara_available %}
+      <section class="subscription-payment-panel" data-payment-panel="{{ payment_scope }}" data-payment-method="tamara">
+        <h4>الدفع عبر تمارا</h4>
+        <p>تظهر خيارات السداد النهائية بعد التحقق من أهلية الحساب.</p>
+        <form method="post" action="{% url 'subscriptions:tamara_start' %}">
+          {% csrf_token %}
+          <input type="hidden" name="request_type" value="{{ payment_scope }}">
+          <input type="hidden" name="plan_id" {% if payment_scope == "new" %}id="tamara-plan-id" data-checkout-plan{% endif %} value="{{ plan_details.id|default_if_none:''|unlocalize }}">
+          <button type="submit" class="dp-btn dp-btn--primary">متابعة الدفع عبر تمارا</button>
+        </form>
+        {% if tamara_environment == "sandbox" %}<p class="subscription-checkout__caution">بيئة تمارا التجريبية.</p>{% endif %}
+      </section>
+      {% endif %}
+
+      <section class="subscription-payment-panel" data-payment-panel="{{ payment_scope }}" data-payment-method="bank">
+        <h4>التحويل البنكي</h4>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="{{ payment_scope }}">
+          {% if payment_scope == "new" %}<input type="hidden" name="new-plan" id="bank-new-plan-id" data-checkout-plan value="{{ plan_details.id|default_if_none:''|unlocalize }}">{% endif %}
+          {% include "dashboard/_bank_transfer_account.html" %}
+          <div>
+            <label for="{{ form.receipt_image.id_for_label }}">صورة الإيصال</label>
+            {{ form.receipt_image }}
+            {% if form.receipt_image.errors %}<div class="subscription-field-error">{{ form.receipt_image.errors }}</div>{% endif %}
+            <p class="subscription-help">ارفع صورة واضحة بصيغة JPG أو PNG أو WEBP.</p>
+          </div>
+          <div>
+            <label for="{{ form.transfer_note.id_for_label }}">ملاحظة (اختياري)</label>
+            {{ form.transfer_note }}
+            {% if form.transfer_note.errors %}<div class="subscription-field-error">{{ form.transfer_note.errors }}</div>{% endif %}
+          </div>
+          <button type="submit" class="dp-btn dp-btn--primary">إرسال الإيصال للمراجعة</button>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  {% if payment_scope == "new" %}
+  <div class="subscription-payment-panel" data-free-checkout {% if not plan_details.is_free %}hidden{% endif %}>
+    <p>يمكنك تقديم الطلب مباشرةً دون رسوم.</p>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="new">
+      <input type="hidden" name="new-plan" id="free-new-plan-id" data-checkout-plan value="{{ plan_details.id|default_if_none:''|unlocalize }}">
+      <button type="submit" class="dp-btn dp-btn--primary">طلب الباقة المجانية</button>
+    </form>
+  </div>
+  {% endif %}
+</section>
